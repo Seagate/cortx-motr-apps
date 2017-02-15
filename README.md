@@ -1,8 +1,7 @@
 # clovis-sample-apps
 
-This repository containes sample Clovis applications.<br />
-
-Currently there are two applications:<br />
+This repository contains sample Clovis applications.<br />
+There are two applications:<br />
 1. c0cp.c<br />
 2. c0cat.c <br />
 <br />
