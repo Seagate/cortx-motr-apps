@@ -30,7 +30,6 @@
 /* Clovis parameters */
 static char *clovis_local_addr;
 static char *clovis_ha_addr;
-static char *clovis_confd_addr;
 static char *clovis_prof;
 static char *clovis_proc_fid;
 static char *clovis_id;
@@ -53,7 +52,6 @@ static int init_clovis(void)
 	clovis_conf.cc_is_read_verify        = false;
 	clovis_conf.cc_local_addr            = clovis_local_addr;
 	clovis_conf.cc_ha_addr               = clovis_ha_addr;
-	clovis_conf.cc_confd                 = clovis_confd_addr;
 	clovis_conf.cc_profile               = clovis_prof;
 	clovis_conf.cc_process_fid           = clovis_proc_fid;
 	clovis_conf.cc_tm_recv_queue_min_len = 16;
@@ -89,7 +87,21 @@ err_exit:
 
 static void fini_clovis(void)
 {
-	m0_clovis_fini(&clovis_instance, true);
+	m0_clovis_fini(clovis_instance, true);
+}
+
+void open_entity(struct m0_clovis_entity *entity)
+{
+	struct m0_clovis_op *ops[1] = {NULL};
+
+	m0_clovis_entity_open(entity, &ops[0]);
+	m0_clovis_op_launch(ops, 1);
+	m0_clovis_op_wait(ops[0], M0_BITS(M0_CLOVIS_OS_FAILED,
+					  M0_CLOVIS_OS_STABLE),
+			  M0_TIME_NEVER);
+	m0_clovis_op_fini(ops[0]);
+	m0_clovis_op_free(ops[0]);
+	ops[0] = NULL;
 }
 
 static int cat()
@@ -136,8 +148,13 @@ static int cat()
 
 	}
 
+	M0_SET0(&obj);
 	/* Read the requisite number of blocks from the entity */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id);
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
+			   m0_clovis_default_layout_id(clovis_instance));
+
+	open_entity(&obj.ob_entity);
+
 	/* Create the read request */
 	m0_clovis_obj_op(&obj, M0_CLOVIS_OC_READ, &ext, &data, &attr, 0, &ops[0]);
 	assert(rc == 0);
@@ -179,8 +196,8 @@ int main(int argc, char **argv)
 	int rc;
 
 	/* Get input parameters */
-	if (argc < 10) {
-		printf("Usage: c0cat laddr ha_addr confd_addr prof_opt proc_fid "
+	if (argc < 9) {
+		printf("Usage: c0cat laddr ha_addr prof_opt proc_fid "
 		       "index_dir object_id block_size block_count\n\n");
 		printf("NAME:c0cat\n\n"
 		       "Read Mero object and print contents on screen\n\n"
@@ -191,9 +208,6 @@ int main(int argc, char **argv)
                        "ha_addr    : HA service endpoint\n"
 				     "\t     Format:- NID_NODE:12345:45:1\n"
 				     "\t     Find HA service endpoint using `systemctl status mero-server-ha`\n"
-                       "confd_addr : configuration service endpoint\n"
-				     "\t     Format:- NID_NODE:12345:44:101\n"
-				     "\t     Find configuration service endpoint using `systemctl status mero-server-confd`\n"
 		       "prof_opt   : It's a profile id assigned to Clovis application.\n"
 				     "\t     It should always be '<0x7000000000000001:0>'\n"
 		       "proc_fid   : It's a process fid used by Clovis application\n"
@@ -210,13 +224,12 @@ int main(int argc, char **argv)
 
 	clovis_local_addr = argv[1];;
 	clovis_ha_addr = argv[2];
-	clovis_confd_addr = argv[3];
-	clovis_prof = argv[4];
-	clovis_proc_fid = argv[5];
-	clovis_index_dir = argv[6];
-	clovis_id = argv[7];
-	clovis_block_size = argv[8];
-	clovis_block_count = argv[9];
+	clovis_prof = argv[3];
+	clovis_proc_fid = argv[4];
+	clovis_index_dir = argv[5];
+	clovis_id = argv[6];
+	clovis_block_size = argv[7];
+	clovis_block_count = argv[8];
 
 	/* Initilise mero and Clovis */
 	rc = init_clovis();
