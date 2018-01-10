@@ -1,20 +1,17 @@
-# clovis-sample-apps
+- clovis-sample-apps
 
-This repository contains sample Clovis applications.<br />
-There are two applications:<br />
-1. c0cp.c<br />
-2. c0cat.c <br />
-<br />
-Steps to compile and execute clovis applications:<br />
-- Install build dependencies. <br />
-```
-  sudo ./install-build-deps
-```
-- Compile applications. <br />
-```
-   make
-```
-- Test applications (Assuming Mero is running) <br />
-```
-   make test=ip-address
-```
+There are three sample applications. A running instance of Mero such as singlenode Mero is a prerequisite for compiling, building and running these Clovis applications. 
+1. c0cp
+2. c0cat
+3. c0del
+
+- install build dependencies
+>> sudo ./install-build-deps
+
+- compile, build and run applications
+>> make
+>> make test
+
+- clean
+>> make clean
+
