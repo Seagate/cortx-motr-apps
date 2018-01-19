@@ -17,7 +17,7 @@ c0cat:
 	gcc c0cat.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o c0cat
 
 c0del:
-	gcc c0del.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o c0del
+	gcc c2.c c0del.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o c0del
 
 
 test: c0cp c0cat
@@ -30,7 +30,8 @@ test: c0cp c0cat
 	@echo "---"
 	cmp /tmp/8kFile /tmp/8kFile_downloaded || echo "ERROR: Test Failed !!"
 	@echo "---"
-	sudo ./c0del $(IP):12345:44:101 $(IP):12345:45:1 '<0x7000000000000001:0>' '<0x7200000000000000:0>' /tmp/ 1048577
+#	sudo ./c0del $(IP):12345:44:101 $(IP):12345:45:1 '<0x7000000000000001:0>' '<0x7200000000000000:0>' /tmp/ 1048577
+	sudo ./c0del 0 1048577
 
 clean:
 	rm -f c0cp c0cat c0del m0trace.*

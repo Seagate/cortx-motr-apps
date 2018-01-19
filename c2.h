@@ -18,48 +18,9 @@
  * Original creation date: 10-Jan-2017
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/time.h>
-#include <assert.h>
-
-#include "c2.h"
-
-
-int main(int argc, char **argv)
-{
-	int idh;
-	int idl;
-
-	/* get input parameters */
-	if (argc != 3) {
-		printf("Usage:\n");
-		printf("c0del idh idl\n");
-		return -1;
-	}
-
-	/* get object id */
-	idh = atoi(argv[1]);
-	idl = atoi(argv[2]);
-
-	/* initialize resources */
-	if (c2init() != 0) {
-		printf("error! clovis initialization failed.\n");
-		return 1;
-	}
-
-	/* delete */
-	if (objdel(idh,idl) != 0) {
-		printf("error! delete object failed.\n");
-		c2free();
-		return -1;
-	};
-
-	/* free resources*/
-	c2free();
-
-	return 0;
-}
+int c2init(void);
+void c2free(void);
+int objdel(int64_t idhi, int64_t idlo);
 
 /*
  *  Local variables:
