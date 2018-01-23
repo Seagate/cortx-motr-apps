@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# This script clean install given Mero packages.
+# It should work on Red Hat and Debian based systems.
+#
+
+if [[ "$#" -ne 1 ]]; then
+    echo "illegal number of parameters"
+    echo "$(basename $0) <rpms directory path>"
+    exit
+fi
+
+RPM1=$1mero-1.1*.rpm
+RPM2=$1mero-devel-1.1*.rpm
+
+#mero rpm
+if [ ! -e $RPM1 ]; then
+	echo $RPM1
+	echo "error! mero rpm does not exist"
+	exit
+fi
+
+#mero-devel rpm
+if [ ! -e $RPM2 ]; then
+	echo $RPM2
+	echo "error! mero-devel rpm does not exist"
+	exit
+fi
+
+
+#stop mero
+sudo m0singlenode stop
+
+#remove existing mero
+sudo yum remove -y mero mero-devel
+sudo rm -rf /etc/mero/ /var/mero
+
+#install new mero
+sudo yum install -y $RPM1 $RPM2
+sudo m0singlenode activate
+sudo m0setup -cv
+sudo m0setup -Mv
+
+#start mero
+sudo m0singlenode start
+
