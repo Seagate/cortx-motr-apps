@@ -31,8 +31,8 @@
 #endif
 
 #define MAXCHAR 256
-#define C2RCFLE "./.cappsrc"
-char c2rc[8][MAXCHAR];
+#define C0RCFLE "./.cappsrc"
+char c0rc[8][MAXCHAR];
 #define CLOVIS_MAX_BLOCK_COUNT (200)
 
 /* static variables */
@@ -389,18 +389,18 @@ int objdel(int64_t idhi, int64_t idlo)
 
 
 /*
- * c2init()
+ * c0init()
  * init clovis resources.
  */
-int c2init(void)
+int c0init(void)
 {
 	int rc;
     FILE *fp;
     char str[MAXCHAR];
-    char* filename = C2RCFLE;
+    char* filename = C0RCFLE;
     int i;
 
-	/* read c2rc file */
+	/* read c0rc file */
     fp = fopen(filename, "r");
     if (fp == NULL) {
         fprintf(stderr,"error! could not open resource file %s\n",filename);
@@ -410,12 +410,12 @@ int c2init(void)
     i = 0;
     while (fgets(str, MAXCHAR, fp) != NULL) {
     	str[strlen(str) - 1] = '\0';
-    	memset(c2rc[i], 0x00, MAXCHAR);
-    	strncpy(c2rc[i], str, MAXCHAR);
+    	memset(c0rc[i], 0x00, MAXCHAR);
+    	strncpy(c0rc[i], str, MAXCHAR);
 
 #if DEBUG
     	fprintf(stderr,"%s", str);
-    	fprintf(stderr,"%s", c2rc[i]);
+    	fprintf(stderr,"%s", c0rc[i]);
     	fprintf(stderr,"\n");
 #endif
 
@@ -426,11 +426,11 @@ int c2init(void)
 
 	clovis_conf.cc_is_oostore            = false;
 	clovis_conf.cc_is_read_verify        = false;
-	clovis_conf.cc_local_addr            = c2rc[0];	/* clovis_local_addr	*/
-	clovis_conf.cc_ha_addr               = c2rc[1];	/* clovis_ha_addr		*/
-	clovis_conf.cc_profile               = c2rc[2];	/* clovis_prof			*/
-	clovis_conf.cc_process_fid           = c2rc[3];	/* clovis_proc_fid		*/
-	clovis_conf.cc_idx_service_conf      = c2rc[4]; /* clovis_index_dir		*/
+	clovis_conf.cc_local_addr            = c0rc[0];	/* clovis_local_addr	*/
+	clovis_conf.cc_ha_addr               = c0rc[1];	/* clovis_ha_addr		*/
+	clovis_conf.cc_profile               = c0rc[2];	/* clovis_prof			*/
+	clovis_conf.cc_process_fid           = c0rc[3];	/* clovis_proc_fid		*/
+	clovis_conf.cc_idx_service_conf      = c0rc[4]; /* clovis_index_dir		*/
 	clovis_conf.cc_tm_recv_queue_min_len = 16;
 	clovis_conf.cc_max_rpc_msg_size      = M0_RPC_DEF_MAX_RPC_MSG_SIZE;
 	clovis_conf.cc_idx_service_id        = M0_CLOVIS_IDX_MOCK;
@@ -469,10 +469,10 @@ int c2init(void)
 }
 
 /*
- * c2free()
+ * c0free()
  * free clovis resources.
  */
-void c2free(void)
+void c0free(void)
 {
 	m0_clovis_fini(clovis_instance, true);
 	return;
