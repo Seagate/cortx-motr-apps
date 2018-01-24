@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "c2.h"
+#include "capps.h"
 
 /* main */
 int main(int argc, char **argv)
@@ -33,8 +33,8 @@ int main(int argc, char **argv)
 
 	/* check input */
 	if (argc != 5) {
-		printf("Usage:\n");
-		printf("c0cat idh idl bsz cnt\n");
+		fprintf(stderr,"Usage:\n");
+		fprintf(stderr,"c0cat idh idl bsz cnt\n");
 		return -1;
 	}
 
@@ -46,13 +46,13 @@ int main(int argc, char **argv)
 
 	/* initialize resources */
 	if (c2init() != 0) {
-		printf("error! clovis initialization failed.\n");
+		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
 
 	/* cat */
 	if (objcat(idh,idl,bsz,cnt) != 0) {
-		printf("error! cat object failed.\n");
+		fprintf(stderr,"error! cat object failed.\n");
 		c2free();
 		return -3;
 	};

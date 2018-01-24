@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "c2.h"
+#include "capps.h"
 
 
 int main(int argc, char **argv)
@@ -31,8 +31,8 @@ int main(int argc, char **argv)
 
 	/* check input */
 	if (argc != 3) {
-		printf("Usage:\n");
-		printf("c0del idh idl\n");
+		fprintf(stderr,"Usage:\n");
+		fprintf(stderr,"c0del idh idl\n");
 		return -1;
 	}
 
@@ -42,13 +42,13 @@ int main(int argc, char **argv)
 
 	/* initialize resources */
 	if (c2init() != 0) {
-		printf("error! clovis initialization failed.\n");
+		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
 
 	/* delete */
 	if (objdel(idh,idl) != 0) {
-		printf("error! delete object failed.\n");
+		fprintf(stderr,"error! delete object failed.\n");
 		c2free();
 		return -3;
 	};

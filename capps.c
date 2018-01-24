@@ -31,8 +31,9 @@
 #endif
 
 #define MAXCHAR 256
-#define C2RCFLE "./.c2rc"
+#define C2RCFLE "./.cappsrc"
 char c2rc[8][MAXCHAR];
+#define CLOVIS_MAX_BLOCK_COUNT (200)
 
 /* static variables */
 static struct m0_clovis          *clovis_instance = NULL;
@@ -61,6 +62,192 @@ static int open_entity(struct m0_clovis_entity *entity)
 	ops[0] = NULL;
 
 	return rc;
+}
+
+/*
+ * create_object()
+ * create clovis object.
+ */
+static int create_object(struct m0_uint128 id)
+{
+	int                  rc;
+	struct m0_clovis_obj obj;
+	struct m0_clovis_op *ops[1] = {NULL};
+
+	memset(&obj, 0, sizeof(struct m0_clovis_obj));
+
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
+			   m0_clovis_default_layout_id(clovis_instance));
+
+	rc = open_entity(&obj.ob_entity);
+	fprintf(stderr,"error! [%d]\n", rc);
+	if (rc > 0) {
+		fprintf(stderr,"error! [%d]\n", rc);
+		fprintf(stderr,"object already exists\n");
+		return rc;
+	}
+
+	m0_clovis_entity_create(&obj.ob_entity, &ops[0]);
+
+	m0_clovis_op_launch(ops, ARRAY_SIZE(ops));
+
+	rc = m0_clovis_op_wait(
+		ops[0], M0_BITS(M0_CLOVIS_OS_FAILED, M0_CLOVIS_OS_STABLE),
+		m0_time_from_now(3,0));
+
+	m0_clovis_op_fini(ops[0]);
+	m0_clovis_op_free(ops[0]);
+	m0_clovis_entity_fini(&obj.ob_entity);
+
+	return 0;
+}
+
+static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz)
+{
+	int i;
+	int rc;
+	int nr_blocks;
+
+	nr_blocks = data->ov_vec.v_nr;
+	for (i = 0; i < nr_blocks; i++) {
+		rc = fread(data->ov_buf[i], bsz, 1, fp);
+		if (rc != 1)
+			break;
+
+		if (feof(fp))
+			break;
+	}
+
+	return i;
+}
+
+static int write_data_to_object(struct m0_uint128 id,
+				struct m0_indexvec *ext,
+				struct m0_bufvec *data,
+				struct m0_bufvec *attr)
+{
+	int                  rc;
+	struct m0_clovis_obj obj;
+	struct m0_clovis_op *ops[1] = {NULL};
+
+	memset(&obj, 0, sizeof(struct m0_clovis_obj));
+
+	/* Set the object entity we want to write */
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
+			   m0_clovis_default_layout_id(clovis_instance));
+
+	open_entity(&obj.ob_entity);
+
+	/* Create the write request */
+	m0_clovis_obj_op(&obj, M0_CLOVIS_OC_WRITE,
+			 ext, data, attr, 0, &ops[0]);
+
+	/* Launch the write request*/
+	m0_clovis_op_launch(ops, 1);
+
+	/* wait */
+	rc = m0_clovis_op_wait(ops[0],
+			M0_BITS(M0_CLOVIS_OS_FAILED,
+				M0_CLOVIS_OS_STABLE),
+			M0_TIME_NEVER);
+
+	/* fini and release */
+	m0_clovis_op_fini(ops[0]);
+	m0_clovis_op_free(ops[0]);
+	m0_clovis_entity_fini(&obj.ob_entity);
+
+	return rc;
+}
+
+
+/*
+ * objcpy()
+ * copy to an object.
+ */
+int objcpy(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
+{
+	int                i;
+	int                rc;
+	int                block_count;
+	uint64_t           last_index;
+	struct m0_uint128  id;
+	struct m0_indexvec ext;
+	struct m0_bufvec   data;
+	struct m0_bufvec   attr;
+	FILE              *fp;
+
+	/* open src file */
+    fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        fprintf(stderr,"error! could not open input file %s\n",filename);
+        return 1;
+    }
+
+	/* ids */
+	id.u_hi = idhi;
+	id.u_lo = idlo;
+
+    /* create object */
+	rc = create_object(id);
+	if (rc != 0) {
+		fprintf(stderr, "Can't create object!\n");
+		fclose(fp);
+		return rc;
+	}
+
+	last_index = 0;
+	while (cnt > 0) {
+		block_count = (cnt > CLOVIS_MAX_BLOCK_COUNT)?
+			      CLOVIS_MAX_BLOCK_COUNT:cnt;
+
+		/* Allocate block_count * 4K data buffer. */
+		rc = m0_bufvec_alloc(&data, block_count, bsz);
+		if (rc != 0)
+			return rc;
+
+		/* Allocate bufvec and indexvec for write. */
+		rc = m0_bufvec_alloc(&attr, block_count, 1);
+		if(rc != 0)
+			return rc;
+
+		rc = m0_indexvec_alloc(&ext, block_count);
+		if (rc != 0)
+			return rc;
+
+		/*
+		 * Prepare indexvec for write: <clovis_block_count> from the
+		 * beginning of the object.
+		 */
+		for (i = 0; i < block_count; i++) {
+			ext.iv_index[i] = last_index ;
+			ext.iv_vec.v_count[i] = bsz;
+			last_index += bsz;
+
+			/* we don't want any attributes */
+			attr.ov_vec.v_count[i] = 0;
+		}
+
+		/* Read data from source file. */
+		rc = read_data_from_file(fp, &data, bsz);
+		assert(rc == block_count);
+
+		/* Copy data to the object*/
+		rc = write_data_to_object(id, &ext, &data, &attr);
+		if (rc != 0) {
+			fprintf(stderr, "Writing to object failed!\n");
+			return rc;
+		}
+
+		/* Free bufvec's and indexvec's */
+		m0_indexvec_free(&ext);
+		m0_bufvec_free(&data);
+		m0_bufvec_free(&attr);
+
+		cnt -= block_count;
+	}
+
+    fclose(fp);
+    return 0;
 }
 
 /*
@@ -119,8 +306,8 @@ int objcat(int64_t idhi, int64_t idlo, int bsz, int cnt)
 	/* open entity */
 	rc = open_entity(&obj.ob_entity);
 	if (rc < 0) {
-		printf("error! [%d]\n", rc);
-		printf("object not found\n");
+		fprintf(stderr,"error! [%d]\n", rc);
+		fprintf(stderr,"object not found\n");
 		return rc;
 	}
 
@@ -181,8 +368,8 @@ int objdel(int64_t idhi, int64_t idlo)
 			   m0_clovis_default_layout_id(clovis_instance));
 	rc = open_entity(&obj.ob_entity);
 	if (rc < 0) {
-		printf("error! [%d]\n", rc);
-		printf("object not found\n");
+		fprintf(stderr,"error! [%d]\n", rc);
+		fprintf(stderr,"object not found\n");
 		return rc;
 	}
 
@@ -216,7 +403,7 @@ int c2init(void)
 	/* read c2rc file */
     fp = fopen(filename, "r");
     if (fp == NULL) {
-        printf("error! could not open resource file %s\n",filename);
+        fprintf(stderr,"error! could not open resource file %s\n",filename);
         return 1;
     }
 
@@ -227,9 +414,9 @@ int c2init(void)
     	strncpy(c2rc[i], str, MAXCHAR);
 
 #if DEBUG
-    	printf("%s", str);
-    	printf("%s", c2rc[i]);
-    	printf("\n");
+    	fprintf(stderr,"%s", str);
+    	fprintf(stderr,"%s", c2rc[i]);
+    	fprintf(stderr,"\n");
 #endif
 
     	i++;
@@ -250,19 +437,19 @@ int c2init(void)
 	clovis_conf.cc_layout_id 	     	 = 0;
 
 #if DEBUG
-	printf("---\n");
-    printf("%s", (char *)clovis_conf.cc_local_addr);
-    printf("%s", (char *)clovis_conf.cc_ha_addr);
-    printf("%s", (char *)clovis_conf.cc_profile);
-    printf("%s", (char *)clovis_conf.cc_process_fid);
-    printf("%s", (char *)clovis_conf.cc_idx_service_conf);
-	printf("---\n");
+	fprintf(stderr,"---\n");
+    fprintf(stderr,"%s", (char *)clovis_conf.cc_local_addr);
+    fprintf(stderr,"%s", (char *)clovis_conf.cc_ha_addr);
+    fprintf(stderr,"%s", (char *)clovis_conf.cc_profile);
+    fprintf(stderr,"%s", (char *)clovis_conf.cc_process_fid);
+    fprintf(stderr,"%s", (char *)clovis_conf.cc_idx_service_conf);
+	fprintf(stderr,"---\n");
 #endif
 
 	/* clovis instance */
 	rc = m0_clovis_init(&clovis_instance, &clovis_conf, true);
 	if (rc != 0) {
-		printf("Failed to initilise Clovis\n");
+		fprintf(stderr,"Failed to initilise Clovis\n");
 		return rc;
 	}
 
@@ -272,7 +459,7 @@ int c2init(void)
 				 clovis_instance);
 	rc = clovis_container.co_realm.re_entity.en_sm.sm_rc;
 	if (rc != 0) {
-		printf("Failed to open uber realm\n");
+		fprintf(stderr,"Failed to open uber realm\n");
 		return rc;
 	}
 
