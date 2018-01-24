@@ -18,10 +18,8 @@
  * Original creation date: 10-Jan-2017
  */
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <sys/time.h>
-#include <assert.h>
+#include <stdlib.h>
 
 #include "c2.h"
 
@@ -31,33 +29,34 @@ int main(int argc, char **argv)
 	int idh;
 	int idl;
 
-	/* get input parameters */
+	/* check input */
 	if (argc != 3) {
 		printf("Usage:\n");
 		printf("c0del idh idl\n");
 		return -1;
 	}
 
-	/* get object id */
+	/* set input */
 	idh = atoi(argv[1]);
 	idl = atoi(argv[2]);
 
 	/* initialize resources */
 	if (c2init() != 0) {
 		printf("error! clovis initialization failed.\n");
-		return 1;
+		return -2;
 	}
 
 	/* delete */
 	if (objdel(idh,idl) != 0) {
 		printf("error! delete object failed.\n");
 		c2free();
-		return -1;
+		return -3;
 	};
 
 	/* free resources*/
 	c2free();
 
+	/* success */
 	return 0;
 }
 

@@ -3,6 +3,8 @@
 # This script clean install given Mero packages.
 # It should work on Red Hat and Debian based systems.
 #
+# Ganesan Umanesan <ganesan.umanesan@seagate.com>
+# 23/01/2017
 
 if [[ "$#" -ne 1 ]]; then
     echo "illegal number of parameters"

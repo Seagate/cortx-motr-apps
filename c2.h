@@ -21,6 +21,8 @@
 int c2init(void);
 void c2free(void);
 int objdel(int64_t idhi, int64_t idlo);
+int objcat(int64_t idhi, int64_t idlo, int bsz, int cnt);
+
 
 /*
  *  Local variables:
