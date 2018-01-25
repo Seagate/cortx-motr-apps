@@ -26,11 +26,11 @@
 /* main */
 int main(int argc, char **argv)
 {
-	int idh;	/* object id high 	*/
-	int idl;	/* object is low	*/
-	int bsz;	/* block size 		*/
-	int cnt;	/* count			*/
-	char *fname; /* input filename 	*/
+	int idh;		/* object id high 	*/
+	int idl;		/* object is low	*/
+	int bsz;		/* block size 		*/
+	int cnt;		/* count			*/
+	char *fname;	/* input filename 	*/
 
 	/* check input */
 	if (argc != 6) {

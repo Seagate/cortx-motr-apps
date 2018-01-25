@@ -23,11 +23,11 @@
 
 #include "capps.h"
 
-
+/* main */
 int main(int argc, char **argv)
 {
-	int idh;
-	int idl;
+	int idh;	/* object id high 	*/
+	int idl;	/* object id low 	*/
 
 	/* check input */
 	if (argc != 3) {
