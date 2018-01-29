@@ -33,8 +33,22 @@ if [[ ! ${IP} ]]; then
 	exit
 fi
 
+echo '#local address'
 echo ${IP}:12345:44:101
+echo
+
+echo '#ha address'
 echo ${IP}:12345:45:1
+echo
+
+echo '#profile id'
 echo '<0x7000000000000001:0>'
+echo
+
+echo '#process id'
 echo '<0x7200000000000000:0>' 
+echo
+
+echo '#tmp directory'
 echo '/tmp/' 
+echo

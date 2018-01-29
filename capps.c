@@ -18,8 +18,10 @@
  * Original creation date: 10-Jan-2017
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 #include <sys/time.h>
 #include <assert.h>
 
@@ -30,9 +32,9 @@
 #define DEBUG 0
 #endif
 
-#define MAXCHAR 256
+#define MAXSIZE 256
 #define C0RCFLE "./.cappsrc"
-char c0rc[8][MAXCHAR];
+char c0rc[8][MAXSIZE];
 #define CLOVIS_MAX_BLOCK_COUNT (200)
 
 /* static variables */
@@ -40,6 +42,13 @@ static struct m0_clovis          *clovis_instance = NULL;
 static struct m0_clovis_container clovis_container;
 static struct m0_clovis_realm     clovis_uber_realm;
 static struct m0_clovis_config    clovis_conf;
+
+/*
+ *******************************************************************************
+ * STATIC FUNCTION PROTOTYPES
+ *******************************************************************************
+ */
+static char *trim(char *str);
 
 
 /*
@@ -396,7 +405,8 @@ int c0init(void)
 {
 	int rc;
     FILE *fp;
-    char str[MAXCHAR];
+    char *str=NULL;
+    char buf[MAXSIZE];
     char* filename = C0RCFLE;
     int i;
 
@@ -408,16 +418,24 @@ int c0init(void)
     }
 
     i = 0;
-    while (fgets(str, MAXCHAR, fp) != NULL) {
-    	str[strlen(str) - 1] = '\0';
-    	memset(c0rc[i], 0x00, MAXCHAR);
-    	strncpy(c0rc[i], str, MAXCHAR);
+    while (fgets(buf, MAXSIZE, fp) != NULL) {
 
-#if DEBUG
-    	fprintf(stderr,"%s", str);
-    	fprintf(stderr,"%s", c0rc[i]);
+    	#if DEBUG
+    	fprintf(stderr,"rd:->%s<-", buf);
     	fprintf(stderr,"\n");
-#endif
+		#endif
+
+    	str = trim(buf);
+    	if(str[0] == '#') continue;		/* ignore comments 		*/
+    	if(strlen(str) == 0) continue;	/* ignore empty space 	*/
+
+    	memset(c0rc[i], 0x00, MAXSIZE);
+    	strncpy(c0rc[i], str, MAXSIZE);
+
+		#if DEBUG
+    	fprintf(stderr,"wr:->%s<-", c0rc[i]);
+    	fprintf(stderr,"\n");
+		#endif
 
     	i++;
     	if(i==8) break;
@@ -436,15 +454,15 @@ int c0init(void)
 	clovis_conf.cc_idx_service_id        = M0_CLOVIS_IDX_MOCK;
 	clovis_conf.cc_layout_id 	     	 = 0;
 
-#if DEBUG
-	fprintf(stderr,"---\n");
-    fprintf(stderr,"%s", (char *)clovis_conf.cc_local_addr);
-    fprintf(stderr,"%s", (char *)clovis_conf.cc_ha_addr);
-    fprintf(stderr,"%s", (char *)clovis_conf.cc_profile);
-    fprintf(stderr,"%s", (char *)clovis_conf.cc_process_fid);
+	#if DEBUG
+	fprintf(stderr,"\n---\n");
+    fprintf(stderr,"%s,", (char *)clovis_conf.cc_local_addr);
+    fprintf(stderr,"%s,", (char *)clovis_conf.cc_ha_addr);
+    fprintf(stderr,"%s,", (char *)clovis_conf.cc_profile);
+    fprintf(stderr,"%s,", (char *)clovis_conf.cc_process_fid);
     fprintf(stderr,"%s", (char *)clovis_conf.cc_idx_service_conf);
-	fprintf(stderr,"---\n");
-#endif
+	fprintf(stderr,"\n---\n");
+	#endif
 
 	/* clovis instance */
 	rc = m0_clovis_init(&clovis_instance, &clovis_conf, true);
@@ -477,6 +495,47 @@ void c0free(void)
 	m0_clovis_fini(clovis_instance, true);
 	return;
 }
+
+
+/*
+ *******************************************************************************
+ * UTILITY FUNCTIONS
+ *******************************************************************************
+ */
+
+/*
+ * trim()
+ * trim leading/trailing white spaces.
+ */
+static char *trim(char *str)
+{
+	char *end;
+
+	/* null */
+	if(!str) return str;
+
+	/* trim leading spaces */
+	while(isspace((unsigned char)*str)) str++;
+
+	/* all spaces */
+	if(*str == 0) return str;
+
+	/* trim trailing spaces, and */
+	/* write new null terminator */
+	end = str + strlen(str) - 1;
+	while(end > str && isspace((unsigned char)*end)) end--;
+	*(end+1) = 0;
+
+	/* success */
+	return str;
+}
+
+/*
+ *******************************************************************************
+ * END
+ *******************************************************************************
+ */
+
 
 /*
  *  Local variables:
