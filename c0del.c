@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "capps.h"
 
@@ -35,6 +36,11 @@ int main(int argc, char **argv)
 		fprintf(stderr,"c0del idh idl\n");
 		return -1;
 	}
+
+	/* c0rcfile
+	 * overwrite .cappsrc to a .[app]rc file.
+	 */
+	sprintf(c0rcfile,".%src",basename(argv[0]));
 
 	/* set input */
 	idh = atoi(argv[1]);
@@ -57,6 +63,7 @@ int main(int argc, char **argv)
 	c0free();
 
 	/* success */
+	fprintf(stderr,"%s success\n",basename(argv[0]));
 	return 0;
 }
 

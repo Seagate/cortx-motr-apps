@@ -22,9 +22,9 @@ illegal number of parameters
 clean_install_mero <rpms directory path>
 >> ./clean_install_mero ./rpms/jenkins-OSAINT_mero-1400-29-g7a51cbd/
 
-- clovis apps resource file <.cappsrc>
-Clovis applications require a .cappsrc file residing in the same directory where the application is executed. This resource file contains all clovis related resource parameters for running a clovis application on that particular client machine. The this file can be generated using the cappsrcgen utility.
->>./cappsrcgen > .cappsrc
+- clovis apps resource file <.[app]rc>
+Each Clovis application requires a clovis resource file residing in the same directory where the application is executed. This resource file contains all clovis related resource parameters for running a clovis application on that particular client machine. This file can be generated using the cappsrcgen utility for dev VMs. The name of the file should be .[application name]rc. Replace the application name with your application's basename. A c0cp example shown below:
+>>./cappsrcgen > .c0cprc
 [sudo] password for seagate: 
 >>cat .cappsrc
 10.0.2.15@tcp:12345:44:101
@@ -32,3 +32,4 @@ Clovis applications require a .cappsrc file residing in the same directory where
 <0x7000000000000001:0>
 <0x7200000000000000:0>
 /tmp/
+

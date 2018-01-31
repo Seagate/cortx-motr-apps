@@ -24,6 +24,8 @@ int objdel(int64_t idhi, int64_t idlo);
 int objcat(int64_t idhi, int64_t idlo, int bsz, int cnt);
 int objcpy(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt);
 
+/* c0rcfile */
+extern char c0rcfile[256];
 
 /*
  *  Local variables:

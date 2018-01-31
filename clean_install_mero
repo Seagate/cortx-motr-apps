@@ -56,6 +56,8 @@ sudo m0singlenode stop
 #remove existing mero
 sudo yum remove -y mero mero-devel
 sudo rm -rf /etc/mero/ /var/mero
+sudo umount /mnt/m0t1fs
+sudo rm -rf /mnt/m0t1fs
 
 #install new mero
 sudo yum install -y $RPM1 $RPM2

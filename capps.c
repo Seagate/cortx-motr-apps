@@ -34,14 +34,19 @@
 
 #define MAXSIZE 256
 #define C0RCFLE "./.cappsrc"
-char c0rc[8][MAXSIZE];
 #define CLOVIS_MAX_BLOCK_COUNT (200)
+
+/* global variables */
+char c0rcfile[256] = C0RCFLE;
+
 
 /* static variables */
 static struct m0_clovis          *clovis_instance = NULL;
 static struct m0_clovis_container clovis_container;
 static struct m0_clovis_realm     clovis_uber_realm;
 static struct m0_clovis_config    clovis_conf;
+
+static char c0rc[8][MAXSIZE];
 
 /*
  *******************************************************************************
@@ -89,7 +94,7 @@ static int create_object(struct m0_uint128 id)
 			   m0_clovis_default_layout_id(clovis_instance));
 
 	rc = open_entity(&obj.ob_entity);
-	fprintf(stderr,"error! [%d]\n", rc);
+	fprintf(stderr,"create_object() info! [%d]\n", rc);
 	if (rc > 0) {
 		fprintf(stderr,"error! [%d]\n", rc);
 		fprintf(stderr,"object already exists\n");
@@ -411,6 +416,7 @@ int c0init(void)
     int i;
 
 	/* read c0rc file */
+    filename = c0rcfile;
     fp = fopen(filename, "r");
     if (fp == NULL) {
         fprintf(stderr,"error! could not open resource file %s\n",filename);
