@@ -33,3 +33,27 @@ Each Clovis application requires a clovis resource file residing in the same dir
 <0x7200000000000000:0>
 /tmp/
 
+- How to generate resource files on the Sage cluster?
+Pre-registration with Sage userID and application names is required. Once registered the sage-user-application-assignment script can be used on the CMU to generate this information.This script takes Username, app name and the client IP as input and outputs the required resource information. See example below:
+
+[sage0004@sage-cmu]$ sage-user-application-assignment ganesan c0del 172.18.1.21
+#
+# USER: ganesan
+# Application: c0rm
+#
+
+#local address
+172.18.1.21@tcp:12345:41:304
+
+#ha address
+172.18.1.21@tcp:12345:34:101
+
+#profile id
+<0x7000000000000001:0x1>
+
+#process id
+<0x7200000000000001:0x3b>
+
+#tmp
+/tmp/
+
