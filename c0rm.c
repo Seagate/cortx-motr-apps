@@ -27,8 +27,8 @@
 /* main */
 int main(int argc, char **argv)
 {
-	int idh;	/* object id high 	*/
-	int idl;	/* object id low 	*/
+	int64_t idh;	/* object id high 	*/
+	int64_t idl;	/* object id low 	*/
 
 	/* check input */
 	if (argc != 3) {
@@ -43,8 +43,8 @@ int main(int argc, char **argv)
 	sprintf(c0rcfile,".%src",basename(argv[0]));
 
 	/* set input */
-	idh = atoi(argv[1]);
-	idl = atoi(argv[2]);
+	idh = atoll(argv[1]);
+	idl = atoll(argv[2]);
 
 	/* initialize resources */
 	if (c0init() != 0) {

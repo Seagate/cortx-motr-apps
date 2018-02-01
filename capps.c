@@ -94,11 +94,10 @@ static int create_object(struct m0_uint128 id)
 			   m0_clovis_default_layout_id(clovis_instance));
 
 	rc = open_entity(&obj.ob_entity);
-	fprintf(stderr,"create_object() info! [%d]\n", rc);
-	if (rc > 0) {
+	if (!(rc < 0)) {
 		fprintf(stderr,"error! [%d]\n", rc);
 		fprintf(stderr,"object already exists\n");
-		return rc;
+		return 1;
 	}
 
 	m0_clovis_entity_create(&obj.ob_entity, &ops[0]);
@@ -204,7 +203,7 @@ int objcpy(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
     /* create object */
 	rc = create_object(id);
 	if (rc != 0) {
-		fprintf(stderr, "Can't create object!\n");
+		fprintf(stderr, "can't create object!\n");
 		fclose(fp);
 		return rc;
 	}
@@ -248,7 +247,7 @@ int objcpy(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 		/* Copy data to the object*/
 		rc = write_data_to_object(id, &ext, &data, &attr);
 		if (rc != 0) {
-			fprintf(stderr, "Writing to object failed!\n");
+			fprintf(stderr, "writing to object failed!\n");
 			return rc;
 		}
 
@@ -473,7 +472,7 @@ int c0init(void)
 	/* clovis instance */
 	rc = m0_clovis_init(&clovis_instance, &clovis_conf, true);
 	if (rc != 0) {
-		fprintf(stderr,"Failed to initilise Clovis\n");
+		fprintf(stderr,"failed to initilise Clovis\n");
 		return rc;
 	}
 
@@ -483,7 +482,7 @@ int c0init(void)
 				 clovis_instance);
 	rc = clovis_container.co_realm.re_entity.en_sm.sm_rc;
 	if (rc != 0) {
-		fprintf(stderr,"Failed to open uber realm\n");
+		fprintf(stderr,"failed to open uber realm\n");
 		return rc;
 	}
 

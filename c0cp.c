@@ -27,8 +27,8 @@
 /* main */
 int main(int argc, char **argv)
 {
-	int idh;		/* object id high 	*/
-	int idl;		/* object is low	*/
+	int64_t idh;	/* object id high 	*/
+	int64_t idl;	/* object is low	*/
 	int bsz;		/* block size 		*/
 	int cnt;		/* count			*/
 	char *fname;	/* input filename 	*/
@@ -46,8 +46,8 @@ int main(int argc, char **argv)
 	sprintf(c0rcfile,".%src",basename(argv[0]));
 
 	/* set input */
-	idh = atoi(argv[1]);
-	idl = atoi(argv[2]);
+	idh = atoll(argv[1]);
+	idl = atoll(argv[2]);
 	bsz = atoi(argv[4]);
 	cnt = atoi(argv[5]);
 	fname = argv[3];
