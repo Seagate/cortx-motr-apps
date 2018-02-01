@@ -28,7 +28,7 @@ CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing
 CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable 
 CFLAGS += -rdynamic 
 
-all: c0cp c0cat c0del
+all: c0cp c0cat c0rm
 .PHONY: all
 
 c0cp:
@@ -37,11 +37,11 @@ c0cp:
 c0cat:
 	gcc capps.c c0cat.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o c0cat
 
-c0del:
-	gcc capps.c c0del.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o c0del
+c0rm:
+	gcc capps.c c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o c0rm
 
 
-test: c0cp c0cat c0del
+test: c0cp c0cat c0rm
 	@echo $(IP)
 	sudo dd if=/dev/urandom of=/tmp/8kFile bs=$(BSZ) count=$(CNT)
 	@echo "#####"
@@ -53,8 +53,8 @@ test: c0cp c0cat c0del
 	@echo "#####"
 	cmp /tmp/8kFile /tmp/8kFile_downloaded || echo "ERROR: Test Failed !!"
 	@echo "#####"
-	sudo ./c0del 0 1048577
+	sudo ./c0rm 0 1048577
 
 clean:
-	rm -f c0cp c0cat c0del m0trace.*
+	rm -f c0cp c0cat c0rm m0trace.*
 
