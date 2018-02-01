@@ -448,7 +448,7 @@ int c0init(void)
     }
     fclose(fp);
 
-	clovis_conf.cc_is_oostore            = false;
+	clovis_conf.cc_is_oostore            = true;	/* object only store	*/
 	clovis_conf.cc_is_read_verify        = false;
 	clovis_conf.cc_local_addr            = c0rc[0];	/* clovis_local_addr	*/
 	clovis_conf.cc_ha_addr               = c0rc[1];	/* clovis_ha_addr		*/
