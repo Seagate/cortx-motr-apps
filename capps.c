@@ -32,12 +32,13 @@
 #define DEBUG 0
 #endif
 
-#define MAXSIZE 256
+#define SZC0RCSTR  256
+#define SZC0RCFILE 256
 #define C0RCFLE "./.cappsrc"
 #define CLOVIS_MAX_BLOCK_COUNT (200)
 
 /* global variables */
-char c0rcfile[256] = C0RCFLE;
+char c0rcfile[SZC0RCFILE] = C0RCFLE;
 
 
 /* static variables */
@@ -46,7 +47,7 @@ static struct m0_clovis_container clovis_container;
 static struct m0_clovis_realm     clovis_uber_realm;
 static struct m0_clovis_config    clovis_conf;
 
-static char c0rc[8][MAXSIZE];
+static char c0rc[8][SZC0RCSTR];
 
 /*
  *******************************************************************************
@@ -410,7 +411,7 @@ int c0init(void)
 	int rc;
     FILE *fp;
     char *str=NULL;
-    char buf[MAXSIZE];
+    char buf[SZC0RCSTR];
     char* filename = C0RCFLE;
     int i;
 
@@ -423,7 +424,7 @@ int c0init(void)
     }
 
     i = 0;
-    while (fgets(buf, MAXSIZE, fp) != NULL) {
+    while (fgets(buf, SZC0RCSTR, fp) != NULL) {
 
     	#if DEBUG
     	fprintf(stderr,"rd:->%s<-", buf);
@@ -434,8 +435,8 @@ int c0init(void)
     	if(str[0] == '#') continue;		/* ignore comments 		*/
     	if(strlen(str) == 0) continue;	/* ignore empty space 	*/
 
-    	memset(c0rc[i], 0x00, MAXSIZE);
-    	strncpy(c0rc[i], str, MAXSIZE);
+    	memset(c0rc[i], 0x00, SZC0RCSTR);
+    	strncpy(c0rc[i], str, SZC0RCSTR);
 
 		#if DEBUG
     	fprintf(stderr,"wr:->%s<-", c0rc[i]);
@@ -500,6 +501,39 @@ void c0free(void)
 	m0_clovis_fini(clovis_instance, true);
 	return;
 }
+
+/*
+ * void c0apps_setrc()
+ * set c0apps resource filename
+ */
+int c0apps_setrc(char *rcfile)
+{
+	/* null */
+	if(!rcfile) {
+		fprintf(stderr, "error! null rc filename.\n");
+		return 1;
+	}
+
+	/* update rc filename */
+	memset(c0rcfile, 0x00, SZC0RCFILE);
+	strncpy(c0rcfile, rcfile, strlen(rcfile));
+
+	/* success */
+	return 0;
+}
+
+/*
+ * void c0apps_putrc()
+ * print c0apps resource filename
+ */
+void c0apps_putrc(void)
+{
+	/* print rc filename */
+	fprintf(stderr, "%s", c0rcfile);
+	fprintf(stderr, "\n");
+	return;
+}
+
 
 
 /*

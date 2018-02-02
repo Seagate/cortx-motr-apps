@@ -40,7 +40,10 @@ int main(int argc, char **argv)
 	/* c0rcfile
 	 * overwrite .cappsrc to a .[app]rc file.
 	 */
-	sprintf(c0rcfile,".%src",basename(argv[0]));
+	char str[256];
+	sprintf(str,".%src",basename(argv[0]));
+	c0apps_setrc(str);
+	c0apps_putrc();
 
 	/* set input */
 	idh = atoll(argv[1]);
