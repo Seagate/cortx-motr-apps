@@ -17,6 +17,12 @@
 # * Original creation date: 10-Jan-2017
 #*/
 
+
+#sudo
+SUDO = sudo
+#or not
+undefine SUDO
+
 #executables
 EXE1 = c0cp
 EXE2 = c0cat
@@ -47,18 +53,17 @@ $(EXE3):
 
 
 test: $(EXE1) $(EXE2) $(EXE3)
-	@echo $(IP)
-	sudo dd if=/dev/urandom of=/tmp/8kFile bs=$(BSZ) count=$(CNT)
+	$(SUDO) dd if=/dev/urandom of=/tmp/8kFile bs=$(BSZ) count=$(CNT)
 	@echo "#####"
 	@ls -la /tmp/8kFile	
-	sudo ./$(EXE1) 0 1048577 /tmp/8kFile $(BSZ) $(CNT)
+	$(SUDO) ./$(EXE1) 0 1048577 /tmp/8kFile $(BSZ) $(CNT)
 	@echo "#####"
-	sudo ./$(EXE2) 0 1048577 $(BSZ) $(CNT) > /tmp/8kFile_downloaded
+	$(SUDO) ./$(EXE2) 0 1048577 $(BSZ) $(CNT) > /tmp/8kFile_downloaded
 	@ls -la /tmp/8kFile_downloaded
 	@echo "#####"
 	cmp /tmp/8kFile /tmp/8kFile_downloaded || echo "ERROR: Test Failed !!"
 	@echo "#####"
-	sudo ./$(EXE3) 0 1048577
+	$(SUDO) ./$(EXE3) 0 1048577
 
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*
