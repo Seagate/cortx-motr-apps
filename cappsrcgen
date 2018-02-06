@@ -48,7 +48,3 @@ echo
 echo '#process id'
 echo '<0x7200000000000000:0>' 
 echo
-
-echo '#tmp directory'
-echo '/tmp/' 
-echo

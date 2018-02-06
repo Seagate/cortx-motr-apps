@@ -37,17 +37,15 @@
 #define C0RCFLE "./.cappsrc"
 #define CLOVIS_MAX_BLOCK_COUNT (200)
 
-/* global variables */
-char c0rcfile[SZC0RCFILE] = C0RCFLE;
-
-
 /* static variables */
 static struct m0_clovis          *clovis_instance = NULL;
 static struct m0_clovis_container clovis_container;
 static struct m0_clovis_realm     clovis_uber_realm;
 static struct m0_clovis_config    clovis_conf;
+static struct m0_idx_dix_config   dix_conf;
 
 static char c0rc[8][SZC0RCSTR];
+static char c0rcfile[SZC0RCFILE] = C0RCFLE;
 
 /*
  *******************************************************************************
@@ -448,17 +446,31 @@ int c0init(void)
     }
     fclose(fp);
 
-	clovis_conf.cc_is_oostore            = true;	/* object only store	*/
-	clovis_conf.cc_is_read_verify        = false;
-	clovis_conf.cc_local_addr            = c0rc[0];	/* clovis_local_addr	*/
-	clovis_conf.cc_ha_addr               = c0rc[1];	/* clovis_ha_addr		*/
-	clovis_conf.cc_profile               = c0rc[2];	/* clovis_prof			*/
-	clovis_conf.cc_process_fid           = c0rc[3];	/* clovis_proc_fid		*/
-	clovis_conf.cc_idx_service_conf      = c0rc[4]; /* clovis_index_dir		*/
-	clovis_conf.cc_tm_recv_queue_min_len = 16;
-	clovis_conf.cc_max_rpc_msg_size      = M0_RPC_DEF_MAX_RPC_MSG_SIZE;
-	clovis_conf.cc_idx_service_id        = M0_CLOVIS_IDX_MOCK;
-	clovis_conf.cc_layout_id 	     	 = 0;
+//	clovis_conf.cc_is_oostore            = true;	/* object only store	*/
+//	clovis_conf.cc_is_read_verify        = false;
+//	clovis_conf.cc_local_addr            = c0rc[0];	/* clovis_local_addr	*/
+//	clovis_conf.cc_ha_addr               = c0rc[1];	/* clovis_ha_addr		*/
+//	clovis_conf.cc_profile               = c0rc[2];	/* clovis_prof			*/
+//	clovis_conf.cc_process_fid           = c0rc[3];	/* clovis_proc_fid		*/
+//	clovis_conf.cc_idx_service_conf      = c0rc[4]; /* clovis_index_dir		*/
+//	clovis_conf.cc_tm_recv_queue_min_len = 16;
+//	clovis_conf.cc_max_rpc_msg_size      = M0_RPC_DEF_MAX_RPC_MSG_SIZE;
+//	clovis_conf.cc_idx_service_id        = M0_CLOVIS_IDX_MOCK;
+//	clovis_conf.cc_layout_id 	     	 = 0;
+
+    clovis_conf.cc_is_oostore            = true;
+    clovis_conf.cc_is_read_verify        = false;
+    clovis_conf.cc_local_addr            = c0rc[0];
+    clovis_conf.cc_ha_addr               = c0rc[1];
+    clovis_conf.cc_profile               = c0rc[2];
+    clovis_conf.cc_process_fid           = c0rc[3];
+    clovis_conf.cc_tm_recv_queue_min_len = M0_NET_TM_RECV_QUEUE_DEF_LEN;
+    clovis_conf.cc_max_rpc_msg_size      = M0_RPC_DEF_MAX_RPC_MSG_SIZE;
+
+    /* IDX_MERO */
+    clovis_conf.cc_idx_service_id   = M0_CLOVIS_IDX_DIX;
+    dix_conf.kc_create_meta = false;
+    clovis_conf.cc_idx_service_conf = &dix_conf;
 
 	#if DEBUG
 	fprintf(stderr,"\n---\n");
