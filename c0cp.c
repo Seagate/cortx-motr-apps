@@ -56,20 +56,20 @@ int main(int argc, char **argv)
 	fname = argv[3];
 
 	/* initialize resources */
-	if (c0init() != 0) {
+	if (c0apps_init() != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
 
 	/* copy */
-	if (objcpy(idh,idl,fname,bsz,cnt) != 0) {
+	if (c0apps_cp(idh,idl,fname,bsz,cnt) != 0) {
 		fprintf(stderr,"error! copy object failed.\n");
-		c0free();
+		c0apps_free();
 		return -3;
 	};
 
 	/* free resources*/
-	c0free();
+	c0apps_free();
 
 	/* success */
 	fprintf(stderr,"%s success\n",basename(argv[0]));

@@ -54,20 +54,20 @@ int main(int argc, char **argv)
 	cnt = atoi(argv[4]);
 
 	/* initialize resources */
-	if (c0init() != 0) {
+	if (c0apps_init() != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
 
 	/* cat */
-	if (objcat(idh,idl,bsz,cnt) != 0) {
+	if (c0apps_cat(idh,idl,bsz,cnt) != 0) {
 		fprintf(stderr,"error! cat object failed.\n");
-		c0free();
+		c0apps_free();
 		return -3;
 	};
 
 	/* free resources*/
-	c0free();
+	c0apps_free();
 
 	/* success */
 	fprintf(stderr,"%s success\n",basename(argv[0]));

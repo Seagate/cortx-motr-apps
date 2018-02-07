@@ -18,13 +18,13 @@
  * Original creation date: 10-Jan-2017
  */
 
-int c0init(void);
-void c0free(void);
-int objdel(int64_t idhi, int64_t idlo);
-int objcat(int64_t idhi, int64_t idlo, int bsz, int cnt);
-int objcpy(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt);
+int c0apps_init(void);
+int c0apps_free(void);
+int c0apps_rm(int64_t idhi, int64_t idlo);
+int c0apps_cat(int64_t idhi, int64_t idlo, int bsz, int cnt);
+int c0apps_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt);
 int c0apps_setrc(char *rcfile);
-void c0apps_putrc(void);
+int c0apps_putrc(void);
 
 /*
  *  Local variables:

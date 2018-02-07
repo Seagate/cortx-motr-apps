@@ -50,20 +50,20 @@ int main(int argc, char **argv)
 	idl = atoll(argv[2]);
 
 	/* initialize resources */
-	if (c0init() != 0) {
+	if (c0apps_init() != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
 
 	/* delete */
-	if (objdel(idh,idl) != 0) {
+	if (c0apps_rm(idh,idl) != 0) {
 		fprintf(stderr,"error! delete object failed.\n");
-		c0free();
+		c0apps_free();
 		return -3;
 	};
 
 	/* free resources*/
-	c0free();
+	c0apps_free();
 
 	/* success */
 	fprintf(stderr,"%s success\n",basename(argv[0]));
