@@ -65,6 +65,11 @@ test: $(EXE1) $(EXE2) $(EXE3)
 	@echo "#####"
 	$(SUDO) ./$(EXE3) 0 1048577
 
+rcfile:
+	./cappsrcgen > ./.$(EXE1)rc
+	./cappsrcgen > ./.$(EXE2)rc
+	./cappsrcgen > ./.$(EXE3)rc
+
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*
 
