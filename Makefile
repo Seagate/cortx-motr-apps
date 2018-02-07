@@ -29,8 +29,11 @@ EXE2 = c0cat
 EXE3 = c0rm
 
 #c0cp parameters
-BSZ = 4096
-CNT = 24
+#valid block sizes are: 4KB ~ 32MB
+#4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 
+#1048576, 2097152, 4194304, 8388608, 16777216, 33554432    
+BSZ = 32768
+CNT = 64
 
 #compilar/linker options
 LFLAGS += -lm -lpthread -lrt -lgf_complete -lyaml -luuid -lmero
@@ -55,11 +58,11 @@ $(EXE3):
 test: $(EXE1) $(EXE2) $(EXE3)
 	$(SUDO) dd if=/dev/urandom of=/tmp/8kFile bs=$(BSZ) count=$(CNT)
 	@echo "#####"
-	@ls -la /tmp/8kFile	
+	@ls -lh /tmp/8kFile	
 	$(SUDO) ./$(EXE1) 0 1048577 /tmp/8kFile $(BSZ) $(CNT)
 	@echo "#####"
 	$(SUDO) ./$(EXE2) 0 1048577 $(BSZ) $(CNT) > /tmp/8kFile_downloaded
-	@ls -la /tmp/8kFile_downloaded
+	@ls -lh /tmp/8kFile_downloaded
 	@echo "#####"
 	cmp /tmp/8kFile /tmp/8kFile_downloaded || echo "ERROR: Test Failed !!"
 	@echo "#####"
