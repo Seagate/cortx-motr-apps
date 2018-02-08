@@ -66,10 +66,10 @@ static int write_data_to_object(struct m0_uint128 id, struct m0_indexvec *ext,
  */
 
 /*
- * c0apps_cp()
+ * c0appz_cp()
  * copy to an object.
  */
-int c0apps_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
+int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 {
 	int                i;
 	int                rc;
@@ -156,10 +156,10 @@ int c0apps_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 }
 
 /*
- * c0apps_cat()
+ * c0appz_cat()
  * cat object.
  */
-int c0apps_cat(int64_t idhi, int64_t idlo, int bsz, int cnt)
+int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt)
 {
 	int                  i;
 	int                  j;
@@ -257,10 +257,10 @@ int c0apps_cat(int64_t idhi, int64_t idlo, int bsz, int cnt)
 
 
 /*
- * c0apps_rm()
+ * c0appz_rm()
  * delete object.
  */
-int c0apps_rm(int64_t idhi, int64_t idlo)
+int c0appz_rm(int64_t idhi, int64_t idlo)
 {
 	int rc;
 	struct m0_clovis_obj obj;
@@ -294,10 +294,10 @@ int c0apps_rm(int64_t idhi, int64_t idlo)
 }
 
 /*
- * c0apps_init()
+ * c0appz_init()
  * init clovis resources.
  */
-int c0apps_init(void)
+int c0appz_init(void)
 {
     int   i;
 	int   rc;
@@ -386,20 +386,20 @@ int c0apps_init(void)
 }
 
 /*
- * c0apps_free()
+ * c0appz_free()
  * free clovis resources.
  */
-int c0apps_free(void)
+int c0appz_free(void)
 {
 	m0_clovis_fini(clovis_instance, true);
 	return 0;
 }
 
 /*
- * c0apps_setrc()
+ * c0appz_setrc()
  * set c0apps resource filename
  */
-int c0apps_setrc(char *rcfile)
+int c0appz_setrc(char *rcfile)
 {
 	/* null */
 	if(!rcfile) {
@@ -416,10 +416,10 @@ int c0apps_setrc(char *rcfile)
 }
 
 /*
- * c0apps_putrc()
+ * c0appz_putrc()
  * print c0apps resource filename
  */
-int c0apps_putrc(void)
+int c0appz_putrc(void)
 {
 	/* print rc filename */
 	fprintf(stderr, "%s", c0rcfile);

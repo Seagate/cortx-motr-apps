@@ -12,6 +12,9 @@ There are three sample applications. A running instance of Mero such as singleno
 >> make
 >> make test
 
+- generate rc files on VM
+>> make rcfile
+
 - clean
 >> make clean
 
@@ -24,7 +27,7 @@ clean_install_mero <rpms directory path>
 
 - clovis apps resource file <.[app]rc>
 Each Clovis application requires a clovis resource file residing in the same directory where the application is residing. This resource file contains all clovis related resource parameters for running the clovis application on a particular client machine where the application is executed. This file can be generated using the cappsrcgen utility for dev VMs. The name of the file should be .[application name]rc. Replace the application name with your application's basename. A c0cp example is shown below:
->>./cappsrcgen > .c0cprc
+>>./c0appzrcgen > .c0cprc
 [sudo] password for seagate: 
 >>cat .c0cprc
 10.0.2.15@tcp:12345:44:101

@@ -46,13 +46,13 @@ all: $(EXE1) $(EXE2) $(EXE3)
 .PHONY: all
 
 $(EXE1):
-	gcc capps.c c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE1)
+	gcc c0appz.c c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE1)
 
 $(EXE2):
-	gcc capps.c c0cat.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE2)
+	gcc c0appz.c c0cat.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE2)
 
 $(EXE3):
-	gcc capps.c c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE3)
+	gcc c0appz.c c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE3)
 
 
 test: $(EXE1) $(EXE2) $(EXE3)
@@ -69,9 +69,9 @@ test: $(EXE1) $(EXE2) $(EXE3)
 	$(SUDO) ./$(EXE3) 0 1048577
 
 rcfile:
-	./cappsrcgen > ./.$(EXE1)rc
-	./cappsrcgen > ./.$(EXE2)rc
-	./cappsrcgen > ./.$(EXE3)rc
+	./c0appzrcgen > ./.$(EXE1)rc
+	./c0appzrcgen > ./.$(EXE2)rc
+	./c0appzrcgen > ./.$(EXE3)rc
 
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*

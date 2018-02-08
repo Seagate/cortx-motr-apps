@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "capps.h"
+#include "c0appz.h"
 
 /* main */
 int main(int argc, char **argv)
@@ -42,28 +42,28 @@ int main(int argc, char **argv)
 	 */
 	char str[256];
 	sprintf(str,".%src",basename(argv[0]));
-	c0apps_setrc(str);
-	c0apps_putrc();
+	c0appz_setrc(str);
+	c0appz_putrc();
 
 	/* set input */
 	idh = atoll(argv[1]);
 	idl = atoll(argv[2]);
 
 	/* initialize resources */
-	if (c0apps_init() != 0) {
+	if (c0appz_init() != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
 
 	/* delete */
-	if (c0apps_rm(idh,idl) != 0) {
+	if (c0appz_rm(idh,idl) != 0) {
 		fprintf(stderr,"error! delete object failed.\n");
-		c0apps_free();
+		c0appz_free();
 		return -3;
 	};
 
 	/* free resources*/
-	c0apps_free();
+	c0appz_free();
 
 	/* success */
 	fprintf(stderr,"%s success\n",basename(argv[0]));
