@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <sys/time.h>
 #include <assert.h>
+#include <time.h>
 
 #include "clovis/clovis.h"
 #include "clovis/clovis_idx.h"
@@ -34,7 +35,7 @@
 
 #define SZC0RCSTR  256
 #define SZC0RCFILE 256
-#define C0RCFLE "./.cappsrc"
+#define C0RCFLE "./.cappzrc"
 #define CLOVIS_MAX_BLOCK_COUNT (200)
 
 /* static variables */
@@ -46,6 +47,7 @@ static struct m0_idx_dix_config   dix_conf;
 
 static char c0rc[8][SZC0RCSTR];
 static char c0rcfile[SZC0RCFILE] = C0RCFLE;
+static clock_t cpu_t = 0;
 
 /*
  *******************************************************************************
@@ -64,6 +66,28 @@ static int write_data_to_object(struct m0_uint128 id, struct m0_indexvec *ext,
  * EXTERN FUNCTIONS
  *******************************************************************************
  */
+
+/*
+ * c0appz_timeout()
+ * time out execution.
+ */
+int c0appz_timeout(int sz)
+{
+	double t = (double)(clock() - cpu_t) / CLOCKS_PER_SEC;
+	double b = (double)(sz) / (t * 1000000);
+	fprintf(stderr,"[cpu: %0.2lf s %0.2lf Mbs]\n", t, b);
+	return 0;
+}
+
+/*
+ * c0appz_timein()
+ * time in execution.
+ */
+int c0appz_timein()
+{
+	cpu_t = clock();
+	return 0;
+}
 
 /*
  * c0appz_cp()

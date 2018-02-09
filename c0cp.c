@@ -21,7 +21,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "c0appz.h"
 
 /* main */
@@ -40,8 +39,11 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	/* time in */
+	c0appz_timein();
+
 	/* c0rcfile
-	 * overwrite .cappsrc to a .[app]rc file.
+	 * overwrite .cappzrc to a .[app]rc file.
 	 */
 	char str[256];
 	sprintf(str,".%src",basename(argv[0]));
@@ -70,6 +72,9 @@ int main(int argc, char **argv)
 
 	/* free resources*/
 	c0appz_free();
+
+	/* time out */
+	c0appz_timeout(bsz * cnt);
 
 	/* success */
 	fprintf(stderr,"%s success\n",basename(argv[0]));
