@@ -47,7 +47,8 @@ static struct m0_idx_dix_config   dix_conf;
 
 static char c0rc[8][SZC0RCSTR];
 static char c0rcfile[SZC0RCFILE] = C0RCFLE;
-static clock_t cpu_t = 0;
+static struct timeval wclk_t = {0, 0};
+static clock_t cput_t = 0;
 
 /*
  *******************************************************************************
@@ -73,9 +74,23 @@ static int write_data_to_object(struct m0_uint128 id, struct m0_indexvec *ext,
  */
 int c0appz_timeout(int sz)
 {
-	double t = (double)(clock() - cpu_t) / CLOCKS_PER_SEC;
-	double b = (double)(sz) / (t * 1000000);
-	fprintf(stderr,"[cpu: %0.2lf s %0.2lf Mbs]\n", t, b);
+	double ct;	/* cpu time in seconds 	*/
+	double wt;	/* wall time in seconds	*/
+	double bw;	/* bandwidth in MBs		*/
+	struct timeval tv;
+
+	/* cpu time */
+	ct = (double)(clock() - cput_t) / CLOCKS_PER_SEC;
+	bw = (double)(sz) / (ct * 1000000);
+	fprintf(stderr,"[ cput: %0.2lf s %0.2lf Mbs ]", ct, bw);
+
+	/* wall time */
+	gettimeofday(&tv, 0);
+	wt  = (double)(tv.tv_sec - wclk_t.tv_sec);
+	wt += (double)(tv.tv_usec - wclk_t.tv_usec)/1000000;
+	bw  = (double)(sz) / (wt * 1000000);
+	fprintf(stderr,"[ wclk: %0.2lf s %0.2lf Mbs ]", wt, bw);
+	fprintf(stderr,"\n");
 	return 0;
 }
 
@@ -85,7 +100,8 @@ int c0appz_timeout(int sz)
  */
 int c0appz_timein()
 {
-	cpu_t = clock();
+	cput_t = clock();
+	gettimeofday(&wclk_t, 0);
 	return 0;
 }
 
