@@ -32,7 +32,7 @@ EXE3 = c0rm
 #valid block sizes are: 4KB ~ 32MB
 #4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 
 #1048576, 2097152, 4194304, 8388608, 16777216, 33554432    
-BSZ = 32768
+BSZ = 4096
 CNT = 64
 
 #compilar/linker options
@@ -75,4 +75,11 @@ rcfile:
 
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*
+
+m0t1fs:
+	touch /mnt/m0t1fs/0:3000
+	setfattr -n lid -v 8 /mnt/m0t1fs/0:3000
+	dd if=/dev/zero of=/mnt/m0t1fs/0:3000 bs=4M count=10
+	ls -lh /mnt/m0t1fs/0:3000
+	rm -rf /mnt/m0t1fs/0:3000
 
