@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 
 	memmove(&idh, &chksum[0], sizeof(int64_t));
 	memmove(&idl, &chksum[8], sizeof(int64_t));
-	printf("%" PRId64 " " "%" PRId64, idh, idl);
+	printf("%" PRId64 " " "%" PRId64, idh,idl);
 	printf("\n");
 
 	/* success */

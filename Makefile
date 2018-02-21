@@ -68,6 +68,9 @@ test: $(EXE1) $(EXE2) $(EXE3)
 	@echo "#####"
 	$(SUDO) ./$(EXE3) 0 1048577
 
+c0fidgen:
+	gcc -Wall -lssl -lcrypto c0fidgen.c -o c0fidgen
+
 rcfile:
 	./c0appzrcgen > ./.$(EXE1)rc
 	./c0appzrcgen > ./.$(EXE2)rc
@@ -75,7 +78,8 @@ rcfile:
 
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*
-
+	rm -f a.out c0fidgen
+	
 m0t1fs:
 	touch /mnt/m0t1fs/0:3000
 	setfattr -n lid -v 8 /mnt/m0t1fs/0:3000
