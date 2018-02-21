@@ -26,6 +26,10 @@
 #include <time.h>
 #include <openssl/md5.h>
 
+#ifndef DEBUG
+#define DEBUG 0
+#endif
+
 /*
  * compile:
  * gcc -Wall -lssl -lcrypto c0fidgen.c
@@ -36,38 +40,59 @@ int main(int argc, char **argv)
 {
 	int64_t  idh;	/* object id high 	*/
 	int64_t  idl;	/* object is low	*/
-	time_t   utc;	/* utc time			*/
-	long int rnd;	/* random number	*/
 
-    int n;
     MD5_CTX c;
     char buf[512];
-//    ssize_t bytes;
     unsigned char chksum[16];
 
+	idh = 0;
+	idl = 0;
 
-	idh = 0x1122334455667788;
-	idl = 0xaabbccddeeff0011;
-
-	srandom(0);
-	rnd = random();
-	utc = time(NULL);
-
-	idh += utc;
-	idl += utc;
-	idh += rnd;
-	idl += rnd;
-
+	/* init */
     MD5_Init(&c);
-    MD5_Update(&c, buf, 10);
-    MD5_Update(&c, buf, 20);
+
+    /* utc */
+    memset(buf, 0x00, 512);
+    sprintf(buf, "%d", (int)time(NULL));
+	#if DEBUG
+    fprintf(stderr, "%s\n", buf);
+    fprintf(stderr, "sz = %d\n",(int)strlen(buf));
+	#endif
+    MD5_Update(&c, buf, strlen(buf));
+
+    /* srandom */
+	srandom(0);
+    memset(buf, 0x00, 512);
+    sprintf(buf, "%d", (int)random());
+	#if DEBUG
+    fprintf(stderr, "%s\n", buf);
+    fprintf(stderr, "sz = %d\n",(int)strlen(buf));
+	#endif
+    MD5_Update(&c, buf, strlen(buf));
+
+    /*
+     * TO DO
+     * add more salt here.
+     */
+
+	/* final */
     MD5_Final(chksum, &c);
 
+	#if DEBUG
+    int n;
+    fprintf(stderr, "md5: ");
     for(n=0; n<MD5_DIGEST_LENGTH; n++)
-    	printf("%02x", chksum[n]);
-    printf("\n");
+    	fprintf(stderr, "%02x", chksum[n]);
+    fprintf(stderr, "\n");
+	#endif
 
+	#if DEBUG
+	fprintf(stderr, "[%" PRId64 ", " "%" PRId64 "]", idh, idl);
+	fprintf(stderr, "\n");
+	#endif
 
+	memmove(&idh, &chksum[0], sizeof(int64_t));
+	memmove(&idl, &chksum[8], sizeof(int64_t));
 	printf("%" PRId64 " " "%" PRId64, idh, idl);
 	printf("\n");
 
