@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include "c0appz.h"
 
 /* main */
@@ -34,7 +35,7 @@ int main(int argc, char **argv)
 	/* check input */
 	if (argc != 5) {
 		fprintf(stderr,"Usage:\n");
-		fprintf(stderr,"c0cat idh idl bsz cnt\n");
+		fprintf(stderr,"%s idh idl bsz cnt\n", basename(argv[0]));
 		return -1;
 	}
 
