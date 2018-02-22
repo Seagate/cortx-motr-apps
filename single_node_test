@@ -1,0 +1,123 @@
+#/*
+# * COPYRIGHT 2014 SEAGATE LLC
+# *
+# * THIS DRAWING/DOCUMENT, ITS SPECIFICATIONS, AND THE DATA CONTAINED
+# * HEREIN, ARE THE EXCLUSIVE PROPERTY OF SEAGATE LLC,
+# * ISSUED IN STRICT CONFIDENCE AND SHALL NOT, WITHOUT
+# * THE PRIOR WRITTEN PERMISSION OF SEAGATE TECHNOLOGY LIMITED,
+# * BE REPRODUCED, COPIED, OR DISCLOSED TO A THIRD PARTY, OR
+# * USED FOR ANY PURPOSE WHATSOEVER, OR STORED IN A RETRIEVAL SYSTEM
+# * EXCEPT AS ALLOWED BY THE TERMS OF SEAGATE LICENSES AND AGREEMENTS.
+# *
+# * YOU SHOULD HAVE RECEIVED A COPY OF SEAGATE'S LICENSE ALONG WITH
+# * THIS RELEASE. IF NOT PLEASE CONTACT A SEAGATE REPRESENTATIVE
+# * http://www.xyratex.com/contact
+# *
+# * Original author:  Ganesan Umanesan <ganesan.umanesan@seagate.com>
+# * Original creation date: 10-Jan-2017
+# */
+
+
+#!/usr/bin/env bash
+#
+# This script clean install given Mero packages.
+# It should work on Red Hat and Debian based systems.
+#
+# Ganesan Umanesan <ganesan.umanesan@seagate.com>
+# 21/02/2017
+
+
+#####
+#c0fidtest()
+#####
+c0fidtest()
+{ 
+
+	bsz=${1:-4096}	#bsize (default 4K)
+	cnt=${2:-64 }	#count (default 64)
+	num=${3:-10}	#tests (default 10)
+	
+	bsz=$((bsz))
+	cnt=$((cnt))
+	num=$((num))
+	
+	echo "block size = $bsz, count = $cnt tests = $num"
+	dd if=/dev/urandom of=/tmp/8kFile bs=$bsz count=$cnt
+	ls -lh /tmp/8kFile	
+
+	echo $(date)
+	for i in $(eval echo "{1..$num}"); do
+	
+		fid=$(./c0fidgen 2> /dev/null)
+		printf "%03d: %s" "$i" "$fid"
+		
+		#c0cp
+	   	./c0cp $fid /tmp/8kFile $bsz $cnt 2> /dev/null
+	   	if [[ $? -ne 0 ]]; then
+	   		echo
+	  		echo "./c0cp $fid /tmp/8kFile $bsz $cnt"
+	  		return 1
+	  	else
+	  		rm -f m0trace.*
+		fi
+	   	
+		#c0cat
+		./c0cat $fid $bsz $cnt > /tmp/8kFile_downloaded 2> /dev/null
+	   	if [[ $? -ne 0 ]]; then
+	   		echo
+	  		echo "./c0cat $fid $bsz $cnt > /tmp/8kFile_downloaded 2> /dev/null"
+	  		return 2
+	  	else
+	  		rm -f m0trace.*
+		fi
+
+		#cmp		
+		cmp /tmp/8kFile /tmp/8kFile_downloaded
+	   	if [[ $? -ne 0 ]]; then
+	   		echo
+	  		echo "cmp /tmp/8kFile /tmp/8kFile_downloaded"
+	  		return 3
+	  	else
+	  		rm -f m0trace.*
+		fi
+	
+		#c0rm
+		./c0rm $fid 2> /dev/null 
+	   	if [[ $? -ne 0 ]]; then
+	   		echo
+	  		echo "./c0rm $fid 2> /dev/null"
+	  		return 4
+	  	else
+	  		rm -f m0trace.*
+		fi
+		  
+		printf "\t [ OK ]\n"
+	#	sleep 1	
+	done
+	
+	echo $(date)
+	return 0
+}
+
+#main
+if [[ "$#" -ne 3 ]]; then
+    echo "illegal number of parameters"
+    echo "$(basename $0) <block size> <count> <number of tests>"
+    echo "$(basename $0) 4096 64 10"
+    exit
+fi
+
+#c0fidtest
+c0fidtest $1 $2 $3
+if [[ $? -ne 0 ]]; then
+	echo "c0fidtest $1 $2 $3"
+	echo "failed!!"
+else
+	echo "c0fidtest $1 $2 $3"
+	echo "success!!"
+fi
+exit
+
+
+
+
