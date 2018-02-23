@@ -16,6 +16,9 @@
  *
  * Original author:  Ganesan Umanesan <ganesan.umanesan@seagate.com>
  * Original creation date: 24-Jan-2017
+ *
+ * compile:
+ * gcc -Wall -lssl -lcrypto c0fidgen.c
  */
 
 #include <stdio.h>
@@ -30,17 +33,14 @@
 #define DEBUG 0
 #endif
 
-/*
- * compile:
- * gcc -Wall -lssl -lcrypto c0fidgen.c
- */
+#define C0FIDGENRC "./.fidgenrc"
 
 /* main */
 int main(int argc, char **argv)
 {
 	int64_t  idh;	/* object id high 	*/
 	int64_t  idl;	/* object is low	*/
-
+    FILE *fp;
     MD5_CTX c;
     char buf[512];
     unsigned char chksum[16];
@@ -74,6 +74,35 @@ int main(int argc, char **argv)
      * TO DO
      * add more salt here.
      */
+
+	/* read counter */
+    fp = fopen(C0FIDGENRC, "r");
+    if (fp == NULL) {
+        fprintf(stderr,"error! could not open resource file %s\n", C0FIDGENRC);
+        fprintf(stderr,"touch %s\n", C0FIDGENRC);
+        return -1;
+    }
+
+    memset(buf, 0x00, 512);
+    fgets(buf, 512, fp);
+    fclose(fp);
+
+    sprintf(buf, "%d", (int)atoi(buf));
+    MD5_Update(&c, buf, strlen(buf));
+	#if DEBUG
+    fprintf(stderr, "[ counter = %s ]\n", buf);
+	#endif
+
+    /* write counter */
+    fp = fopen(C0FIDGENRC, "w");
+    if (fp == NULL) {
+        fprintf(stderr,"error! could not open resource file %s\n", C0FIDGENRC);
+        return -1;
+    }
+
+    fprintf(fp, "%d\n", (int)atoi(buf)+1);
+    fclose(fp);
+
 
 	/* final */
     MD5_Final(chksum, &c);
