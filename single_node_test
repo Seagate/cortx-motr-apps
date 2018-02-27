@@ -32,7 +32,8 @@
 #####
 c0fidtest()
 { 
-
+	log="snodet"	#logs
+	out="fidout"	#fids
 	bsz=${1:-4096}	#bsize (default 4K)
 	cnt=${2:-64 }	#count (default 64)
 	num=${3:-10}	#tests (default 10)
@@ -41,31 +42,37 @@ c0fidtest()
 	cnt=$((cnt))
 	num=$((num))
 	
-	echo "block size = $bsz, count = $cnt tests = $num"
+	log="$log-$$_bsz${bsz}_cnt${cnt}_num${num}.log"
+	out="$out-$$_$(date +%Y%m%d-%H:%M:%S).txt"
+	echo $log
+	echo $out
+	
+	echo "block size = $bsz, count = $cnt tests = $num"	
 	dd if=/dev/urandom of=/tmp/8kFile bs=$bsz count=$cnt
 	ls -lh /tmp/8kFile	
 
 	echo $(date)
+	echo $(date) >> $out
 	for i in $(eval echo "{1..$num}"); do
 	
-		fid=$(./c0fidgen 2> /dev/null)
-		printf "%03d: %s" "$i" "$fid"
+		fid=$(./c0fidgen 2>> $log)
+		printf "%03d: %s" "$i" "$fid" >> $out
 		
 		#c0cp
-	   	./c0cp $fid /tmp/8kFile $bsz $cnt 2> /dev/null
+	   	./c0cp $fid /tmp/8kFile $bsz $cnt 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "./c0cp $fid /tmp/8kFile $bsz $cnt"
+	  		echo "./c0cp $fid /tmp/8kFile $bsz $cnt 2>> $log"
 	  		return 1
 	  	else
 	  		rm -f m0trace.*
 		fi
 	   	
 		#c0cat
-		./c0cat $fid $bsz $cnt > /tmp/8kFile_downloaded 2> /dev/null
+		./c0cat $fid $bsz $cnt > /tmp/8kFile_downloaded 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "./c0cat $fid $bsz $cnt > /tmp/8kFile_downloaded 2> /dev/null"
+	  		echo "./c0cat $fid $bsz $cnt > /tmp/8kFile_downloaded 2>> $log"
 	  		return 2
 	  	else
 	  		rm -f m0trace.*
@@ -82,19 +89,19 @@ c0fidtest()
 		fi
 	
 		#c0rm
-		./c0rm $fid 2> /dev/null 
+		./c0rm $fid 2>> $log 
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "./c0rm $fid 2> /dev/null"
+	  		echo "./c0rm $fid 2>> $log"
 	  		return 4
 	  	else
 	  		rm -f m0trace.*
 		fi
 		  
-		printf "\t [ OK ]\n"
-	#	sleep 1	
+		printf "\t [ OK ]\n" >> $out
 	done
 	
+	echo $(date) >> $out
 	echo $(date)
 	return 0
 }
