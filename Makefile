@@ -76,9 +76,9 @@ c0fidgen:
 	gcc -Wall -lssl -lcrypto c0fidgen.c -o c0fidgen
 
 rcfile:
-	./c0appzrcgen > ./.$(EXE1)rc
-	./c0appzrcgen > ./.$(EXE2)rc
-	./c0appzrcgen > ./.$(EXE3)rc
+	./scripts/c0appzrcgen > ./.$(EXE1)rc
+	./scripts/c0appzrcgen > ./.$(EXE2)rc
+	./scripts/c0appzrcgen > ./.$(EXE3)rc
 
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*

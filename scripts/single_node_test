@@ -26,6 +26,10 @@
 # Ganesan Umanesan <ganesan.umanesan@seagate.com>
 # 21/02/2017
 
+c0cp='./c0cp'
+c0rm='./c0rm'
+c0ct='./c0cat'
+fgen='./c0fidgen'
 
 #####
 #c0fidtest()
@@ -44,8 +48,39 @@ c0fidtest()
 	
 	log="$log-$$_bsz${bsz}_cnt${cnt}_num${num}.log"
 	out="$out-$$_$(date +%Y%m%d-%H:%M:%S).txt"
+	log=$(pwd)/$log	#send to working directory
+	out=$(pwd)/$out	#send to working directory
+
+	log='/dev/null'
+	out='/dev/stdout'
+	
 	echo $log
 	echo $out
+	
+	#move to executable directory
+	pushd $(dirname $(dirname $0))
+
+	#check executables	
+	if [[ ! -x "$c0cp" ]]; then
+    	echo "error! file $c0cp is not executable nor found"
+    	return 1
+	fi
+	if [[ ! -x "$c0cp" ]]; then
+    	echo "error! file $c0cp is not executable nor found"
+    	return 1
+	fi
+	if [[ ! -x "$c0ct" ]]; then
+    	echo "error! file $c0ct is not executable nor found"
+    	return 1
+	fi
+	if [[ ! -x "$c0rm" ]]; then
+    	echo "error! file $c0rm is not executable nor found"
+    	return 1
+	fi
+	if [[ ! -x "$fgen" ]]; then
+    	echo "error! file $fgen is not executable nor found"
+    	return 1
+	fi
 	
 	echo "block size = $bsz, count = $cnt tests = $num"	
 	dd if=/dev/urandom of=/tmp/8kFile bs=$bsz count=$cnt
@@ -55,24 +90,24 @@ c0fidtest()
 	echo $(date) >> $out
 	for i in $(eval echo "{1..$num}"); do
 	
-		fid=$(./c0fidgen 2>> $log)
+		fid=$($fgen 2>> $log)
 		printf "%03d: %s" "$i" "$fid" >> $out
 		
 		#c0cp
-	   	./c0cp $fid /tmp/8kFile $bsz $cnt 2>> $log
+	   	$c0cp $fid /tmp/8kFile $bsz $cnt 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "./c0cp $fid /tmp/8kFile $bsz $cnt 2>> $log"
+	  		echo "$c0cp $fid /tmp/8kFile $bsz $cnt 2>> $log"
 	  		return 1
 	  	else
 	  		rm -f m0trace.*
 		fi
 	   	
 		#c0cat
-		./c0cat $fid $bsz $cnt > /tmp/8kFile_downloaded 2>> $log
+		$c0ct $fid $bsz $cnt > /tmp/8kFile_downloaded 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "./c0cat $fid $bsz $cnt > /tmp/8kFile_downloaded 2>> $log"
+	  		echo "$c0ct $fid $bsz $cnt > /tmp/8kFile_downloaded 2>> $log"
 	  		return 2
 	  	else
 	  		rm -f m0trace.*
@@ -89,10 +124,10 @@ c0fidtest()
 		fi
 	
 		#c0rm
-		./c0rm $fid 2>> $log 
+		$c0rm $fid 2>> $log 
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "./c0rm $fid 2>> $log"
+	  		echo "$c0rm $fid 2>> $log"
 	  		return 4
 	  	else
 	  		rm -f m0trace.*
@@ -100,9 +135,15 @@ c0fidtest()
 		  
 		printf "\t [ OK ]\n" >> $out
 	done
+
 	
 	echo $(date) >> $out
 	echo $(date)
+
+	#move to working directory
+	popd
+
+	#success
 	return 0
 }
 
@@ -124,7 +165,3 @@ else
 	echo "success!!"
 fi
 exit
-
-
-
-
