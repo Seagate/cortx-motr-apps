@@ -23,6 +23,10 @@ SUDO = sudo
 #or not
 undefine SUDO
 
+#files
+FILE1 = './file1'
+FILE2 = './file2'
+
 #executables
 EXE1 = c0cp
 EXE2 = c0cat
@@ -56,15 +60,15 @@ $(EXE3):
 
 
 test: $(EXE1) $(EXE2) $(EXE3)
-	$(SUDO) dd if=/dev/urandom of=/tmp/8kFile bs=$(BSZ) count=$(CNT)
+	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(BSZ) count=$(CNT)
 	@echo "#####"
-	@ls -lh /tmp/8kFile	
-	$(SUDO) ./$(EXE1) 0 1048577 /tmp/8kFile $(BSZ) $(CNT)
+	@ls -lh $(FILE1)	
+	$(SUDO) ./$(EXE1) 0 1048577 $(FILE1) $(BSZ) $(CNT)
 	@echo "#####"
-	$(SUDO) ./$(EXE2) 0 1048577 $(BSZ) $(CNT) > /tmp/8kFile_downloaded
-	@ls -lh /tmp/8kFile_downloaded
+	$(SUDO) ./$(EXE2) 0 1048577 $(BSZ) $(CNT) > $(FILE2)
+	@ls -lh $(FILE2)
 	@echo "#####"
-	cmp /tmp/8kFile /tmp/8kFile_downloaded || echo "ERROR: Test Failed !!"
+	cmp $(FILE1) $(FILE2) || echo "ERROR: Test Failed !!"
 	@echo "#####"
 	$(SUDO) ./$(EXE3) 0 1048577
 
@@ -79,6 +83,7 @@ rcfile:
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*
 	rm -f a.out c0fidgen
+	rm -f $(FILE1) $(FILE2)
 	
 m0t1fs:
 	touch /mnt/m0t1fs/0:3000
