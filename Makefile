@@ -80,6 +80,11 @@ rcfile:
 	./scripts/c0appzrcgen > ./.$(EXE2)rc
 	./scripts/c0appzrcgen > ./.$(EXE3)rc
 
+sagercfs:
+	sage-user-application-assignment ganesan c0cat 172.18.1.${c} > .c0catrc
+	sage-user-application-assignment ganesan c0rm  172.18.1.${c} > .c0rmrc
+	sage-user-application-assignment ganesan c0cp  172.18.1.${c} > .c0cprc
+
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*
 	rm -f a.out c0fidgen
