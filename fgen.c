@@ -33,7 +33,7 @@
 #define DEBUG 0
 #endif
 
-#define C0FIDGENRC "./.fidgenrc"
+#define C0FIDGENRC "./.fgenrc"
 
 /* main */
 int main(int argc, char **argv)

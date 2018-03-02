@@ -28,8 +28,8 @@
 
 c0cp='./c0cp'
 c0rm='./c0rm'
-c0ct='./c0cat'
-fgen='./c0fidgen'
+c0ct='./c0ct'
+fgen='./fgen'
 
 #####
 #c0fidtest()
@@ -63,23 +63,23 @@ c0fidtest()
 	#check executables	
 	if [[ ! -x "$c0cp" ]]; then
     	echo "error! file $c0cp is not executable nor found"
-    	return 1
+    	return 11
 	fi
 	if [[ ! -x "$c0cp" ]]; then
     	echo "error! file $c0cp is not executable nor found"
-    	return 1
+    	return 12
 	fi
 	if [[ ! -x "$c0ct" ]]; then
     	echo "error! file $c0ct is not executable nor found"
-    	return 1
+    	return 13
 	fi
 	if [[ ! -x "$c0rm" ]]; then
     	echo "error! file $c0rm is not executable nor found"
-    	return 1
+    	return 14
 	fi
 	if [[ ! -x "$fgen" ]]; then
     	echo "error! file $fgen is not executable nor found"
-    	return 1
+    	return 15
 	fi
 	
 	echo "block size = $bsz, count = $cnt tests = $num"	
@@ -98,7 +98,7 @@ c0fidtest()
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "$c0cp $fid /tmp/8kFile $bsz $cnt 2>> $log"
-	  		return 1
+	  		return 20
 	  	else
 	  		rm -f m0trace.*
 		fi
@@ -108,7 +108,7 @@ c0fidtest()
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "$c0ct $fid $bsz $cnt > /tmp/8kFile_downloaded 2>> $log"
-	  		return 2
+	  		return 21
 	  	else
 	  		rm -f m0trace.*
 		fi
@@ -118,7 +118,7 @@ c0fidtest()
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "cmp /tmp/8kFile /tmp/8kFile_downloaded"
-	  		return 3
+	  		return 22
 	  	else
 	  		rm -f m0trace.*
 		fi
@@ -128,7 +128,7 @@ c0fidtest()
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "$c0rm $fid 2>> $log"
-	  		return 4
+	  		return 23
 	  	else
 	  		rm -f m0trace.*
 		fi

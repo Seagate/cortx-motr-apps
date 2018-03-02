@@ -29,8 +29,9 @@ FILE2 = './file2'
 
 #executables
 EXE1 = c0cp
-EXE2 = c0cat
+EXE2 = c0ct
 EXE3 = c0rm
+EXE4 = fgen
 
 #c0cp parameters
 #valid block sizes are: 4KB ~ 32MB
@@ -53,7 +54,7 @@ $(EXE1):
 	gcc c0appz.c c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE1)
 
 $(EXE2):
-	gcc c0appz.c c0cat.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE2)
+	gcc c0appz.c c0ct.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE2)
 
 $(EXE3):
 	gcc c0appz.c c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE3)
@@ -72,8 +73,8 @@ test: $(EXE1) $(EXE2) $(EXE3)
 	@echo "#####"
 	$(SUDO) ./$(EXE3) 0 1048577
 
-c0fidgen:
-	gcc -Wall -lssl -lcrypto c0fidgen.c -o c0fidgen
+fgen:
+	gcc -Wall -lssl -lcrypto fgen.c -o $(EXE4)
 
 rcfile:
 	./scripts/c0appzrcgen > ./.$(EXE1)rc
@@ -81,13 +82,13 @@ rcfile:
 	./scripts/c0appzrcgen > ./.$(EXE3)rc
 
 sagercfs:
-	sage-user-application-assignment ganesan c0cat 172.18.1.${c} > .c0catrc
-	sage-user-application-assignment ganesan c0rm  172.18.1.${c} > .c0rmrc
-	sage-user-application-assignment ganesan c0cp  172.18.1.${c} > .c0cprc
+	sage-user-application-assignment ganesan $(EXE1) 172.18.1.${c} > .$(EXE1)rc
+	sage-user-application-assignment ganesan $(EXE2) 172.18.1.${c} > .$(EXE2)rc
+	sage-user-application-assignment ganesan $(EXE3) 172.18.1.${c} > .$(EXE3)rc
 
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*
-	rm -f a.out c0fidgen
+	rm -f a.out $(EXE4)
 	rm -f $(FILE1) $(FILE2)
 	
 m0t1fs:
