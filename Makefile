@@ -33,6 +33,10 @@ EXE2 = c0ct
 EXE3 = c0rm
 EXE4 = fgen
 
+#archieve 
+TARF = m0trace_$(shell date +%Y%m%d-%H%M%S).tar.bz2
+TARN = $(shell ls -la m0trace.* &> /dev/null | wc -l)
+
 #c0cp parameters
 #valid block sizes are: 4KB ~ 32MB
 #4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 
@@ -73,6 +77,21 @@ test: $(EXE1) $(EXE2) $(EXE3)
 	@echo "#####"
 	$(SUDO) ./$(EXE3) 0 1048577
 
+#yaml
+#bundle trace files for shipment
+yaml:
+	@ls m0trace.* &> /dev/null || (echo "No traces!" && exit 1)	
+	@for file in m0trace.*; do 					\
+		echo $$file; 							\
+    	ls -lh $$file; 							\
+		m0trace -Y -i $$file -o $$file.yml; 	\
+		ls -lh $$file.yml;						\
+	done
+	tar -jcvf $(TARF) m0trace.*.yml
+	tar -jtvf $(TARF)
+	rm -f m0trace.*.yml
+	ls -lh $(TARF)
+	
 fgen:
 	gcc -Wall -lssl -lcrypto fgen.c -o $(EXE4)
 
@@ -88,8 +107,8 @@ sagercfs:
 
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*
-	rm -f a.out $(EXE4)
 	rm -f $(FILE1) $(FILE2)
+	rm -f $(EXE4)
 	
 m0t1fs:
 	touch /mnt/m0t1fs/0:3000
