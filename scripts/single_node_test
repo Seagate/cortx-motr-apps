@@ -98,6 +98,8 @@ c0fidtest()
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "$c0cp $fid /tmp/8kFile $bsz $cnt 2>> $log"
+	  		#remove fid if possible
+	  		$c0rm $fid 2>> $log 	  		
 	  		return 20
 	  	else
 	  		rm -f m0trace.*
@@ -108,6 +110,8 @@ c0fidtest()
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "$c0ct $fid $bsz $cnt > /tmp/8kFile_downloaded 2>> $log"
+	  		#remove fid if possible
+	  		$c0rm $fid 2>> $log 	  		
 	  		return 21
 	  	else
 	  		rm -f m0trace.*
@@ -128,6 +132,8 @@ c0fidtest()
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "$c0rm $fid 2>> $log"
+	  		#remove fid if possible
+	  		$c0rm $fid 2>> $log 	  		
 	  		return 23
 	  	else
 	  		rm -f m0trace.*
