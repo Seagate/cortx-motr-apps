@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <assert.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "clovis/clovis.h"
 #include "clovis/clovis_idx.h"
@@ -441,15 +442,25 @@ int c0appz_free(void)
  */
 int c0appz_setrc(char *rcfile)
 {
+	char buf1[256];
+	char buf2[256];
+
 	/* null */
 	if(!rcfile) {
 		fprintf(stderr, "error! null rc filename.\n");
 		return 1;
 	}
 
+	/* add hostname */
+	memset(buf1, 0x00, 256);
+	memset(buf2, 0x00, 256);
+	gethostname(buf1, 256);
+	sprintf(buf2,"%s/%s",rcfile,buf1);
+
 	/* update rc filename */
 	memset(c0rcfile, 0x00, SZC0RCFILE);
-	strncpy(c0rcfile, rcfile, strlen(rcfile));
+//	strncpy(c0rcfile, rcfile, strlen(rcfile));
+	strncpy(c0rcfile, buf2, strlen(buf2));
 
 	/* success */
 	return 0;
