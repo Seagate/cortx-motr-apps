@@ -26,10 +26,15 @@
 # Ganesan Umanesan <ganesan.umanesan@seagate.com>
 # 21/02/2017
 
+#executables
 c0cp='./c0cp'
 c0rm='./c0rm'
 c0ct='./c0ct'
 fgen='./fgen'
+
+#files
+upfile='upFile'
+dwfile='dwFile'
 
 #####
 #c0fidtest()
@@ -57,6 +62,12 @@ c0fidtest()
 	echo $log
 	echo $out
 	
+	upfile=$(pwd)/$upfile	#send to working directory
+	dwfile=$(pwd)/$dwfile	#send to working directory
+
+	echo $upfile
+	echo $dwfile
+	
 	#move to executable directory
 	pushd $(dirname $(dirname $0))
 
@@ -83,8 +94,8 @@ c0fidtest()
 	fi
 	
 	echo "block size = $bsz, count = $cnt tests = $num"	
-	dd if=/dev/urandom of=/tmp/8kFile bs=$bsz count=$cnt
-	ls -lh /tmp/8kFile	
+	dd if=/dev/urandom of=$upfile bs=$bsz count=$cnt
+	ls -lh $upfile	
 
 	echo $(date)
 	echo $(date) >> $out
@@ -94,10 +105,10 @@ c0fidtest()
 		printf "%03d: %s" "$i" "$fid" >> $out
 		
 		#c0cp
-	   	$c0cp $fid /tmp/8kFile $bsz $cnt 2>> $log
+	   	$c0cp $fid $upfile $bsz $cnt 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "$c0cp $fid /tmp/8kFile $bsz $cnt 2>> $log"
+	  		echo "$c0cp $fid $upfile $bsz $cnt 2>> $log"
 	  		#remove fid if possible
 	  		$c0rm $fid 2>> $log 	  		
 	  		return 20
@@ -106,10 +117,10 @@ c0fidtest()
 		fi
 	   	
 		#c0cat
-		$c0ct $fid $bsz $cnt > /tmp/8kFile_downloaded 2>> $log
+		$c0ct $fid $bsz $cnt > $dwfile 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "$c0ct $fid $bsz $cnt > /tmp/8kFile_downloaded 2>> $log"
+	  		echo "$c0ct $fid $bsz $cnt > $dwfile 2>> $log"
 	  		#remove fid if possible
 	  		$c0rm $fid 2>> $log 	  		
 	  		return 21
@@ -118,10 +129,10 @@ c0fidtest()
 		fi
 
 		#cmp		
-		cmp /tmp/8kFile /tmp/8kFile_downloaded
+		cmp $upfile $dwfile
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "cmp /tmp/8kFile /tmp/8kFile_downloaded"
+	  		echo "cmp $upfile $dwfile"
 	  		return 22
 	  	else
 	  		rm -f m0trace.*
