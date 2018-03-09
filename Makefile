@@ -33,9 +33,10 @@ EXE2 = c0ct
 EXE3 = c0rm
 EXE4 = fgen
 
-#archieve 
+#archieve/node names 
 TARF = m0trace_$(shell date +%Y%m%d-%H%M%S).tar.bz2
 TARN = $(shell ls -la m0trace.* &> /dev/null | wc -l)
+NODE = $(shell eval uname -n)
 
 #c0cp parameters
 #valid block sizes are: 4KB ~ 32MB
@@ -95,15 +96,21 @@ yaml:
 fgen:
 	gcc -Wall -lssl -lcrypto fgen.c -o $(EXE4)
 
-rcfile:
-	./scripts/c0appzrcgen > ./.$(EXE1)rc
-	./scripts/c0appzrcgen > ./.$(EXE2)rc
-	./scripts/c0appzrcgen > ./.$(EXE3)rc
+vmrcf:
+	mkdir -p .$(EXE1)rc
+	mkdir -p .$(EXE2)rc
+	mkdir -p .$(EXE3)rc
+	./scripts/c0appzrcgen > ./.$(EXE1)rc/$(NODE)
+	./scripts/c0appzrcgen > ./.$(EXE2)rc/$(NODE)
+	./scripts/c0appzrcgen > ./.$(EXE3)rc/$(NODE)
 
-sagercfs:
-	sage-user-application-assignment ganesan $(EXE1) 172.18.1.${c} > .$(EXE1)rc
-	sage-user-application-assignment ganesan $(EXE2) 172.18.1.${c} > .$(EXE2)rc
-	sage-user-application-assignment ganesan $(EXE3) 172.18.1.${c} > .$(EXE3)rc
+sagercf:
+	mkdir -p .${EXE1}rc
+	mkdir -p .${EXE2}rc
+	mkdir -p .${EXE3}rc
+	sage-user-application-assignment ganesan $(EXE1) 172.18.1.${c} > .$(EXE1)rc/client-${c}
+	sage-user-application-assignment ganesan $(EXE2) 172.18.1.${c} > .$(EXE2)rc/client-${c}
+	sage-user-application-assignment ganesan $(EXE3) 172.18.1.${c} > .$(EXE3)rc/client-${c}
 
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) m0trace.*
