@@ -35,6 +35,7 @@ fgen='./fgen'
 #files
 upfile='upFile'
 dwfile='dwFile'
+bundle='Sage_Bunle'
 
 #####
 #c0fidtest()
@@ -47,12 +48,14 @@ c0fidtest()
 	cnt=${2:-64 }	#count (default 64)
 	num=${3:-10}	#tests (default 10)
 	
-	bsz=$((bsz))
-	cnt=$((cnt))
-	num=$((num))
+	bsz=$((bsz))	#allow arithmetic
+	cnt=$((cnt))	#allow arithmetic
+	num=$((num))	#allow arithmetic
 	
 	log="$log-$$_bsz${bsz}_cnt${cnt}_num${num}.log"
 	out="$out-$$_$(date +%Y%m%d-%H:%M:%S).txt"
+	bundle="$bundle-$(date +%Y%m%d).tar"
+	
 	log=$(pwd)/$log	#send to working directory
 	out=$(pwd)/$out	#send to working directory
 
@@ -64,9 +67,11 @@ c0fidtest()
 	
 	upfile=$(pwd)/$upfile	#send to working directory
 	dwfile=$(pwd)/$dwfile	#send to working directory
+	bundle=$(pwd)/$bundle	#send to working directory
 
 	echo $upfile
 	echo $dwfile
+	echo $bundle
 	
 	#move to executable directory
 	pushd $(dirname $(dirname $0))
@@ -105,18 +110,21 @@ c0fidtest()
 		printf "%03d: %s" "$i" "$fid" >> $out
 		
 		#c0cp
+		rm -f m0trace.* # clean up  		
 	   	$c0cp $fid $upfile $bsz $cnt 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "$c0cp $fid $upfile $bsz $cnt 2>> $log"
 	  		#remove fid if possible
-	  		$c0rm $fid 2>> $log 	  		
+	  		$c0rm $fid 2>> $log 
+	  		#bundle trace
+	  		m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
+	  		tar -rvf $bundle $(ls m0trace.*.yml)
 	  		return 20
-	  	else
-	  		rm -f m0trace.*
 		fi
 	   	
 		#c0cat
+		rm -f m0trace.* # clean up  		
 		$c0ct $fid $bsz $cnt > $dwfile 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
@@ -124,8 +132,6 @@ c0fidtest()
 	  		#remove fid if possible
 	  		$c0rm $fid 2>> $log 	  		
 	  		return 21
-	  	else
-	  		rm -f m0trace.*
 		fi
 
 		#cmp		
@@ -133,21 +139,25 @@ c0fidtest()
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "cmp $upfile $dwfile"
+	  		echo "error! compare failed!!"
+	  		#bundle trace
+	  		m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
+	  		tar -rvf $bundle $(ls m0trace.*.yml)
 	  		return 22
-	  	else
-	  		rm -f m0trace.*
 		fi
 	
 		#c0rm
+		rm -f m0trace.* # clean up  		
 		$c0rm $fid 2>> $log 
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "$c0rm $fid 2>> $log"
 	  		#remove fid if possible
 	  		$c0rm $fid 2>> $log 	  		
+	  		#bundle trace
+	  		m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
+	  		tar -rvf $bundle $(ls m0trace.*.yml)
 	  		return 23
-	  	else
-	  		rm -f m0trace.*
 		fi
 		  
 		printf "\t [ OK ]\n" >> $out
