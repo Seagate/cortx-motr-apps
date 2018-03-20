@@ -32,8 +32,8 @@ if [[ "$#" -ne 1 ]]; then
     exit
 fi
 
-RPM1=$1mero-1.1*.rpm
-RPM2=$1mero-devel-1.1*.rpm
+RPM1=$1mero-*.rpm
+RPM2=$1mero-devel-*.rpm
 
 #mero rpm
 if [ ! -e $RPM1 ]; then
