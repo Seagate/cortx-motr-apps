@@ -29,11 +29,20 @@
 #include <time.h>
 #include <openssl/md5.h>
 
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+
 #ifndef DEBUG
 #define DEBUG 0
 #endif
 
 #define C0FIDGENRC "./.fgenrc"
+
+/* function prototypes */
+int m_addr(char *mbuf, int msz);
 
 /* main */
 int main(int argc, char **argv)
@@ -74,6 +83,19 @@ int main(int argc, char **argv)
      * TO DO
      * add more salt here.
      */
+
+    /* local MAC/IP addresses */
+	if(m_addr(buf,512)!=0){
+		fprintf(stderr,"error! insufficient salt.\n");
+		fprintf(stderr,"ioctl() could not obtain mac addresses.\n");
+		return -2;
+	}
+	#if DEBUG
+	fprintf(stderr, "%s:\n",__FUNCTION__);
+	fprintf(stderr,"%s",buf);
+	fprintf(stderr,"size = %d\n",(int)strlen(buf));
+	#endif
+    MD5_Update(&c, buf, strlen(buf));
 
 	/* read counter */
     fp = fopen(C0FIDGENRC, "r");
@@ -129,6 +151,94 @@ int main(int argc, char **argv)
 	fprintf(stderr,"%s success\n",basename(argv[0]));
 	return 0;
 }
+
+/*
+ * m_addr()
+ */
+int m_addr(char *mbuf, int msz)
+{
+	char buf[8192] = {0};
+	struct ifconf ifc = {0};
+	struct ifreq *ifr = NULL;
+	int sock = 0;						/* socket				*/
+	int nifs = 0;						/* number of interfaces	*/
+	char macp[19];						/* mac address buffer	*/
+	char ip[INET6_ADDRSTRLEN] = {0};	/* ip address			*/
+	int i = 0;
+	struct ifreq *item;
+	struct sockaddr *addr;
+
+	/* clear buffer */
+	memset(mbuf, 0x00, msz);
+
+	/* get a socket handle. */
+	sock = socket(PF_INET, SOCK_DGRAM, 0);
+	if(sock < 0)
+	{
+		perror("socket");
+		return 1;
+	}
+
+	/* query available interfaces. */
+	ifc.ifc_len = sizeof(buf);
+	ifc.ifc_buf = buf;
+	if(ioctl(sock, SIOCGIFCONF, &ifc) < 0)
+	{
+		perror("ioctl(SIOCGIFCONF)");
+		return 2;
+	}
+
+	/* iterate through the list of interfaces. */
+	ifr = ifc.ifc_req;
+	nifs = ifc.ifc_len / sizeof(struct ifreq);
+
+	for(i = 0; i < nifs; i++)
+	{
+		item = &ifr[i];
+		addr = &(item->ifr_addr);
+
+		/* get the IP address*/
+		if(ioctl(sock, SIOCGIFADDR, item) < 0)
+		{
+			perror("ioctl(OSIOCGIFADDR)");
+		}
+
+		if(!inet_ntop(AF_INET,
+				&(((struct sockaddr_in *)addr)->sin_addr),ip,sizeof(ip)))
+		{
+			perror("inet_ntop");
+			continue;
+		}
+
+		/* get the MAC address */
+		if(ioctl(sock, SIOCGIFHWADDR, item) < 0)
+		{
+			perror("ioctl(SIOCGIFHWADDR)");
+			return 3;
+		}
+
+		/* display result */
+		sprintf(macp, "%02x:%02x:%02x:%02x:%02x:%02x",
+				(unsigned char)item->ifr_hwaddr.sa_data[0],
+				(unsigned char)item->ifr_hwaddr.sa_data[1],
+				(unsigned char)item->ifr_hwaddr.sa_data[2],
+				(unsigned char)item->ifr_hwaddr.sa_data[3],
+				(unsigned char)item->ifr_hwaddr.sa_data[4],
+				(unsigned char)item->ifr_hwaddr.sa_data[5]
+				);
+
+		#if DEBUG
+		fprintf(stderr, "%s: ",__FUNCTION__);
+		fprintf(stderr,"mac -> [%s] ip -> [%16s]\n", macp, ip);
+		#endif
+		sprintf(mbuf+strlen(mbuf),"mac -> [%s] ip -> [%16s]\n", macp, ip);
+
+	}
+
+	/* success */
+	return 0;
+}
+
 
 /*
  *  Local variables:
