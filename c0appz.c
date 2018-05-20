@@ -390,6 +390,12 @@ int c0appz_init(int idx)
     }
     fclose(fp);
 
+    /* idx check */
+    if (i != MAXC0RC) {
+    	fprintf(stderr,"error! [[ %d ]] wrong resource index.\n",idx);
+    	return 2;
+    }
+
     clovis_conf.cc_is_oostore            = true;
     clovis_conf.cc_is_read_verify        = false;
     clovis_conf.cc_local_addr            = c0rc[0];
