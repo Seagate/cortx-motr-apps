@@ -18,7 +18,7 @@
  * Original creation date: 10-Jan-2017
  */
 
-int c0appz_init(void);
+int c0appz_init(int idx);
 int c0appz_free(void);
 int c0appz_rm(int64_t idhi, int64_t idlo);
 int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt);

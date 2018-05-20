@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 	fname = argv[3];
 
 	/* initialize resources */
-	if (c0appz_init() != 0) {
+	if (c0appz_init(0) != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}

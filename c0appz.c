@@ -34,9 +34,10 @@
 #define DEBUG 0
 #endif
 
-#define SZC0RCSTR  256
-#define SZC0RCFILE 256
-#define C0RCFLE "./.cappzrc"
+#define MAXC0RC   	4
+#define SZC0RCSTR  	256
+#define SZC0RCFILE 	256
+#define C0RCFLE 	"./.cappzrc"
 #define CLOVIS_MAX_BLOCK_COUNT (200)
 
 /* static variables */
@@ -296,7 +297,6 @@ int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt)
 	return 0;
 }
 
-
 /*
  * c0appz_rm()
  * delete object.
@@ -338,7 +338,7 @@ int c0appz_rm(int64_t idhi, int64_t idlo)
  * c0appz_init()
  * init clovis resources.
  */
-int c0appz_init(void)
+int c0appz_init(int idx)
 {
     int   i;
 	int   rc;
@@ -355,6 +355,16 @@ int c0appz_init(void)
         return 1;
     }
 
+    /* move fp */
+    i = 0;
+    while ((i != idx * MAXC0RC) && (fgets(buf, SZC0RCSTR, fp) != NULL)) {
+        str = trim(buf);
+        if(str[0] == '#') continue;     /* ignore comments     	*/
+        if(strlen(str) == 0) continue;  /* ignore empty space   */
+        i++;
+    }
+
+    /* read c0rc */
     i = 0;
     while (fgets(buf, SZC0RCSTR, fp) != NULL) {
 
@@ -376,7 +386,7 @@ int c0appz_init(void)
 		#endif
 
     	i++;
-    	if(i==8) break;
+    	if(i == MAXC0RC) break;
     }
     fclose(fp);
 
@@ -459,7 +469,6 @@ int c0appz_setrc(char *rcfile)
 
 	/* update rc filename */
 	memset(c0rcfile, 0x00, SZC0RCFILE);
-//	strncpy(c0rcfile, rcfile, strlen(rcfile));
 	strncpy(c0rcfile, buf2, strlen(buf2));
 
 	/* success */
