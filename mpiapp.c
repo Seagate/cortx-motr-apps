@@ -62,10 +62,6 @@ int main(int argc, char **argv)
     }
     printf("[%s] [%d] rank = %d idx = %d\n", pname,wsize,wrank,idx);
 
-
-
-
-
 	/* time in */
 	c0appz_timein();
 
@@ -77,9 +73,8 @@ int main(int argc, char **argv)
 	c0appz_setrc(str);
 	c0appz_putrc();
 
-
 	/* initialize resources */
-	if (c0appz_init(0) != 0) {
+	if (c0appz_init(idx) != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
