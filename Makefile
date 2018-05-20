@@ -124,3 +124,14 @@ m0t1fs:
 	ls -lh /mnt/m0t1fs/0:3000
 	rm -rf /mnt/m0t1fs/0:3000
 
+#
+#MPI Appz
+#
+
+mpix:
+	mpicc c0appz.c mpiapp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o mpix
+	
+mpic:
+	rm -f m0trace.*
+	rm -f mpix
+	
