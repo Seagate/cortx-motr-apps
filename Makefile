@@ -128,10 +128,16 @@ m0t1fs:
 #MPI Appz
 #
 
+EXE5 = mpix
+
 mpix:
-	mpicc c0appz.c mpiapp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o mpix
+	mpicc c0appz.c mpiapp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE5)
 	
-mpic:
+mpi-clean:
 	rm -f m0trace.*
-	rm -f mpix
+	rm -f $(EXE5)
 	
+mpi-sagercf:
+	mkdir -p .${EXE5}rc
+	sage-user-application-assignment ganesan $(EXE5) 172.18.1.${c} > .$(EXE5)rc/client-${c}
+		
