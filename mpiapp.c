@@ -51,16 +51,15 @@ int main(int argc, char **argv)
 	MPI_Allgather(&node, 1, MPI_INT, nptr, 1, MPI_INT, MPI_COMM_WORLD);
 	MPI_Barrier(MPI_COMM_WORLD);
 
-    int  idx;
-    int *ptr;
-    idx = 0;
-    ptr = nptr;
-    while(ptr != nptr + wsize)
-    {
-        if((*ptr/1000 == node/1000) && (node > *ptr)) idx++;
-        ptr++;
-    }
-    printf("[%s] [%d] rank = %d idx = %d\n", pname,wsize,wrank,idx);
+	int  idx;
+	int *ptr;
+	idx = 0;
+	ptr = nptr;
+	while(ptr != nptr + wsize) {
+		if((*ptr/1000 == node/1000) && (node > *ptr)) idx++;
+		ptr++;
+	}
+	printf("[%s] [%d] rank = %d idx = %d\n", pname,wsize,wrank,idx);
 
 	/* time in */
 	c0appz_timein();
@@ -91,10 +90,10 @@ int main(int argc, char **argv)
 
 	/* success */
 	fprintf(stderr,"%s success\n",basename(argv[0]));
-
-    /* MPI end */
-    MPI_Finalize();
-
+	
+	/* MPI end */
+	MPI_Finalize();
+	
 	return 0;
 }
 
