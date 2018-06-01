@@ -78,6 +78,25 @@ int main(int argc, char **argv)
 		return -2;
 	}
 
+	int token;
+
+	token = 0;
+	if(wrank != 0) {
+		MPI_Recv(&token,1,MPI_INT,wrank-1,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+	    printf("recv: [%d] ->> [[%d]] ->> [%d]\n",wrank, token, wrank-1);
+	}
+
+	token = wrank*1000;
+	if(wrank != wsize-1) {
+		MPI_Send(&token,1,MPI_INT, wrank+1,0,MPI_COMM_WORLD);
+	    printf("send: [%d] ->> [[%d]] ->> [%d]\n",wrank, token, wrank+1);
+
+	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+
+
 	/*
 	 * do something
 	 */
