@@ -39,6 +39,8 @@ int main(int argc, char **argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
 	MPI_Get_processor_name(pname, &pnlen);
 
+    fprintf(stderr,"MPI rank [ %d ] start.\n",wrank);
+
 	/*
 	 * rank index
 	 * gather all node ids and ranks
@@ -59,7 +61,7 @@ int main(int argc, char **argv)
 		if((*ptr/1000 == node/1000) && (node > *ptr)) idx++;
 		ptr++;
 	}
-	printf("[%s] [%d] rank = %d idx = %d\n", pname,wsize,wrank,idx);
+	fprintf(stderr,"[%s] [%d] rank = %d idx = %d\n", pname,wsize,wrank,idx);
 
 	/* time in */
 	c0appz_timein();
@@ -72,30 +74,29 @@ int main(int argc, char **argv)
 	c0appz_setrc(str);
 	c0appz_putrc();
 
+    /* mpi recv */
+    int token = 0;
+    if(wrank != 0) {
+    	MPI_Recv(&token,1,MPI_INT,wrank-1,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    	fprintf(stderr,"recv:[%d] <<- [%d] token:[[%d]]\n",wrank,wrank-1,token);
+    }
+
 	/* initialize resources */
 	if (c0appz_init(idx) != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
 
-	int token;
+    /* mpi send */
+    token = 1000+wrank;
+    if(wrank != wsize-1) {
+    	MPI_Send(&token,1,MPI_INT, wrank+1,0,MPI_COMM_WORLD);
+    	fprintf(stderr,"send:[%d] ->> [%d] token:[[%d]]\n",wrank,wrank+1,token);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
 
-	token = 0;
-	if(wrank != 0) {
-		MPI_Recv(&token,1,MPI_INT,wrank-1,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-	    printf("recv: [%d] ->> [[%d]] ->> [%d]\n",wrank, token, wrank-1);
-	}
-
-	token = wrank*1000;
-	if(wrank != wsize-1) {
-		MPI_Send(&token,1,MPI_INT, wrank+1,0,MPI_COMM_WORLD);
-	    printf("send: [%d] ->> [[%d]] ->> [%d]\n",wrank, token, wrank+1);
-
-	}
-
-	MPI_Barrier(MPI_COMM_WORLD);
-
-
+    /* MPI end */
+    MPI_Finalize();
 
 	/*
 	 * do something
@@ -109,9 +110,7 @@ int main(int argc, char **argv)
 
 	/* success */
 	fprintf(stderr,"%s success\n",basename(argv[0]));
-	
-	/* MPI end */
-	MPI_Finalize();
+    fprintf(stderr,"MPI rank [ %d ] end.\n",wrank);
 	
 	return 0;
 }
