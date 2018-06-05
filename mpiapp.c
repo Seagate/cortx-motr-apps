@@ -15,7 +15,7 @@
  * http://www.xyratex.com/contact
  *
  * Original author:  Ganesan Umanesan <ganesan.umanesan@seagate.com>
- * Original creation date: 24-Jan-2017
+ * Original creation date: 24-May-2018
  */
 
 #include <mpi.h>
@@ -24,6 +24,9 @@
 #include <string.h>
 #include <libgen.h>
 #include "c0appz.h"
+
+#define DMPISEQ 1
+#define DCLOVIS 0
 
 /* main */
 int main(int argc, char **argv)
@@ -39,7 +42,7 @@ int main(int argc, char **argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
 	MPI_Get_processor_name(pname, &pnlen);
 
-    fprintf(stderr,"MPI rank [ %d ] start.\n",wrank);
+	fprintf(stderr,"MPI rank [ %d ] start.\n",wrank);
 
 	/*
 	 * rank index
@@ -74,43 +77,51 @@ int main(int argc, char **argv)
 	c0appz_setrc(str);
 	c0appz_putrc();
 
-    /* mpi recv */
-    int token = 0;
-    if(wrank != 0) {
-    	MPI_Recv(&token,1,MPI_INT,wrank-1,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-    	fprintf(stderr,"recv:[%d] <<- [%d] token:[[%d]]\n",wrank,wrank-1,token);
-    }
+#if DMPISEQ
+	/* mpi recv */
+	int token = 0;
+	if(wrank != 0) {
+		MPI_Recv(&token,1,MPI_INT,wrank-1,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		fprintf(stderr,"recv:[%d] <<- [%d] token:[[%d]]\n",wrank,wrank-1,token);
+	}
+#endif
 
+#if DCLOVIS
 	/* initialize resources */
 	if (c0appz_init(idx) != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
+#endif
 
-    /* mpi send */
-    token = 1000+wrank;
-    if(wrank != wsize-1) {
-    	MPI_Send(&token,1,MPI_INT, wrank+1,0,MPI_COMM_WORLD);
-    	fprintf(stderr,"send:[%d] ->> [%d] token:[[%d]]\n",wrank,wrank+1,token);
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
+#if DMPISEQ
+	/* mpi send */
+	token = 1000+wrank;
+	if(wrank != wsize-1) {
+		MPI_Send(&token,1,MPI_INT, wrank+1,0,MPI_COMM_WORLD);
+		fprintf(stderr,"send:[%d] ->> [%d] token:[[%d]]\n",wrank,wrank+1,token);
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+#endif
 
-    /* MPI end */
-    MPI_Finalize();
+	/* MPI end */
+	MPI_Finalize();
 
 	/*
 	 * do something
 	 */
 
+#if DCLOVIS
 	/* free resources*/
 	c0appz_free();
+#endif
 
 	/* time out */
 	c0appz_timeout(0);
 
 	/* success */
 	fprintf(stderr,"%s success\n",basename(argv[0]));
-    fprintf(stderr,"MPI rank [ %d ] end.\n",wrank);
+	fprintf(stderr,"MPI rank [ %d ] end.\n",wrank);
 	
 	return 0;
 }
