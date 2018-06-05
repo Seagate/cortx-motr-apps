@@ -26,7 +26,7 @@
 #include "c0appz.h"
 
 #define DMPISEQ 1
-#define DCLOVIS 0
+#define DCLOVIS 1
 
 /* main */
 int main(int argc, char **argv)
@@ -87,11 +87,13 @@ int main(int argc, char **argv)
 #endif
 
 #if DCLOVIS
+	fprintf(stderr,"MPI rank [ %d ] c0appz_init(%d) [??]\n",wrank,idx);
 	/* initialize resources */
 	if (c0appz_init(idx) != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
+	fprintf(stderr,"MPI rank [ %d ] c0appz_init(%d) [OK]\n",wrank,idx);
 #endif
 
 #if DMPISEQ
@@ -104,25 +106,27 @@ int main(int argc, char **argv)
 	MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
-	/* MPI end */
-	MPI_Finalize();
-
 	/*
 	 * do something
 	 */
+	fprintf(stderr,"MPI rank [ %d ] do something here...\n",wrank);
 
 #if DCLOVIS
+	fprintf(stderr,"MPI rank [ %d ] c0appz_free() [??]\n",wrank);
 	/* free resources*/
 	c0appz_free();
+	fprintf(stderr,"MPI rank [ %d ] c0appz_free() [OK]\n",wrank);
 #endif
 
 	/* time out */
 	c0appz_timeout(0);
 
 	/* success */
-	fprintf(stderr,"%s success\n",basename(argv[0]));
 	fprintf(stderr,"MPI rank [ %d ] end.\n",wrank);
-	
+
+	/* MPI end */
+	MPI_Finalize();
+
 	return 0;
 }
 
