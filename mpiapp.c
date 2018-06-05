@@ -64,7 +64,8 @@ int main(int argc, char **argv)
 		if((*ptr/1000 == node/1000) && (node > *ptr)) idx++;
 		ptr++;
 	}
-	fprintf(stderr,"[%s] [%d] rank = %d idx = %d\n", pname,wsize,wrank,idx);
+	fprintf(stderr,"MPI rank [ %d ] [%s] size = %d rank = %d index = %d\n",
+			wrank, pname, wsize, wrank, idx);
 
 	/* time in */
 	c0appz_timein();
@@ -87,7 +88,7 @@ int main(int argc, char **argv)
 #endif
 
 #if DCLOVIS
-	fprintf(stderr,"MPI rank [ %d ] c0appz_init(%d) [??]\n",wrank,idx);
+	fprintf(stderr,"MPI rank [ %d ] c0appz_init(%d) [**]\n",wrank,idx);
 	/* initialize resources */
 	if (c0appz_init(idx) != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
@@ -112,7 +113,7 @@ int main(int argc, char **argv)
 	fprintf(stderr,"MPI rank [ %d ] do something here...\n",wrank);
 
 #if DCLOVIS
-	fprintf(stderr,"MPI rank [ %d ] c0appz_free() [??]\n",wrank);
+	fprintf(stderr,"MPI rank [ %d ] c0appz_free() [**]\n",wrank);
 	/* free resources*/
 	c0appz_free();
 	fprintf(stderr,"MPI rank [ %d ] c0appz_free() [OK]\n",wrank);
