@@ -25,7 +25,7 @@
 #include <libgen.h>
 #include "c0appz.h"
 
-#define DMPISEQ 1
+#define DMPISEQ 0
 #define DCLOVIS 1
 
 /* main */
