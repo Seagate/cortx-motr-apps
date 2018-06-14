@@ -39,23 +39,33 @@
 #define DEBUG 0
 #endif
 
-#define C0FIDGENRC "./.fgenrc"
+static int c0fgen_counter = 0;
 
-/* function prototypes */
-int m_addr(char *mbuf, int msz);
+/*
+ *******************************************************************************
+ * STATIC FUNCTION PROTOTYPES
+ *******************************************************************************
+ */
+static int m_addr(char *mbuf, int msz);
 
-/* main */
-int main(int argc, char **argv)
+/*
+ *******************************************************************************
+ * EXTERN FUNCTIONS
+ *******************************************************************************
+ */
+
+/*
+ * c0appz_generate_id()
+ * generate mero/clovis fids
+ */
+int c0appz_generate_id(int64_t *idh, int64_t *idl)
 {
-	int64_t  idh;	/* object id high 	*/
-	int64_t  idl;	/* object id low	*/
-    FILE *fp;
     MD5_CTX c;
-    char buf[512];
     unsigned char chksum[16];
+    char buf[512];
 
-	idh = 0;
-	idl = 0;
+	*idh = 0;
+	*idl = 0;
 
 	/* init */
     MD5_Init(&c);
@@ -97,34 +107,13 @@ int main(int argc, char **argv)
 	#endif
     MD5_Update(&c, buf, strlen(buf));
 
-	/* read counter */
-    fp = fopen(C0FIDGENRC, "r");
-    if (fp == NULL) {
-        fprintf(stderr,"error! could not open resource file %s\n", C0FIDGENRC);
-        fprintf(stderr,"touch %s\n", C0FIDGENRC);
-        return -1;
-    }
-
-    memset(buf, 0x00, 512);
-    fgets(buf, 512, fp);
-    fclose(fp);
-
-    sprintf(buf, "%d", (int)atoi(buf));
+    /* counter */
+    sprintf(buf, "%d", c0fgen_counter);
     MD5_Update(&c, buf, strlen(buf));
+    c0fgen_counter++;
 	#if DEBUG
     fprintf(stderr, "[ counter = %s ]\n", buf);
 	#endif
-
-    /* write counter */
-    fp = fopen(C0FIDGENRC, "w");
-    if (fp == NULL) {
-        fprintf(stderr,"error! could not open resource file %s\n", C0FIDGENRC);
-        return -1;
-    }
-
-    fprintf(fp, "%d\n", (int)atoi(buf)+1);
-    fclose(fp);
-
 
 	/* final */
     MD5_Final(chksum, &c);
@@ -138,24 +127,32 @@ int main(int argc, char **argv)
 	#endif
 
 	#if DEBUG
-	fprintf(stderr, "[%" PRId64 ", " "%" PRId64 "]", idh, idl);
+	fprintf(stderr, "[%" PRId64 ", " "%" PRId64 "]", *idh, *idl);
 	fprintf(stderr, "\n");
 	#endif
 
-	memmove(&idh, &chksum[0], sizeof(int64_t));
-	memmove(&idl, &chksum[8], sizeof(int64_t));
-	printf("%" PRId64 " " "%" PRId64, idh,idl);
+	memmove(idh, &chksum[0], sizeof(int64_t));
+	memmove(idl, &chksum[8], sizeof(int64_t));
+
+	#if DEBUG
+	printf("%" PRId64 " " "%" PRId64, *idh,*idl);
 	printf("\n");
+	#endif
 
 	/* success */
-	fprintf(stderr,"%s success\n",basename(argv[0]));
 	return 0;
 }
 
 /*
+ *******************************************************************************
+ * STATIC FUNCTIONS
+ *******************************************************************************
+ */
+
+/*
  * m_addr()
  */
-int m_addr(char *mbuf, int msz)
+static int m_addr(char *mbuf, int msz)
 {
 	char buf[8192] = {0};
 	struct ifconf ifc = {0};
@@ -239,6 +236,11 @@ int m_addr(char *mbuf, int msz)
 	return 0;
 }
 
+/*
+ *******************************************************************************
+ * END
+ *******************************************************************************
+ */
 
 /*
  *  Local variables:

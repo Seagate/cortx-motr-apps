@@ -141,3 +141,16 @@ mpi-sagercf:
 	mkdir -p .${EXE5}rc
 	sage-user-application-assignment ganesan $(EXE5) 172.18.1.${c} > .$(EXE5)rc/client-${c}
 		
+
+#
+#ECMWF Appz
+#
+		
+ecmwf:
+	gcc c0appz.c c0fgen.c ecmwf.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -lssl -lcrypto -o ecmwfx
+	
+ecmwf-clean:
+	rm -f m0trace.*
+	rm -f ecmwfx
+	
+			
