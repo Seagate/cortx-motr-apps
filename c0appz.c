@@ -248,7 +248,7 @@ int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt)
 	M0_SET0(&obj);
 	/* Read the requisite number of blocks from the entity */
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
-			   m0_clovis_default_layout_id(clovis_instance));
+			   m0_clovis_layout_id(clovis_instance));
 
 	/* open entity */
 	rc = open_entity(&obj.ob_entity);
@@ -313,7 +313,7 @@ int c0appz_rm(int64_t idhi, int64_t idlo)
 
 	memset(&obj, 0, sizeof(struct m0_clovis_obj));
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
-			   m0_clovis_default_layout_id(clovis_instance));
+			   m0_clovis_layout_id(clovis_instance));
 	rc = open_entity(&obj.ob_entity);
 	if (rc < 0) {
 		fprintf(stderr,"error! [%d]\n", rc);
@@ -539,7 +539,7 @@ static int create_object(struct m0_uint128 id)
 	memset(&obj, 0, sizeof(struct m0_clovis_obj));
 
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
-			   m0_clovis_default_layout_id(clovis_instance));
+			   m0_clovis_layout_id(clovis_instance));
 
 	rc = open_entity(&obj.ob_entity);
 	if (!(rc < 0)) {
@@ -595,7 +595,7 @@ static int write_data_to_object(struct m0_uint128 id,
 
 	/* Set the object entity we want to write */
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
-			   m0_clovis_default_layout_id(clovis_instance));
+			   m0_clovis_layout_id(clovis_instance));
 
 	open_entity(&obj.ob_entity);
 
