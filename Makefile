@@ -51,6 +51,11 @@ CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern
 CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing 
 CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable 
 CFLAGS += -rdynamic 
+ifneq ($(M0_SRC_DIR),)
+LFLAGS += -L$(M0_SRC_DIR)/mero/.libs -Wl,-rpath,$(M0_SRC_DIR)/mero/.libs
+LFLAGS += -L$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs -Wl,-rpath,$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs
+CFLAGS += -I$(M0_SRC_DIR)
+endif
 
 all: $(EXE1) $(EXE2) $(EXE3)
 .PHONY: all
