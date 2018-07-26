@@ -545,7 +545,32 @@ static int create_object(struct m0_uint128 id)
 		return 1;
 	}
 
-	m0_clovis_entity_create(&obj.ob_entity, &ops[0]);
+
+	/* 
+ 	 * use default pool by default: 
+ 	 * struct m0_fid *pool = NULL 
+ 	 */
+	m0_clovis_entity_create(NULL, &obj.ob_entity, &ops[0]);
+
+	/*
+ 	 * use a Tier 2 SSD pool
+ 	 */
+/* 
+	struct m0_fid pool_fid;
+	pool_fid.f_container = 0x6f00000000000001; 
+	pool_fid.f_key       = 0x3f8;
+	m0_clovis_entity_create(&pool_fid, &obj.ob_entity, &ops[0]);
+*/
+
+	/*
+ 	 * use a Tier 3 HDD pool
+ 	 */
+/*
+	struct m0_fid pool_fid;
+	pool_fid.f_container = 0x6f00000000000001; 
+	pool_fid.f_key       = 0x426;
+	m0_clovis_entity_create(&pool_fid, &obj.ob_entity, &ops[0]);
+*/
 
 	m0_clovis_op_launch(ops, ARRAY_SIZE(ops));
 
