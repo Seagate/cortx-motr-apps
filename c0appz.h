@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 #include "clovis/clovis.h"
+#include "lib/types.h" /* uint32_t */
 
 int c0appz_init(int idx);
 int c0appz_free(void);
@@ -65,6 +66,18 @@ int read_data_from_object(struct m0_uint128 id, struct m0_indexvec *ext,
 							struct m0_bufvec *data,struct m0_bufvec *attr);
 
 int ppf(const char *fmt, ...);
+
+
+/**
+ * Loads a library in all available m0ds.
+ */
+
+/* Import */
+struct m0_fid;
+struct c0appz_isc_req;
+struct m0_buf;
+struct m0_rpc_link;
+enum m0_conf_service_type;
 
 
 /*

@@ -42,6 +42,11 @@ EXE3 = c0rm
 EXE4 = fgen
 EXE5 = c0cp_async
 
+#isc executables and library
+LIBISC = libdemo.so
+ISC_REG = c0isc_reg
+ISC_INVK = c0isc_demo
+
 #archieve/node names 
 TARF = m0trace_$(shell date +%Y%m%d-%H%M%S).tar.bz2
 TARN = $(shell ls -la m0trace.* &> /dev/null | wc -l)
@@ -142,10 +147,14 @@ vmrcf:
 	mkdir -p .$(EXE2)rc
 	mkdir -p .$(EXE3)rc
 	mkdir -p .$(EXE5)rc
+	mkdir -p .$(ISC_REG)rc
+	mkdir -p .$(ISC_INVK)rc
 	./scripts/c0appzrcgen > ./.$(EXE1)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(EXE2)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(EXE3)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(EXE5)rc/$(NODE)
+	./scripts/c0appzrcgen > ./.$(ISC_REG)rc/$(NODE)
+	./scripts/c0appzrcgen > ./.$(ISC_INVK)rc/$(NODE)
 
 sagercf:
 	mkdir -p .${EXE1}rc
@@ -203,7 +212,17 @@ mpi-sagercf:
 	mkdir -p .${EXE6}rc
 	sage-user-application-assignment ganesan $(EXE6) 172.18.1.${c} > .$(EXE6)rc/client-${c}
 
-
+$(ISC_REG):
+	gcc c0appz.c c0isc_register.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_REG)
+$(LIBISC):
+	gcc isc_libdemo.c -I/usr/include/mero $(CFLAGS) -fpic -shared -o $(LIBISC)
+$(ISC_INVK):
+	gcc c0appz.c c0isc_demo.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_INVK)
+isc-all: $(ISC_REG) $(ISC_INVK) $(LIBISC)
+isc-clean:
+	rm -f $(ISC_REG) $(ISC_INVK)
+isc-lib-clean:
+	rm -f $(LIBISC)
 #
 #ECMWF Appz
 #

@@ -1,0 +1,86 @@
+
+
+Preparing a library
+===================
+
+APIs from an external library can't be linked directly with a mero instance.
+A library is supposed to have a function named "void mero_lib_init(void)".
+All APIs from a library shall confine to the following signature:
+
+int comp(struct m0_buf *args, struct m0_buf *out,
+         struct m0_isc_comp_private *comp_data, int *rc)
+
+See isc_lib_demo.c for a usecase.
+
+Loading a library
+=================
+
+Using a spiel command (@see "spiel/spiel.h" and "c0appz_isc.h") a library can
+be loaded with any running mero instance. A helper function
+"c0appz_isc_api_register" (c0appz_isc.h) takes a path of the library, which is
+expected to be identical across all the nodes hosting a mero instance. Currently
+a utility c0isc_reg takes the path as an input and loads the library with remote
+mero instances.
+
+On successful loading of the library the output looks like:
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[devvm@sherlock clovis-sample-apps]$ ./c0isc_reg $PWD/libdemo.so
+.c0isc_regrc/sherlock
+[ cput: 1.11 s 0.00 Mbs ][ wclk: 7.20 s 0.00 Mbs ]
+c0isc_reg success
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Demo computations
+=================
+
+Currently we demonstrate three simple computations. The utility c0isc_demo can
+be used to invoke any of the computations supported. Following are the steps
+to view the demo output.
+1. make isc-clean
+2. make isc-lib-clean
+3. make isc-all
+
+The second step builds a library libdemo.so
+
+ping
+----
+This functionality pings all ISC services present in Mero configuration and
+returns "Hello-World@<service-fid>" till it encounters a service that's down.
+
+min / max
+--------
+
+This functionality reads a file (c0isc_data) co-located with the utility and
+identifies the min or max depending upon the input option provided. On
+successful completion it shows following output format:
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[devvm@sherlock clovis-sample-apps]$ ./c0isc_demo min
+.c0isc_demorc/sherlock
+
+idx=13val=-14234.430000
+[ cput: 1.07 s 0.00 Mbs ][ wclk: 4.12 s 0.00 Mbs ]
+c0isc_demo success
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+It assumes the presence of file"c0isc_data" and it prints the index
+of the optimal (min or max) value and its index (indexing starting with 0).
+c0isc_demo.c contains a code which can be extended to develop any application.
+
+What's not present ?
+====================
+
+Data serialisation is necessary for communicating with remote service. Mero
+serialises using gccxml and an internal utility gccxml2xcode. Incorporating
+this utility in Mero rpm is currently scheduled and not part of current
+Mero master. The demo includes a simplistic serialisation technique and
+is not scalable as is.
+
+Async communication with remote services is possible but the demo does not
+include the same. For that kindly review cases from iscservice/ut/service_ut.c
+
+Currently conducting an IO from server-side is not easily doable. It requires all
+the operations that ioservice conducts needs to be  done. A simplified API
+for server side IO is under progress. Hence result of the computation can not
+be persisted as of now.

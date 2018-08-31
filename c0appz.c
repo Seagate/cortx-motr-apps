@@ -37,7 +37,21 @@
 #include "c0appz.h"
 #include "c0params.h"
 #include "clovis/clovis.h"
+#include "clovis/clovis_internal.h"
 #include "clovis/clovis_idx.h"
+#include "conf/confc.h"       /* m0_confc_open_sync */
+#include "conf/dir.h"         /* m0_conf_dir_len */
+#include "conf/helpers.h"     /* m0_confc_root_open */
+#include "conf/diter.h"       /* m0_conf_diter_next_sync */
+#include "conf/obj_ops.h"     /* M0_CONF_DIREND */
+#include "spiel/spiel.h"      /* m0_spiel_process_lib_load */
+#include "reqh/reqh.h"        /* m0_reqh */
+#include "lib/types.h"        /* uint32_t */
+
+#include "iscservice/isc.h"
+#include "lib/buf.h"
+#include "rpc/rpclib.h"
+#include "c0appz_isc.h"
 
 #ifndef DEBUG
 #define DEBUG 0
@@ -54,6 +68,7 @@ static struct m0_clovis_container clovis_container;
 static struct m0_clovis_realm     clovis_uber_realm;
 static struct m0_clovis_config    clovis_conf;
 static struct m0_idx_dix_config   dix_conf;
+static struct m0_spiel            spiel_inst;
 
 static char    c0rc[8][SZC0RCSTR];
 static char    c0rcfile[SZC0RCFILE] = C0RCFLE;
@@ -520,6 +535,221 @@ int c0appz_rm(uint64_t idhi,uint64_t idlo)
 	m0_clovis_entity_fini(&obj.ob_entity);
 
 	return rc;
+}
+
+int c0appz_rmach_bulk_cutoff(struct m0_rpc_link *link, uint32_t *bulk_cutoff)
+{
+	if (link == NULL || bulk_cutoff == NULL)
+		return -EINVAL;
+	*bulk_cutoff = link->rlk_conn.c_rpc_machine->rm_bulk_cutoff;	
+	return 0;
+}
+
+static int c0appz_spiel_prepare(struct m0_spiel *spiel)
+{
+	struct m0_reqh *reqh;
+	int             rc;
+
+	reqh = &clovis_instance->m0c_reqh;
+	rc = m0_spiel_init(spiel, reqh);
+	if (rc != 0) {
+		fprintf(stderr, "error! spiel initialisation failed.\n");
+		return rc;
+	}
+
+	rc = m0_spiel_cmd_profile_set(spiel, clovis_conf.cc_profile);
+	if (rc != 0) {
+		fprintf(stderr, "error! spiel initialisation failed.\n");
+		return rc;
+	}
+	rc = m0_spiel_rconfc_start(spiel, NULL);
+	if (rc != 0) {
+		fprintf(stderr, "error! starting of rconfc failed in spiel failed.\n");
+		return rc;
+	}
+
+	return 0;
+}
+
+static void c0appz_spiel_destroy(struct m0_spiel *spiel)
+{
+	m0_spiel_rconfc_stop(spiel);
+	m0_spiel_fini(spiel);
+}
+
+static bool conf_obj_is_proc(const struct m0_conf_obj *obj)
+{
+	return m0_conf_obj_type(obj) == &M0_CONF_PROCESS_TYPE;
+}
+
+struct m0_rpc_link * c0appz_isc_rpc_link_get(struct m0_fid *svc_fid)
+{
+	struct m0_reqh *reqh = &clovis_instance->m0c_reqh;
+	struct m0_reqh_service_ctx *ctx;
+	struct m0_pools_common *pc = reqh->rh_pools;
+
+	m0_tl_for(pools_common_svc_ctx, &pc->pc_svc_ctxs, ctx) {
+		if (ctx->sc_type == M0_CST_ISCS &&
+		    m0_fid_eq(&ctx->sc_fid, svc_fid))
+			return &ctx->sc_rlink;
+	} m0_tl_endfor;
+	return NULL;
+}
+/*
+ * Loads a library into m0d instances.
+ */
+int c0appz_isc_api_register(const char *libpath)
+{
+	int                     rc;
+	struct m0_reqh         *reqh;
+	struct m0_confc        *confc;
+	struct m0_conf_root    *root;
+	struct m0_conf_process *proc;
+	struct m0_conf_obj     *obj;
+	struct m0_conf_diter    it;
+
+	rc = c0appz_spiel_prepare(&spiel_inst);
+	if (rc != 0) {
+		fprintf(stderr, "error! spiel initialization failed");
+		return rc;
+	}
+	reqh = &clovis_instance->m0c_reqh;
+	confc = m0_reqh2confc(reqh);
+	rc = m0_confc_root_open(confc, &root);
+	if (rc != 0) {
+		c0appz_spiel_destroy(&spiel_inst);
+		return rc;
+	}
+
+	rc = m0_conf_diter_init(&it, confc,
+				&root->rt_obj,
+				M0_CONF_ROOT_NODES_FID,
+				M0_CONF_NODE_PROCESSES_FID);
+	if (rc != 0) {
+		m0_confc_close(&root->rt_obj);
+		c0appz_spiel_destroy(&spiel_inst);
+		return rc;
+	}
+	while ((rc = m0_conf_diter_next_sync(&it, conf_obj_is_proc)) !=
+		M0_CONF_DIRNEXT)
+		; /* Skip over non-proc objects. */
+	for (obj = m0_conf_diter_result(&it); rc == M0_CONF_DIRNEXT;
+	     rc = m0_conf_diter_next_sync(&it, conf_obj_is_proc)) {
+		obj = m0_conf_diter_result(&it);
+		proc = M0_CONF_CAST(obj, m0_conf_process);
+		rc = m0_spiel_process_lib_load(&spiel_inst,
+					       &proc->pc_obj.co_id,
+					       libpath);
+		if (rc != 0) {
+			fprintf(stderr, "error! loading the library %s"
+					"failed for process\n", libpath);
+			m0_conf_diter_fini(&it);
+			m0_confc_close(&root->rt_obj);
+			c0appz_spiel_destroy(&spiel_inst);
+			return rc;
+		}
+	}
+	m0_conf_diter_fini(&it);
+	m0_confc_close(&root->rt_obj);
+	c0appz_spiel_destroy(&spiel_inst);
+	return 0;
+}
+
+int c0appz_isc_nxt_svc_get(struct m0_fid *svc_fid, struct m0_fid *nxt_fid,
+			   enum m0_conf_service_type s_type)
+{
+	struct m0_reqh             *reqh       = &clovis_instance->m0c_reqh;
+	struct m0_reqh_service_ctx *ctx;
+	struct m0_pools_common     *pc         = reqh->rh_pools;
+	struct m0_fid               null_fid   = M0_FID0;
+	struct m0_fid               current_fid = *svc_fid;
+
+	m0_tl_for(pools_common_svc_ctx, &pc->pc_svc_ctxs, ctx) {
+		if (ctx->sc_type == s_type && m0_fid_eq(&current_fid,
+							&null_fid)) {
+			*nxt_fid = ctx->sc_fid;
+			return 0;
+		} else if (ctx->sc_type == s_type &&
+		           m0_fid_eq(svc_fid, &ctx->sc_fid))
+			current_fid = null_fid;
+	} m0_tl_endfor;
+	*nxt_fid = M0_FID0;
+	return -ENOENT;
+}
+
+int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
+			   const struct m0_fid *comp_fid,
+			   struct m0_buf *reply_buf, struct m0_fid *svc_fid,
+			   uint32_t reply_len)
+{
+
+	struct m0_fop_isc  *fop_isc = &req->cir_isc_fop;
+	struct m0_fop      *arg_fop = &req->cir_fop;
+	struct m0_rpc_link *link;
+	int                 rc;
+
+	req->cir_args = args;
+	req->cir_result = reply_buf;
+	fop_isc->fi_comp_id = *comp_fid;
+	req->cir_rpc_link = c0appz_isc_rpc_link_get(svc_fid);
+	if (req->cir_rpc_link == NULL) {
+		fprintf(stderr, "error! isc request can not be prepared for"
+			"process "FID_F, FID_P(svc_fid));
+		return -EINVAL;
+	}
+	link = req->cir_rpc_link;
+	m0_rpc_at_init(&fop_isc->fi_args);
+	rc = m0_rpc_at_add(&fop_isc->fi_args, args, &link->rlk_conn);
+	if (rc != 0) {
+		m0_rpc_at_fini(&fop_isc->fi_args);
+		fprintf(stderr, "error! m0_rpc_at_add() failed with %d\n", rc);
+		return rc;
+	}
+	/* Initialise the reply RPC AT buffer to be received.*/
+	m0_rpc_at_init(&fop_isc->fi_ret);
+	rc = m0_rpc_at_recv(&fop_isc->fi_ret, &link->rlk_conn,
+			    reply_len, false);
+	if (rc != 0) {
+		m0_rpc_at_fini(&fop_isc->fi_args);
+		m0_rpc_at_fini(&fop_isc->fi_ret);
+		fprintf(stderr, "error! m0_rpc_at_recv() failed with %d\n", rc);
+		return rc;
+	}
+	m0_fop_init(arg_fop, &m0_fop_isc_fopt, fop_isc, m0_fop_release);
+	return rc;
+}
+
+int c0appz_isc_req_send_sync(struct c0appz_isc_req *req)
+{
+	struct m0_fop         *reply_fop;
+	struct m0_fop_isc_rep  isc_reply;
+	int                    rc;
+
+	rc = m0_rpc_post_sync(&req->cir_fop, &req->cir_rpc_link->rlk_sess, NULL,
+			      M0_TIME_IMMEDIATELY);
+	if (rc != 0) {
+		fprintf(stderr, "error! request could not be sent");
+		return rc;
+	}
+	reply_fop = m0_rpc_item_to_fop(req->cir_fop.f_item.ri_reply);
+	isc_reply = *(struct m0_fop_isc_rep *)m0_fop_data(reply_fop);
+	req->cir_rc = isc_reply.fir_rc;
+	rc = m0_rpc_at_rep_get(&req->cir_isc_fop.fi_ret, &isc_reply.fir_ret,
+			       req->cir_result);
+	if (rc != 0)
+		fprintf(stderr, "\nerror! m0_rpc_at_get returned %d\n", rc);
+	return req->cir_rc == 0 ? rc : req->cir_rc;
+}
+
+void c0appz_isc_req_fini(struct c0appz_isc_req *req)
+{
+	struct m0_fop *reply_fop;
+
+	reply_fop = m0_rpc_item_to_fop(req->cir_fop.f_item.ri_reply);
+	if (reply_fop != NULL)
+		m0_fop_put_lock(reply_fop);
+	m0_rpc_at_fini(&req->cir_isc_fop.fi_args);
+	m0_rpc_at_fini(&req->cir_isc_fop.fi_ret);
 }
 
 /*
