@@ -23,6 +23,7 @@ int c0appz_free(void);
 int c0appz_rm(int64_t idhi, int64_t idlo);
 int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt);
 int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt);
+int c0appz_cp_async(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt);
 int c0appz_setrc(char *rcfile);
 int c0appz_putrc(void);
 int c0appz_timeout(int sz);
