@@ -886,7 +886,7 @@ static int clovis_op_alloc(struct m0_clovis_op ***op, uint32_t blks)
 
 static void clovis_write_executed_cb(struct m0_clovis_op *op)
 {
-	m0_console_printf("Write operation is executing\n");
+	/** Stuff to do when OP is in excecuted state */
 }
 
 /*
@@ -906,11 +906,9 @@ static void clovis_write_stable_cb(struct m0_clovis_op *op)
 	tot_blks = o_ctx->coc_total_blocks;
 	sem = &o_ctx->coc_sem;
 	lock = &o_ctx->coc_mlock;
-	m0_console_printf("Write operation is STABLE for blocks %d", *blks);
 	m0_mutex_lock(lock);
 	*blks += CLOVIS_MAX_BLOCK_COUNT;
 	m0_mutex_unlock(lock);
-	m0_console_printf(" - %d\n", *blks);
 	if (*blks >= tot_blks)
 		m0_semaphore_up(sem);
 }
