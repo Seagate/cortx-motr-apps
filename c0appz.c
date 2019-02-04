@@ -118,14 +118,14 @@ int c0appz_timeout(int sz)
 	/* cpu time */
 	ct = (double)(clock() - cput_t) / CLOCKS_PER_SEC;
 	bw = (double)(sz) / (ct * 1000000);
-	fprintf(stderr,"[ cput: %0.4lf s %08.4lf Mbs ]", ct, bw);
+	fprintf(stderr,"[ cput: %08.4lf s %08.4lf MBs ]", ct, bw);
 
 	/* wall time */
 	gettimeofday(&tv, 0);
 	wt  = (double)(tv.tv_sec - wclk_t.tv_sec);
 	wt += (double)(tv.tv_usec - wclk_t.tv_usec)/1000000;
 	bw  = (double)(sz) / (wt * 1000000);
-	fprintf(stderr,"[ wclk: %0.4lf s %08.4lf Mbs ]", wt, bw);
+	fprintf(stderr,"[ wclk: %08.4lf s %08.4lf MBs ]", wt, bw);
 	fprintf(stderr,"\n");
 	return 0;
 }
