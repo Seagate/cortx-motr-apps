@@ -118,14 +118,14 @@ int c0appz_timeout(int sz)
 	/* cpu time */
 	ct = (double)(clock() - cput_t) / CLOCKS_PER_SEC;
 	bw = (double)(sz) / (ct * 1000000);
-	fprintf(stderr,"[ cput: %0.2lf s %0.2lf Mbs ]", ct, bw);
+	fprintf(stderr,"[ cput: %0.4lf s %08.4lf Mbs ]", ct, bw);
 
 	/* wall time */
 	gettimeofday(&tv, 0);
 	wt  = (double)(tv.tv_sec - wclk_t.tv_sec);
 	wt += (double)(tv.tv_usec - wclk_t.tv_usec)/1000000;
 	bw  = (double)(sz) / (wt * 1000000);
-	fprintf(stderr,"[ wclk: %0.2lf s %0.2lf Mbs ]", wt, bw);
+	fprintf(stderr,"[ wclk: %0.4lf s %08.4lf Mbs ]", wt, bw);
 	fprintf(stderr,"\n");
 	return 0;
 }
@@ -541,8 +541,14 @@ int c0appz_init(int idx)
 	clovis_conf.cc_ha_addr               = c0rc[1];
 	clovis_conf.cc_profile               = c0rc[2];
 	clovis_conf.cc_process_fid           = c0rc[3];
+	#if 0
+	/* set to default values */
 	clovis_conf.cc_tm_recv_queue_min_len = M0_NET_TM_RECV_QUEUE_DEF_LEN;
 	clovis_conf.cc_max_rpc_msg_size      = M0_RPC_DEF_MAX_RPC_MSG_SIZE;
+	#endif
+	/* set to Sage cluster specific values */
+	clovis_conf.cc_tm_recv_queue_min_len = 64;
+	clovis_conf.cc_max_rpc_msg_size      = 65536;
 	clovis_conf.cc_layout_id      		 = 9;
 
 	/* IDX_MERO */

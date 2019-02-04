@@ -64,6 +64,11 @@ int main(int argc, char **argv)
 		return -2;
 	}
 
+	/* time out/in */
+	fprintf(stderr,"%4s","init");
+	c0appz_timeout(0);
+	c0appz_timein();
+
 	/* copy */
 	if (c0appz_cp_async(idh, idl, fname, bsz, cnt) != 0) {
 		fprintf(stderr,"error! copy object failed.\n");
@@ -71,11 +76,17 @@ int main(int argc, char **argv)
 		return -3;
 	};
 
+	/* time out/in */
+	fprintf(stderr,"%4s","i/o");
+	c0appz_timeout(bsz * cnt);
+	c0appz_timein();
+
 	/* free resources*/
 	c0appz_free();
 
 	/* time out */
-	c0appz_timeout(bsz * cnt);
+	fprintf(stderr,"%4s","free");
+	c0appz_timeout(0);
 
 	/* success */
 	fprintf(stderr,"%s success\n", basename(argv[0]));

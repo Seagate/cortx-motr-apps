@@ -58,6 +58,11 @@ int main(int argc, char **argv)
 		return -2;
 	}
 
+	/* time out/in */
+	fprintf(stderr,"%4s","init");
+	c0appz_timeout(0);
+	c0appz_timein();
+
 	/* delete */
 	if (c0appz_rm(idh,idl) != 0) {
 		fprintf(stderr,"error! delete object failed.\n");
@@ -65,10 +70,16 @@ int main(int argc, char **argv)
 		return -3;
 	};
 
+	/* time out/in */
+	fprintf(stderr,"%4s","i/o");
+	c0appz_timeout(0);
+	c0appz_timein();
+
 	/* free resources*/
 	c0appz_free();
 
 	/* time out */
+	fprintf(stderr,"%4s","free");
 	c0appz_timeout(0);
 
 	/* success */
