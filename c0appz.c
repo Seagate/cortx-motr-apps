@@ -47,6 +47,7 @@
 #define SZC0RCFILE               256
 #define C0RCFLE                 "./.cappzrc"
 #define CLOVIS_MAX_BLOCK_COUNT  (200)
+#define CLOVIS_MAX_PER_IO_SIZE  (128*1024*1024)
 
 /* static variables */
 static struct m0_clovis          *clovis_instance = NULL;
@@ -180,6 +181,9 @@ int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 	while (cnt > 0) {
 		block_count = (cnt > CLOVIS_MAX_BLOCK_COUNT)?
 			       CLOVIS_MAX_BLOCK_COUNT:cnt;
+
+		if (block_count * bsz > CLOVIS_MAX_PER_IO_SIZE)
+			block_count = CLOVIS_MAX_PER_IO_SIZE / bsz;
 
 		/* Allocate block_count * 4K data buffer. */
 		rc = m0_bufvec_alloc(&data, block_count, bsz);
