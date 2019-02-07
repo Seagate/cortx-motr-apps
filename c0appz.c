@@ -84,6 +84,7 @@ static char *trim(char *str);
 static int open_entity(struct m0_clovis_entity *entity);
 static int create_object(struct m0_uint128 id);
 static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz);
+static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz);
 static int write_data_to_object(struct m0_uint128 id, struct m0_indexvec *ext,
                                 struct m0_bufvec *data, struct m0_bufvec *attr);
 static int clovis_write_vec_init(struct m0_clovis_vec_ctx *v_ctx,
@@ -169,7 +170,7 @@ int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-    /* create object */
+	/* create object */
 	rc = create_object(id);
 	if (rc != 0) {
 		fprintf(stderr, "can't create object!\n");
@@ -347,10 +348,9 @@ fail:
  * c0appz_cat()
  * cat object.
  */
-int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt)
+int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt, char *filename)
 {
 	int                  i;
-	int                  j;
 	int                  rc;
 	struct m0_uint128    id;
 	struct m0_clovis_op *ops[1] = {NULL};
@@ -359,6 +359,14 @@ int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt)
 	struct m0_indexvec   ext;
 	struct m0_bufvec     data;
 	struct m0_bufvec     attr;
+	FILE                *fp;
+
+	/* open src file */
+	fp = fopen(filename, "w");
+	if (fp == NULL) {
+		fprintf(stderr,"error! could not open output file %s\n", filename);
+		return 1;
+	}
 
 	/* ids */
 	id.u_hi = idhi;
@@ -421,12 +429,9 @@ int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt)
 	assert(ops[0]->op_sm.sm_state == M0_CLOVIS_OS_STABLE);
 	assert(ops[0]->op_sm.sm_rc == 0);
 
-	/* putchar the output */
-	for (i = 0; i < cnt; i++) {
-		for (j = 0; j < data.ov_vec.v_count[i]; j++) {
-			putchar(((char *)data.ov_buf[i])[j]);
-		}
-	}
+	rc = write_data_to_file(fp, &data, bsz);
+	if (rc != cnt)
+		fprintf(stderr, "Failed to write to output file!\n");
 
 	/* fini and release */
 	m0_clovis_op_fini(ops[0]);
@@ -507,14 +512,14 @@ int c0appz_init(int idx)
 		i++;
 	}
 
-    /* read c0rc */
+	/* read c0rc */
 	i = 0;
 	while (fgets(buf, SZC0RCSTR, fp) != NULL) {
 
-		#if DEBUG
+#if DEBUG
 	fprintf(stderr,"rd:->%s<-", buf);
 	fprintf(stderr,"\n");
-		#endif
+#endif
 
 	str = trim(buf);
 	if (str[0] == '#') continue;		/* ignore comments */
@@ -523,10 +528,10 @@ int c0appz_init(int idx)
 	memset(c0rc[i], 0x00, SZC0RCSTR);
 	strncpy(c0rc[i], str, SZC0RCSTR);
 
-		#if DEBUG
+#if DEBUG
 	fprintf(stderr,"wr:->%s<-", c0rc[i]);
 	fprintf(stderr,"\n");
-		#endif
+#endif
 
 	i++;
 	if (i == MAXC0RC) break;
@@ -545,22 +550,22 @@ int c0appz_init(int idx)
 	clovis_conf.cc_ha_addr               = c0rc[1];
 	clovis_conf.cc_profile               = c0rc[2];
 	clovis_conf.cc_process_fid           = c0rc[3];
-	#if 0
+#if 0
 	/* set to default values */
 	clovis_conf.cc_tm_recv_queue_min_len = M0_NET_TM_RECV_QUEUE_DEF_LEN;
 	clovis_conf.cc_max_rpc_msg_size      = M0_RPC_DEF_MAX_RPC_MSG_SIZE;
-	#endif
+#endif
 	/* set to Sage cluster specific values */
 	clovis_conf.cc_tm_recv_queue_min_len = 64;
 	clovis_conf.cc_max_rpc_msg_size      = 65536;
-	clovis_conf.cc_layout_id      		 = 9;
+	clovis_conf.cc_layout_id             = 9;
 
 	/* IDX_MERO */
 	clovis_conf.cc_idx_service_id   = M0_CLOVIS_IDX_DIX;
 	dix_conf.kc_create_meta = false;
 	clovis_conf.cc_idx_service_conf = &dix_conf;
 
-	#if DEBUG
+#if DEBUG
 	fprintf(stderr,"\n---\n");
 	fprintf(stderr,"%s,", (char *)clovis_conf.cc_local_addr);
 	fprintf(stderr,"%s,", (char *)clovis_conf.cc_ha_addr);
@@ -568,7 +573,7 @@ int c0appz_init(int idx)
 	fprintf(stderr,"%s,", (char *)clovis_conf.cc_process_fid);
 	fprintf(stderr,"%s,", (char *)clovis_conf.cc_idx_service_conf);
 	fprintf(stderr,"\n---\n");
-	#endif
+#endif
 
 	/* clovis instance */
 	rc = m0_clovis_init(&clovis_instance, &clovis_conf, true);
@@ -750,6 +755,22 @@ static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz)
 			break;
 
 		if (feof(fp))
+			break;
+	}
+
+	return i;
+}
+
+static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz)
+{
+	int i;
+	int rc;
+	int nr_blocks;
+
+	nr_blocks = data->ov_vec.v_nr;
+	for (i = 0; i < nr_blocks; i++) {
+		rc = fwrite(data->ov_buf[i], bsz, 1, fp);
+		if (rc != 1)
 			break;
 	}
 

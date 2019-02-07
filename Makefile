@@ -83,13 +83,13 @@ test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 	@ls -lh $(FILE1)
 	$(SUDO) ./$(EXE1) 0 1048577 $(FILE1) $(BSZ) $(CNT)
 	@echo "#####"
-	$(SUDO) ./$(EXE2) 0 1048577 $(BSZ) $(CNT) > $(FILE2)
+	$(SUDO) ./$(EXE2) 0 1048577 $(FILE2) $(BSZ) $(CNT) 
 	@ls -lh $(FILE2)
 	@echo "#####"
 	@ls -lh $(FILE1)
 	$(SUDO) ./$(EXE5) 0 1048599 $(FILE1) $(BSZ) $(CNT)
 	@echo "#####"
-	$(SUDO) ./$(EXE2) 0 1048599 $(BSZ) $(CNT) > $(FILE3)
+	$(SUDO) ./$(EXE2) 0 1048599 $(FILE3) $(BSZ) $(CNT) 
 	@ls -ls $(FILE3)
 	@echo "#####"
 	cmp $(FILE1) $(FILE2) || echo "ERROR: Test Failed !!"

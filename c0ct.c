@@ -27,15 +27,17 @@
 /* main */
 int main(int argc, char **argv)
 {
-	int64_t idh;/* object id high 	*/
-	int64_t idl;/* object is low	*/
-	int bsz;	/* block size 		*/
-	int cnt;	/* count			*/
+	int64_t  idh;   /* object id high */
+	int64_t  idl;   /* object is low  */
+	int      bsz;   /* block size     */
+	int      cnt;   /* count          */
+	char    *fname;	/* input filename */
 
 	/* check input */
-	if (argc != 5) {
+	if (argc != 6) {
 		fprintf(stderr,"Usage:\n");
-		fprintf(stderr,"%s idh idl bsz cnt\n", basename(argv[0]));
+		fprintf(stderr,"%s idh idl filename bsz cnt\n",
+			basename(argv[0]));
 		return -1;
 	}
 
@@ -51,10 +53,11 @@ int main(int argc, char **argv)
 	c0appz_putrc();
 
 	/* set input */
-	idh = atoll(argv[1]);
-	idl = atoll(argv[2]);
-	bsz = atoi(argv[3]);
-	cnt = atoi(argv[4]);
+	idh   = atoll(argv[1]);
+	idl   = atoll(argv[2]);
+	bsz   = atoi(argv[4]);
+	cnt   = atoi(argv[5]);
+	fname = argv[3];
 
 	/* initialize resources */
 	if (c0appz_init(0) != 0) {
@@ -68,7 +71,7 @@ int main(int argc, char **argv)
 	c0appz_timein();
 
 	/* cat */
-	if (c0appz_cat(idh,idl,bsz,cnt) != 0) {
+	if (c0appz_cat(idh, idl, bsz, cnt, fname) != 0) {
 		fprintf(stderr,"error! cat object failed.\n");
 		c0appz_free();
 		return -3;
