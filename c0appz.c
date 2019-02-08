@@ -61,20 +61,28 @@ static char    c0rcfile[SZC0RCFILE] = C0RCFLE;
 static struct  timeval wclk_t = {0, 0};
 static clock_t cput_t = 0;
 
-struct m0_clovis_op_ctx {
-	struct m0_mutex      coc_mlock;
-	struct m0_semaphore  coc_sem;
-	uint32_t             coc_total_blocks;
-	uint32_t             coc_blocks_written;
-} op_ctx;
+struct clovis_aio_op;
+struct clovis_aio_opgrp {
+	struct m0_semaphore   cag_sem;
 
-struct m0_clovis_vec_ctx {
-	struct m0_clovis_op_ctx   *cvc_ctx;
-	struct m0_indexvec         cvc_ext;
-	struct m0_bufvec           cvc_data;
-	struct m0_bufvec           cvc_attr;
-	struct m0_clovis_obj       cvc_obj;
+	struct m0_mutex       cag_mlock;
+	uint32_t              cag_blocks_to_write;
+	uint32_t              cag_blocks_written;
+	int                   cag_rc;	
+
+	struct m0_clovis_obj  cag_obj;
+	struct clovis_aio_op *cag_aio_ops;
 };
+
+struct clovis_aio_op {
+	struct clovis_aio_opgrp *cao_grp;
+
+	struct m0_clovis_op     *cao_op;
+	struct m0_indexvec       cao_ext;
+	struct m0_bufvec         cao_data;
+	struct m0_bufvec         cao_attr;
+};
+
 /*
  ******************************************************************************
  * STATIC FUNCTION PROTOTYPES
@@ -87,19 +95,17 @@ static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz);
 static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz);
 static int write_data_to_object(struct m0_uint128 id, struct m0_indexvec *ext,
                                 struct m0_bufvec *data, struct m0_bufvec *attr);
-static int clovis_write_vec_init(struct m0_clovis_vec_ctx *v_ctx,
-                                 uint32_t blk_count, uint32_t block_size);
-static int clovis_vec_alloc(struct m0_clovis_vec_ctx **v_ctx, uint32_t blks);
-static int clovis_op_alloc(struct m0_clovis_op ***op, uint32_t blks);
-static int write_data_to_object_async(struct m0_uint128 id,
-                                      struct m0_clovis_vec_ctx *v_ctx,
-                                      struct m0_clovis_op **op);
-static void op_ctx_fini(struct m0_clovis_op_ctx *op_ctx);
-static void op_ctx_init (struct m0_clovis_op_ctx *op_ctx, uint32_t block_count);
-static void clovis_write_vec_free(struct m0_clovis_vec_ctx *v_ctx);
-static void clovis_write_failed_cb(struct m0_clovis_op *op);
-static void clovis_write_stable_cb(struct m0_clovis_op *op);
-static void clovis_write_executed_cb(struct m0_clovis_op *op);
+
+static int write_data_to_object_async(struct clovis_aio_op *aio);
+static int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
+			       uint32_t blk_count, uint32_t blk_size);
+static void clovis_aio_vec_free(struct clovis_aio_op *aio);
+static int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
+				 int blk_cnt, int op_cnt);
+static void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp);
+static void clovis_aio_executed_cb(struct m0_clovis_op *op);
+static void clovis_aio_stable_cb(struct m0_clovis_op *op);
+static void clovis_aio_failed_cb(struct m0_clovis_op *op);
 /*
  ******************************************************************************
  * EXTERN FUNCTIONS
@@ -241,17 +247,26 @@ int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
  * copy to and object in an async manner
  */
 int c0appz_cp_async(int64_t idhi, int64_t idlo, char *src, int block_size,
-                    int block_count)
+                    int block_count, int op_cnt)
 {
-	int                        i;
-	int                        rc;
-	uint64_t                   last_index;
-	struct m0_uint128          id;
-	struct m0_clovis_vec_ctx  *v_ctx;
-	struct m0_clovis_op      **op;
-	uint32_t                   blk_count;
-	uint32_t                   op_index;
+	int                       i;
+	int                       j;
+	int                       rc = 0;
+	int                       bcnt_per_op;
+	int                       max_bcnt_per_op;
+	int                       nr_ops_sent;
+	uint64_t                  last_index;
+	struct m0_uint128         id;
+	struct clovis_aio_op     *aio;
+	struct clovis_aio_opgrp   aio_grp;
 	FILE                      *fp;
+
+	assert(block_count % op_cnt == 0);
+	assert(CLOVIS_MAX_PER_IO_SIZE > block_size);
+	max_bcnt_per_op = CLOVIS_MAX_PER_IO_SIZE / block_size >
+			  CLOVIS_MAX_BLOCK_COUNT ?
+			  CLOVIS_MAX_BLOCK_COUNT :
+			  CLOVIS_MAX_PER_IO_SIZE / block_size;
 
 	/* Open source file */
 	fp = fopen(src, "rb");
@@ -268,78 +283,78 @@ int c0appz_cp_async(int64_t idhi, int64_t idlo, char *src, int block_size,
 		fclose(fp);
 		return rc;
 	}
-	/* Allocating memory for array of operation pointers */
-	rc = clovis_op_alloc(&op, block_count);
-	if (rc != 0) {
-		fclose(fp);
-		return rc;
-	}
-
-	/* Initializing operation context */
-	op_ctx_init(&op_ctx, block_count);
-	rc = clovis_vec_alloc(&v_ctx, block_count);
-	if (rc != 0) {
-		fclose(fp);
-		free(op);
-		return rc;
-	}
 
 	last_index = 0;
-	op_index = 0;
 	while (block_count > 0) {
-		blk_count = (block_count > CLOVIS_MAX_BLOCK_COUNT)?
-			     CLOVIS_MAX_BLOCK_COUNT:block_count;
+		bcnt_per_op = block_count > max_bcnt_per_op * op_cnt?
+			      max_bcnt_per_op : block_count / op_cnt;
 
-		rc = clovis_write_vec_init(&v_ctx[op_index], blk_count,
-					   block_size);
+		/* Initialise operation group. */
+		rc = clovis_aio_opgrp_init(
+			&aio_grp, bcnt_per_op * op_cnt, op_cnt);
 		if (rc != 0) {
 			fclose(fp);
-			free(op);
-			free(v_ctx);
 			return rc;
 		}
-		/*
-		* Prepare indexvec for write: <clovis_block_count> from the
-		* beginning of the object.
-		*/
-		for (i = 0; i < blk_count; i++) {
-			v_ctx[op_index].cvc_ext.iv_index[i] = last_index;
-			v_ctx[op_index].cvc_ext.iv_vec.v_count[i] = block_size;
-			last_index += block_size;
 
-			/* we don't want any attributes */
-			v_ctx[op_index].cvc_attr.ov_vec.v_count[i] = 0;
+		/* Open the object. */
+		m0_clovis_obj_init(&aio_grp.cag_obj,
+			&clovis_uber_realm, &id,
+			 m0_clovis_layout_id(clovis_instance));
+		open_entity(&aio_grp.cag_obj.ob_entity);
+
+		/* Set each op. */
+		nr_ops_sent = 0;
+		for (i = 0; i < op_cnt; i++) {
+			aio = &aio_grp.cag_aio_ops[i];
+			rc = clovis_aio_vec_alloc(aio, bcnt_per_op, block_size);
+			if (rc != 0)
+				break; 
+
+			for (j = 0; j < bcnt_per_op; j++) {
+				aio->cao_ext.iv_index[j] = last_index;
+				aio->cao_ext.iv_vec.v_count[j] = block_size;
+				last_index += block_size;
+
+				aio->cao_attr.ov_vec.v_count[j] = 0;
+			}
+
+			/* Read data from source file. */
+			rc = read_data_from_file(
+				fp, &aio->cao_data, block_size);
+			M0_ASSERT(rc == bcnt_per_op);
+
+			/* Launch IO op. */
+			rc = write_data_to_object_async(aio);
+			if (rc != 0) {
+				fprintf(stderr, "Writing to object failed!\n");
+				break;
+			}
+			nr_ops_sent++;
 		}
 
-		/* Read data from source file. */
-		rc = read_data_from_file(fp, &v_ctx[op_index].cvc_data, block_size);
-		assert(rc == blk_count);
+		/* Wait for all ops to complete. */
+		for (i = 0; i < nr_ops_sent; i++)
+			m0_semaphore_down(&aio_grp.cag_sem);
 
-		/* Copy data to the object*/
-		rc = write_data_to_object_async(id, &v_ctx[op_index],
-					       &op[op_index]);
-		if (rc != 0) {
-			fprintf(stderr, "Writing to object failed!\n");
-			goto fail;
+		/* Finalise ops and group. */
+		rc = rc ?: aio_grp.cag_rc;
+		for (i = 0; i < nr_ops_sent; i++) {
+			aio = &aio_grp.cag_aio_ops[i];
+			m0_clovis_op_fini(aio->cao_op);
+			m0_clovis_op_free(aio->cao_op);
+			clovis_aio_vec_free(aio);
 		}
-		op_index++;
-		block_count -= blk_count;
+		m0_clovis_entity_fini(&aio_grp.cag_obj.ob_entity);
+		clovis_aio_opgrp_fini(&aio_grp);
+
+		/* Not all ops are launched and executed successfully. */
+		if (rc != 0)
+			break;
+
+		block_count -= op_cnt * bcnt_per_op;
 	}
 
-	m0_semaphore_down(&op_ctx.coc_sem);
-
-fail:
-	for (i = 0; i< op_index; i++) {
-		m0_clovis_op_fini(op[i]);
-		m0_clovis_op_free(op[i]);
-		m0_clovis_entity_fini(&v_ctx[i].cvc_obj.ob_entity);
-		clovis_write_vec_free(&v_ctx[i]);
-	}
-
-	/* Finalizing operation context */
-	op_ctx_fini(&op_ctx);
-	free(op);
-	free(v_ctx);
 	fclose(fp);
 	return rc;
 }
@@ -823,175 +838,121 @@ static int write_data_to_object(struct m0_uint128 id,
  * write_data_to_object_async()
  * writes to and object in async manner
  */
-static int write_data_to_object_async(struct m0_uint128 id,
-                                      struct m0_clovis_vec_ctx *v_ctx,
-                                      struct m0_clovis_op **op)
+static int write_data_to_object_async(struct clovis_aio_op *aio)
 {
-	int                       rc = 0;
-	struct m0_clovis_op      *ops[1] = {NULL};
-	struct m0_clovis_op_ops   op_ops;
+	struct m0_clovis_obj    *obj;
+	struct m0_clovis_op_ops  op_ops;
+	struct clovis_aio_opgrp *grp;
 
-	memset(&v_ctx->cvc_obj, 0, sizeof(struct m0_clovis_obj));
-	/* Set the object entity we want to write */
-	m0_clovis_obj_init(&v_ctx->cvc_obj, &clovis_uber_realm, &id,
-			   m0_clovis_layout_id(clovis_instance));
+	grp = aio->cao_grp;
+	obj = &grp->cag_obj;
 
-	rc = open_entity(&v_ctx->cvc_obj.ob_entity);
+	/* Create an WRITE op. */
+	m0_clovis_obj_op(obj, M0_CLOVIS_OC_WRITE,
+			 &aio->cao_ext, &aio->cao_data,
+			 &aio->cao_attr, 0, &aio->cao_op);
+	aio->cao_op->op_datum = aio;
 
-	/* Create the write request */
-	m0_clovis_obj_op(&v_ctx->cvc_obj, M0_CLOVIS_OC_WRITE,
-			 &v_ctx->cvc_ext, &v_ctx->cvc_data,
-			 &v_ctx->cvc_attr, 0, op);
+	/* Set op's Callbacks */
+	op_ops.oop_executed = clovis_aio_executed_cb;
+	op_ops.oop_stable = clovis_aio_stable_cb;
+	op_ops.oop_failed = clovis_aio_failed_cb;
+	m0_clovis_op_setup(aio->cao_op, &op_ops, 0);
 
-	/* Attaching Callbacks */
-	op_ops.oop_executed = clovis_write_executed_cb;
-	op_ops.oop_stable = clovis_write_stable_cb;
-	op_ops.oop_failed = clovis_write_failed_cb;
-	m0_clovis_op_setup(*op, &op_ops, 0);
-
-	(*op)->op_datum = v_ctx;
-	ops[0] = *op;
 	/* Launch the write request */
-	m0_clovis_op_launch(ops, 1);
+	m0_clovis_op_launch(&aio->cao_op, 1);
 
-	return rc;
+	return 0;
 }
 
-/*
- * clovis_write_vec_init()
- * initializes the buf and index vectors
- */
-static int clovis_write_vec_init(struct m0_clovis_vec_ctx *v_ctx,
-                                 uint32_t blk_count, uint32_t block_size)
+static int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
+				uint32_t blk_count, uint32_t blk_size)
 {
 	int rc = 0;
 
-	/* Allocate block_count * 4K data buffer. */
-	rc = m0_bufvec_alloc(&v_ctx->cvc_data, blk_count, block_size);
-	if (rc != 0)
-		return rc;
-
-	/* Allocate bufvec and indexvec for write. */
-	rc = m0_bufvec_alloc(&v_ctx->cvc_attr, blk_count, 1);
-	if (rc != 0)  {
-		m0_bufvec_free(&v_ctx->cvc_data);
-		return rc;
-	}
-
-	rc = m0_indexvec_alloc(&v_ctx->cvc_ext, blk_count);
+	rc = m0_bufvec_alloc(&aio->cao_data, blk_count, blk_size) ?:
+	     m0_bufvec_alloc(&aio->cao_attr, blk_count, 1) ?:
+	     m0_indexvec_alloc(&aio->cao_ext, blk_count);
 	if (rc != 0) {
-		m0_bufvec_free(&v_ctx->cvc_data);
-		m0_bufvec_free(&v_ctx->cvc_attr);
-		return rc;
+		m0_bufvec_free(&aio->cao_data);
+		m0_bufvec_free(&aio->cao_attr);
 	}
 	return rc;
 }
 
-static int clovis_vec_alloc(struct m0_clovis_vec_ctx **v_ctx, uint32_t blks)
+static void clovis_aio_vec_free(struct clovis_aio_op *aio)
 {
-	int      i;
-	uint32_t no_of_ops = blks / CLOVIS_MAX_BLOCK_COUNT;
-	if (blks % CLOVIS_MAX_BLOCK_COUNT)
-		no_of_ops++;
-	M0_ALLOC_ARR(*v_ctx, no_of_ops);
-	for (i = 0; i < no_of_ops; i++)
-		((*v_ctx)[i]).cvc_ctx = &op_ctx;
-	if (*v_ctx == NULL)
-		return -1;
+	/* Free bufvec's and indexvec's */
+	m0_indexvec_free(&aio->cao_ext);
+	m0_bufvec_free(&aio->cao_data);
+	m0_bufvec_free(&aio->cao_attr);
+}
+
+static int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
+				 int blk_cnt, int op_cnt)
+{
+	int                   i;
+	struct clovis_aio_op *ops;
+
+	M0_SET0(grp);
+
+	M0_ALLOC_ARR(ops, op_cnt);
+	if (ops == NULL)
+		return -ENOMEM;
+	grp->cag_aio_ops = ops;
+	for (i = 0; i < op_cnt; i++)
+		grp->cag_aio_ops[i].cao_grp = grp;
+
+	m0_mutex_init(&grp->cag_mlock);
+	m0_semaphore_init(&grp->cag_sem, 0);
+	grp->cag_blocks_to_write = blk_cnt;
+	grp->cag_blocks_written = 0;
+
 	return 0;
 }
 
-static int clovis_op_alloc(struct m0_clovis_op ***op, uint32_t blks)
+static void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp)
 {
-	int      i;
-	uint32_t no_of_ops = blks / CLOVIS_MAX_BLOCK_COUNT;
-	if (blks % CLOVIS_MAX_BLOCK_COUNT)
-		no_of_ops++;
-	M0_ALLOC_ARR(*op, no_of_ops);
-	for (i = 0; i < no_of_ops; i++)
-		(*op)[i] = NULL;
-	if ( *op == NULL)
-		return -1;
-	return 0;
+	m0_mutex_fini(&grp->cag_mlock);
+	m0_semaphore_fini(&grp->cag_sem);
+	grp->cag_blocks_to_write = 0;
+	grp->cag_blocks_written = 0;
+
+	m0_free(grp->cag_aio_ops);
 }
 
-static void clovis_write_executed_cb(struct m0_clovis_op *op)
+static void clovis_aio_executed_cb(struct m0_clovis_op *op)
 {
 	/** Stuff to do when OP is in excecuted state */
 }
 
-/*
- * clovis_write_stable_cb()
- * callback for stable state of clovis op
- */
-static void clovis_write_stable_cb(struct m0_clovis_op *op)
+static void clovis_aio_stable_cb(struct m0_clovis_op *op)
 {
-	uint32_t                *blks;
-	uint32_t                 tot_blks;
-	struct m0_semaphore     *sem;
-	struct m0_mutex         *lock;
-	struct m0_clovis_op_ctx *o_ctx;
+	struct clovis_aio_opgrp *grp;
 
-	o_ctx = ((struct m0_clovis_vec_ctx *)op->op_datum)->cvc_ctx;
-	blks = &o_ctx->coc_blocks_written;
-	tot_blks = o_ctx->coc_total_blocks;
-	sem = &o_ctx->coc_sem;
-	lock = &o_ctx->coc_mlock;
-	m0_mutex_lock(lock);
-	*blks += CLOVIS_MAX_BLOCK_COUNT;
-	m0_mutex_unlock(lock);
-	if (*blks >= tot_blks)
-		m0_semaphore_up(sem);
+	grp = ((struct clovis_aio_op *)op->op_datum)->cao_grp;
+	m0_mutex_lock(&grp->cag_mlock);
+	if (op->op_rc == 0) {
+		grp->cag_blocks_written += 0;
+		grp->cag_blocks_to_write   += 0;
+		grp->cag_rc = grp->cag_rc ?: op->op_rc;
+	}
+	m0_mutex_unlock(&grp->cag_mlock);
+
+	m0_semaphore_up(&grp->cag_sem);
 }
 
-/*
- * clovis_write_failed_cb()
- * callback for failed state of clovis op
- */
-static void clovis_write_failed_cb(struct m0_clovis_op *op)
+static void clovis_aio_failed_cb(struct m0_clovis_op *op)
 {
-	uint32_t                 *blks;
-	uint32_t                  tot_blks;
-	struct m0_semaphore      *sem;
-	struct m0_mutex          *lock;
-	struct m0_clovis_op_ctx  *o_ctx;
+	struct clovis_aio_opgrp *grp;
 
-	o_ctx = ((struct m0_clovis_vec_ctx *)op->op_datum)->cvc_ctx;
-	blks = &o_ctx->coc_blocks_written;
-	tot_blks = o_ctx->coc_total_blocks;
-	sem = &o_ctx->coc_sem;
-	lock = &o_ctx->coc_mlock;
-	m0_console_printf("Write operation FAILED for blocks %d", *blks);
-	m0_mutex_lock(lock);
-	*blks += CLOVIS_MAX_BLOCK_COUNT;
-	m0_mutex_unlock(lock);
-	m0_console_printf(" - %d\n", *blks);
-	if (*blks >= tot_blks)
-		m0_semaphore_up(sem);
-}
+	m0_console_printf("Write operation failed!");
+	grp = ((struct clovis_aio_op *)op->op_datum)->cao_grp;
+	m0_mutex_lock(&grp->cag_mlock);
+	grp->cag_rc = grp->cag_rc ?: op->op_rc;
+	m0_mutex_unlock(&grp->cag_mlock);
 
-static void clovis_write_vec_free(struct m0_clovis_vec_ctx *v_ctx)
-{
-	/* Free bufvec's and indexvec's */
-	m0_indexvec_free(&v_ctx->cvc_ext);
-	m0_bufvec_free(&v_ctx->cvc_data);
-	m0_bufvec_free(&v_ctx->cvc_attr);
-}
-
-static void op_ctx_init (struct m0_clovis_op_ctx *op_ctx, uint32_t block_count)
-{
-	m0_mutex_init(&op_ctx->coc_mlock);
-	m0_semaphore_init(&op_ctx->coc_sem, 0);
-	op_ctx->coc_total_blocks = block_count;
-	op_ctx->coc_blocks_written = 0;
-}
-
-static void op_ctx_fini(struct m0_clovis_op_ctx *op_ctx)
-{
-	m0_mutex_fini(&op_ctx->coc_mlock);
-	m0_semaphore_fini(&op_ctx->coc_sem);
-	op_ctx->coc_total_blocks = 0;
-	op_ctx->coc_blocks_written = 0;
+	m0_semaphore_up(&grp->cag_sem);
 }
 
 /*

@@ -27,14 +27,15 @@
 /* main */
 int main(int argc, char **argv)
 {
-	int64_t idh;	/* object id high	*/
-	int64_t idl;	/* object is low	*/
-	int bsz;		/* block size		*/
-	int cnt;		/* count			*/
-	char *fname;	/* input filename	*/
+	int64_t idh;	/* object id high */
+	int64_t idl;	/* object is low  */
+	int bsz;        /* block size	  */
+	int cnt;        /* count	  */
+	int op_cnt;     /* number of parallel ops */
+	char *fname;	/* input filename */
 
 	/* check input */
-	if (argc != 6) {
+	if (argc != 7) {
 		fprintf(stderr,"Usage:\n");
 		fprintf(stderr,"%s idh idl filename bsz cnt\n", basename(argv[0]));
 		return -1;
@@ -56,6 +57,7 @@ int main(int argc, char **argv)
 	idl = atoll(argv[2]);
 	bsz = atoi(argv[4]);
 	cnt = atoi(argv[5]);
+	op_cnt = atoi(argv[6]);
 	fname = argv[3];
 
 	/* initialize resources */
@@ -70,7 +72,7 @@ int main(int argc, char **argv)
 	c0appz_timein();
 
 	/* copy */
-	if (c0appz_cp_async(idh, idl, fname, bsz, cnt) != 0) {
+	if (c0appz_cp_async(idh, idl, fname, bsz, cnt, op_cnt) != 0) {
 		fprintf(stderr,"error! copy object failed.\n");
 		c0appz_free();
 		return -3;

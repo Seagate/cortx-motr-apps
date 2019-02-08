@@ -87,7 +87,7 @@ test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 	@ls -lh $(FILE2)
 	@echo "#####"
 	@ls -lh $(FILE1)
-	$(SUDO) ./$(EXE5) 0 1048599 $(FILE1) $(BSZ) $(CNT)
+	$(SUDO) ./$(EXE5) 0 1048599 $(FILE1) $(BSZ) $(CNT) 8
 	@echo "#####"
 	$(SUDO) ./$(EXE2) 0 1048599 $(FILE3) $(BSZ) $(CNT) 
 	@ls -ls $(FILE3)
