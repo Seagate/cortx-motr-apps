@@ -68,7 +68,7 @@ struct clovis_aio_opgrp {
 	struct m0_mutex       cag_mlock;
 	uint32_t              cag_blocks_to_write;
 	uint32_t              cag_blocks_written;
-	int                   cag_rc;	
+	int                   cag_rc;
 
 	struct m0_clovis_obj  cag_obj;
 	struct clovis_aio_op *cag_aio_ops;
@@ -116,7 +116,7 @@ static void clovis_aio_failed_cb(struct m0_clovis_op *op);
  * c0appz_timeout()
  * time out execution.
  */
-int c0appz_timeout(int sz)
+int c0appz_timeout(uint64_t sz)
 {
 	double ct;        /* cpu time in seconds */
 	double wt;        /* wall time in seconds	*/
@@ -125,14 +125,14 @@ int c0appz_timeout(int sz)
 
 	/* cpu time */
 	ct = (double)(clock() - cput_t) / CLOCKS_PER_SEC;
-	bw = (double)(sz) / (ct * 1000000);
+	bw = (double)(sz) / 1000000.0 / ct;
 	fprintf(stderr,"[ cput: %08.4lf s %08.4lf MB/s ]", ct, bw);
 
 	/* wall time */
 	gettimeofday(&tv, 0);
 	wt  = (double)(tv.tv_sec - wclk_t.tv_sec);
 	wt += (double)(tv.tv_usec - wclk_t.tv_usec)/1000000;
-	bw  = (double)(sz) / (wt * 1000000);
+	bw  = (double)(sz) / 1000000.0 / wt;
 	fprintf(stderr,"[ wclk: %08.4lf s %08.4lf MB/s ]", wt, bw);
 	fprintf(stderr,"\n");
 	return 0;
@@ -157,13 +157,21 @@ int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 {
 	int                i;
 	int                rc;
+	int                max_bcnt_per_op;
 	int                block_count;
+	int                bcnt_read;
 	uint64_t           last_index;
 	struct m0_uint128  id;
 	struct m0_indexvec ext;
 	struct m0_bufvec   data;
 	struct m0_bufvec   attr;
 	FILE              *fp;
+	m0_time_t          st;
+	m0_time_t          read_time;
+	m0_time_t          write_time;
+	double             time;
+	double             fs_bw;
+	double             clovis_bw;
 
 	/* open src file */
 	fp = fopen(filename, "rb");
@@ -184,27 +192,25 @@ int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 		return rc;
 	}
 
+	/* Loop for WRITE ops */
+	max_bcnt_per_op = CLOVIS_MAX_PER_IO_SIZE / bsz;
+	assert(max_bcnt_per_op != 0);
 	last_index = 0;
+	M0_SET0(&read_time);
+	M0_SET0(&write_time);
 	while (cnt > 0) {
 		block_count = (cnt > CLOVIS_MAX_BLOCK_COUNT)?
 			       CLOVIS_MAX_BLOCK_COUNT:cnt;
 
-		if (block_count * bsz > CLOVIS_MAX_PER_IO_SIZE)
-			block_count = CLOVIS_MAX_PER_IO_SIZE / bsz;
+		if (block_count > max_bcnt_per_op)
+			block_count = max_bcnt_per_op;
 
-		/* Allocate block_count * 4K data buffer. */
-		rc = m0_bufvec_alloc(&data, block_count, bsz);
+		/* Allocate data buffers, bufvec and indexvec for write. */
+		rc = m0_bufvec_alloc(&data, block_count, bsz) ?:
+		     m0_bufvec_alloc(&attr, block_count, 1) ?:
+		     m0_indexvec_alloc(&ext, block_count);
 		if (rc != 0)
-			return rc;
-
-		/* Allocate bufvec and indexvec for write. */
-		rc = m0_bufvec_alloc(&attr, block_count, 1);
-		if (rc != 0)
-			return rc;
-
-		rc = m0_indexvec_alloc(&ext, block_count);
-		if (rc != 0)
-			return rc;
+			goto free_vecs;
 
 		/*
 		 * Prepare indexvec for write: <clovis_block_count> from the
@@ -220,23 +226,39 @@ int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 		}
 
 		/* Read data from source file. */
-		rc = read_data_from_file(fp, &data, bsz);
-		assert(rc == block_count);
+		st = m0_time_now();
+		bcnt_read = read_data_from_file(fp, &data, bsz);
+		assert(bcnt_read == block_count);
+		read_time = m0_time_add(read_time,
+					m0_time_sub(m0_time_now(), st));
 
 		/* Copy data to the object*/
+		st = m0_time_now();
 		rc = write_data_to_object(id, &ext, &data, &attr);
-		if (rc != 0) {
+		if (rc != 0)
 			fprintf(stderr, "writing to object failed!\n");
-			return rc;
-		}
+		write_time = m0_time_add(write_time,
+					 m0_time_sub(m0_time_now(), st));
 
+free_vecs:
 		/* Free bufvec's and indexvec's */
 		m0_indexvec_free(&ext);
 		m0_bufvec_free(&data);
 		m0_bufvec_free(&attr);
+		if (rc != 0)
+			break;
 
 		cnt -= block_count;
 	}
+
+	time = (double) read_time / M0_TIME_ONE_SECOND;
+	fs_bw = last_index / 1000000.0 / time;
+	fprintf(stderr," i/o[ read from fs: %08.4lf s %08.4lf MB/s ]", time, fs_bw);
+
+	time = (double) write_time / M0_TIME_ONE_SECOND;
+	clovis_bw = last_index / 1000000.0 / time;
+	fprintf(stderr,"[ write to mero: %08.4lf s %08.4lf MB/s ]\n",
+		time, clovis_bw);
 
 	fclose(fp);
 	return 0;
@@ -309,7 +331,7 @@ int c0appz_cp_async(int64_t idhi, int64_t idlo, char *src, int block_size,
 			aio = &aio_grp.cag_aio_ops[i];
 			rc = clovis_aio_vec_alloc(aio, bcnt_per_op, block_size);
 			if (rc != 0)
-				break; 
+				break;
 
 			for (j = 0; j < bcnt_per_op; j++) {
 				aio->cao_ext.iv_index[j] = last_index;
@@ -486,9 +508,9 @@ int c0appz_rm(int64_t idhi, int64_t idlo)
 
 	m0_clovis_entity_delete(&obj.ob_entity, &ops[0]);
 	m0_clovis_op_launch(ops, ARRAY_SIZE(ops));
-	rc = m0_clovis_op_wait(ops[0], M0_BITS(M0_CLOVIS_OS_FAILED, 
+	rc = m0_clovis_op_wait(ops[0], M0_BITS(M0_CLOVIS_OS_FAILED,
 					       M0_CLOVIS_OS_STABLE),
-			       m0_time_from_now(3,0));
+				   M0_TIME_NEVER);
 
 	m0_clovis_op_fini(ops[0]);
 	m0_clovis_op_free(ops[0]);

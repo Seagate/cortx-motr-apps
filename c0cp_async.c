@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 
 	/* time out/in */
 	fprintf(stderr,"%4s","i/o");
-	c0appz_timeout(bsz * cnt);
+	c0appz_timeout((uint64_t)bsz * (uint64_t)cnt);
 	c0appz_timein();
 
 	/* free resources*/

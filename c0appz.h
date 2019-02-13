@@ -18,6 +18,8 @@
  * Original creation date: 10-Jan-2017
  */
 
+#include <stdint.h>
+
 int c0appz_init(int idx);
 int c0appz_free(void);
 int c0appz_rm(int64_t idhi, int64_t idlo);
@@ -27,7 +29,7 @@ int c0appz_cp_async(int64_t idhi, int64_t idlo, char *filename,
 		    int bsz, int cnt, int op_cnt);
 int c0appz_setrc(char *rcfile);
 int c0appz_putrc(void);
-int c0appz_timeout(int sz);
+int c0appz_timeout(uint64_t sz);
 int c0appz_timein();
 
 /*
