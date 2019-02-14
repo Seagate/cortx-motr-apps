@@ -95,6 +95,7 @@ int main(int argc, char **argv)
 		return -2;
 	}
 	fprintf(stderr,"MPI rank [ %d ] c0appz_init(%d) [OK]\n",wrank,idx);
+
 #endif
 
 #if DMPISEQ
@@ -111,6 +112,16 @@ int main(int argc, char **argv)
 	 * do something
 	 */
 	fprintf(stderr,"MPI rank [ %d ] do something here...\n",wrank);
+#if DCLOVIS
+	/* delete */
+	int64_t idh = 0;
+	int64_t idl = 0;
+	idl = 1048577 + wrank;
+	fprintf(stderr,"deleting object < %lu %lu >\n",idh,idl);
+	if (c0appz_rm(0,1048577) != 0) {
+		fprintf(stderr,"error! delete object failed.\n");
+	};
+#endif
 
 #if DCLOVIS
 	fprintf(stderr,"MPI rank [ %d ] c0appz_free() [**]\n",wrank);
