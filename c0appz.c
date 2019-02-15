@@ -47,7 +47,8 @@
 #define SZC0RCFILE               256
 #define C0RCFLE                 "./.cappzrc"
 #define CLOVIS_MAX_BLOCK_COUNT  (200)
-#define CLOVIS_MAX_PER_IO_SIZE  (128*1024*1024)
+#define CLOVIS_MAX_PER_WIO_SIZE (128*1024*1024)
+#define CLOVIS_MAX_PER_RIO_SIZE (512*1024*1024)
 
 /* static variables */
 static struct m0_clovis          *clovis_instance = NULL;
@@ -93,6 +94,11 @@ static int open_entity(struct m0_clovis_entity *entity);
 static int create_object(struct m0_uint128 id);
 static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz);
 static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz);
+
+static int read_data_from_object(struct m0_uint128 id,
+				 struct m0_indexvec *ext,
+				 struct m0_bufvec *data,
+				 struct m0_bufvec *attr);
 static int write_data_to_object(struct m0_uint128 id, struct m0_indexvec *ext,
                                 struct m0_bufvec *data, struct m0_bufvec *attr);
 
@@ -118,22 +124,25 @@ static void clovis_aio_failed_cb(struct m0_clovis_op *op);
  */
 int c0appz_timeout(uint64_t sz)
 {
-	double ct;        /* cpu time in seconds */
-	double wt;        /* wall time in seconds	*/
-	double bw;        /* bandwidth in MBs		*/
+	double ct;        /* cpu time in seconds  */
+	double wt;        /* wall time in seconds */
+	double bw_ctime;  /* bandwidth in MBs     */
+	double bw_wtime;  /* bandwidth in MBs     */
 	struct timeval tv;
 
 	/* cpu time */
 	ct = (double)(clock() - cput_t) / CLOCKS_PER_SEC;
-	bw = (double)(sz) / 1000000.0 / ct;
-	fprintf(stderr,"[ cput: %08.4lf s %08.4lf MB/s ]", ct, bw);
+	bw_ctime = (double)(sz) / 1000000.0 / ct;
 
 	/* wall time */
 	gettimeofday(&tv, 0);
 	wt  = (double)(tv.tv_sec - wclk_t.tv_sec);
 	wt += (double)(tv.tv_usec - wclk_t.tv_usec)/1000000;
-	bw  = (double)(sz) / 1000000.0 / wt;
-	fprintf(stderr,"[ wclk: %08.4lf s %08.4lf MB/s ]", wt, bw);
+	bw_wtime  = (double)(sz) / 1000000.0 / wt;
+
+
+	fprintf(stderr,"[ cput: %08.4lf s %08.4lf MB/s ]", ct, bw_ctime);
+	fprintf(stderr,"[ wclk: %08.4lf s %08.4lf MB/s ]", wt, bw_wtime);
 	fprintf(stderr,"\n");
 	return 0;
 }
@@ -193,7 +202,7 @@ int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 	}
 
 	/* Loop for WRITE ops */
-	max_bcnt_per_op = CLOVIS_MAX_PER_IO_SIZE / bsz;
+	max_bcnt_per_op = CLOVIS_MAX_PER_WIO_SIZE / bsz;
 	assert(max_bcnt_per_op != 0);
 	last_index = 0;
 	M0_SET0(&read_time);
@@ -228,7 +237,11 @@ int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 		/* Read data from source file. */
 		st = m0_time_now();
 		bcnt_read = read_data_from_file(fp, &data, bsz);
-		assert(bcnt_read == block_count);
+		if (bcnt_read != block_count) {
+			fprintf(stderr, "reading from file failed!\n");
+			rc = -EIO;
+			goto free_vecs;
+		}
 		read_time = m0_time_add(read_time,
 					m0_time_sub(m0_time_now(), st));
 
@@ -250,18 +263,20 @@ free_vecs:
 
 		cnt -= block_count;
 	}
-
-	time = (double) read_time / M0_TIME_ONE_SECOND;
-	fs_bw = last_index / 1000000.0 / time;
-	fprintf(stderr," i/o[ read from fs: %08.4lf s %08.4lf MB/s ]", time, fs_bw);
-
-	time = (double) write_time / M0_TIME_ONE_SECOND;
-	clovis_bw = last_index / 1000000.0 / time;
-	fprintf(stderr,"[ write to mero: %08.4lf s %08.4lf MB/s ]\n",
-		time, clovis_bw);
-
 	fclose(fp);
-	return 0;
+
+	if (rc == 0) {
+		time = (double) read_time / M0_TIME_ONE_SECOND;
+		fs_bw = last_index / 1000000.0 / time;
+		fprintf(stderr," i/o[ read from fs: %08.4lf s %08.4lf MB/s ]",
+			time, fs_bw);
+
+		time = (double) write_time / M0_TIME_ONE_SECOND;
+		clovis_bw = last_index / 1000000.0 / time;
+		fprintf(stderr,"[ write to mero: %08.4lf s %08.4lf MB/s ]\n",
+			time, clovis_bw);
+	}
+	return rc;
 }
 
 /*
@@ -284,11 +299,11 @@ int c0appz_cp_async(int64_t idhi, int64_t idlo, char *src, int block_size,
 	FILE                      *fp;
 
 	assert(block_count % op_cnt == 0);
-	assert(CLOVIS_MAX_PER_IO_SIZE > block_size);
-	max_bcnt_per_op = CLOVIS_MAX_PER_IO_SIZE / block_size >
+	assert(CLOVIS_MAX_PER_WIO_SIZE > block_size);
+	max_bcnt_per_op = CLOVIS_MAX_PER_WIO_SIZE / block_size >
 			  CLOVIS_MAX_BLOCK_COUNT ?
 			  CLOVIS_MAX_BLOCK_COUNT :
-			  CLOVIS_MAX_PER_IO_SIZE / block_size;
+			  CLOVIS_MAX_PER_WIO_SIZE / block_size;
 
 	/* Open source file */
 	fp = fopen(src, "rb");
@@ -387,18 +402,25 @@ int c0appz_cp_async(int64_t idhi, int64_t idlo, char *src, int block_size,
  */
 int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt, char *filename)
 {
-	int                  i;
-	int                  rc;
-	struct m0_uint128    id;
-	struct m0_clovis_op *ops[1] = {NULL};
-	struct m0_clovis_obj obj;
-	uint64_t             last_index;
-	struct m0_indexvec   ext;
-	struct m0_bufvec     data;
-	struct m0_bufvec     attr;
-	FILE                *fp;
+	int                i;
+	int                rc=0;
+	int                max_bcnt_per_op;
+	int                block_count;
+	int                bcnt_written;
+	uint64_t           last_index;
+	struct m0_uint128  id;
+	struct m0_indexvec ext;
+	struct m0_bufvec   data;
+	struct m0_bufvec   attr;
+	FILE              *fp;
+	m0_time_t          st;
+	m0_time_t          read_time;
+	m0_time_t          write_time;
+	double             time;
+	double             fs_bw;
+	double             clovis_bw;
 
-	/* open src file */
+	/* open output file */
 	fp = fopen(filename, "w");
 	if (fp == NULL) {
 		fprintf(stderr,"error! could not open output file %s\n", filename);
@@ -409,77 +431,87 @@ int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt, char *filename)
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-	/* we want to read <clovis_block_count> from the beginning of the object */
-	rc = m0_indexvec_alloc(&ext, cnt);
-	if (rc != 0)
-		return rc;
+	/* Compute maximum number of block per op. */
+	max_bcnt_per_op = CLOVIS_MAX_PER_RIO_SIZE / bsz;
+	assert(max_bcnt_per_op != 0);
+	max_bcnt_per_op = max_bcnt_per_op < CLOVIS_MAX_BLOCK_COUNT ?
+			  max_bcnt_per_op :
+			  CLOVIS_MAX_BLOCK_COUNT;
 
-	/*
-	 * this allocates <clovis_block_count> * 4K buffers for data, and initialises
-	 * the bufvec for us.
-	 */
-	rc = m0_bufvec_alloc(&data, cnt, bsz);
-	if (rc != 0)
-		return rc;
-	rc = m0_bufvec_alloc(&attr, cnt, 1);
-	if (rc != 0)
-		return rc;
-
+	/* Loop for READ ops */
 	last_index = 0;
-	for (i = 0; i < cnt; i++) {
-		ext.iv_index[i] = last_index;
-		ext.iv_vec.v_count[i] = bsz;
-		last_index += bsz;
+	M0_SET0(&read_time);
+	M0_SET0(&write_time);
+	while (cnt > 0) {
+		block_count = cnt > max_bcnt_per_op? max_bcnt_per_op : cnt;
 
-		/* we don't want any attributes */
-		attr.ov_vec.v_count[i] = 0;
+		/* Allocate data buffers, bufvec and indexvec for write. */
+		rc = m0_bufvec_alloc(&data, block_count, bsz) ?:
+		     m0_bufvec_alloc(&attr, block_count, 1) ?:
+		     m0_indexvec_alloc(&ext, block_count);
+		if (rc != 0)
+			goto free_vecs;
 
+		/*
+		 * Prepare indexvec for write: <clovis_block_count> from the
+		 * beginning of the object.
+		 */
+		for (i = 0; i < block_count; i++) {
+			ext.iv_index[i] = last_index ;
+			ext.iv_vec.v_count[i] = bsz;
+			last_index += bsz;
+
+			/* we don't want any attributes */
+			attr.ov_vec.v_count[i] = 0;
+		}
+
+		/* Copy data from the object*/
+		st = m0_time_now();
+		rc = read_data_from_object(id, &ext, &data, &attr);
+		read_time = m0_time_add(read_time,
+					m0_time_sub(m0_time_now(), st));
+		if (rc != 0) {
+			fprintf(stderr, "writing to object failed!\n");
+			goto free_vecs;
+		}
+
+		/* Output data to file. */
+		st = m0_time_now();
+		bcnt_written = write_data_to_file(fp, &data, bsz);
+		write_time = m0_time_add(write_time,
+					 m0_time_sub(m0_time_now(), st));
+		if (bcnt_written != block_count)
+			rc = -EIO;
+
+free_vecs:
+		/* Free bufvec's and indexvec's */
+		m0_indexvec_free(&ext);
+		m0_bufvec_free(&data);
+		m0_bufvec_free(&attr);
+		if (rc != 0)
+			break;
+
+		cnt -= block_count;
 	}
 
-	M0_SET0(&obj);
-	/* Read the requisite number of blocks from the entity */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
-			   m0_clovis_layout_id(clovis_instance));
+	/* Fs will flush data back to device when closing a file. */
+	st = m0_time_now();
+	fclose(fp);
+	write_time = m0_time_add(write_time,
+				 m0_time_sub(m0_time_now(), st));
 
-	/* open entity */
-	rc = open_entity(&obj.ob_entity);
-	if (rc < 0) {
-		fprintf(stderr,"error! [%d]\n", rc);
-		fprintf(stderr,"object not found\n");
-		return rc;
+	if (rc == 0) {
+		time = (double) read_time / M0_TIME_ONE_SECOND;
+		clovis_bw = last_index / 1000000.0 / time;
+		fprintf(stderr," i/o[ read from mero: %08.4lf s %08.4lf MB/s ]",
+			time, clovis_bw);
+
+		time = (double) write_time / M0_TIME_ONE_SECOND;
+		fs_bw = last_index / 1000000.0 / time;
+		fprintf(stderr,"[ write to fs: %08.4lf s %08.4lf MB/s ]\n",
+			time, fs_bw);
 	}
-
-
-	/* Create the read request */
-	m0_clovis_obj_op(&obj, M0_CLOVIS_OC_READ, &ext, &data, &attr, 0, &ops[0]);
-	assert(rc == 0);
-	assert(ops[0] != NULL);
-	assert(ops[0]->op_sm.sm_rc == 0);
-
-	m0_clovis_op_launch(ops, 1);
-
-	/* wait */
-	rc = m0_clovis_op_wait(ops[0], M0_BITS(M0_CLOVIS_OS_FAILED,
-					       M0_CLOVIS_OS_STABLE),
-			       M0_TIME_NEVER);
-	assert(rc == 0);
-	assert(ops[0]->op_sm.sm_state == M0_CLOVIS_OS_STABLE);
-	assert(ops[0]->op_sm.sm_rc == 0);
-
-	rc = write_data_to_file(fp, &data, bsz);
-	if (rc != cnt)
-		fprintf(stderr, "Failed to write to output file!\n");
-
-	/* fini and release */
-	m0_clovis_op_fini(ops[0]);
-	m0_clovis_op_free(ops[0]);
-	m0_clovis_entity_fini(&obj.ob_entity);
-
-	m0_indexvec_free(&ext);
-	m0_bufvec_free(&data);
-	m0_bufvec_free(&attr);
-
-	return 0;
+	return rc;
 }
 
 /*
@@ -886,6 +918,45 @@ static int write_data_to_object_async(struct clovis_aio_op *aio)
 
 	return 0;
 }
+
+/*
+ * read_data_from_object()
+ * read data from an object
+ */
+static int read_data_from_object(struct m0_uint128 id,
+				 struct m0_indexvec *ext,
+				 struct m0_bufvec *data,
+				 struct m0_bufvec *attr)
+{
+	int                  rc;
+	struct m0_clovis_obj obj;
+	struct m0_clovis_op *ops[1] = {NULL};
+
+	memset(&obj, 0, sizeof(struct m0_clovis_obj));
+
+	/* Open object. */
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
+			   m0_clovis_layout_id(clovis_instance));
+	open_entity(&obj.ob_entity);
+
+	/* Creat, launch and wait on an READ op. */
+	m0_clovis_obj_op(&obj, M0_CLOVIS_OC_READ,
+			 ext, data, attr, 0, &ops[0]);
+	m0_clovis_op_launch(ops, 1);
+	rc = m0_clovis_op_wait(ops[0],
+				M0_BITS(M0_CLOVIS_OS_FAILED,
+				M0_CLOVIS_OS_STABLE),
+				M0_TIME_NEVER);
+	rc = rc ?: m0_clovis_rc(ops[0]);
+
+	/* Finalise and release op. */
+	m0_clovis_op_fini(ops[0]);
+	m0_clovis_op_free(ops[0]);
+	m0_clovis_entity_fini(&obj.ob_entity);
+
+	return rc;
+}
+
 
 static int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
 				uint32_t blk_count, uint32_t blk_size)
