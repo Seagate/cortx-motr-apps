@@ -4,15 +4,16 @@
 
 #!/usr/bin/env bash
 
-args=("$@")
+ARGS=("$@")
 CLIENTS=client-2[1-8]
+SERVERS=
 SERVERS+=sage-tier1-[1-2],
 SERVERS+=sage-tier2-[1-4],
 SERVERS+=sage-tier3-[1-1],
 
 getchar()
 {
-	if [ "${args[0]}" == "-d" ]; then
+	if [ "${ARGS[0]}" == "-d" ]; then
 	echo -n "Press key:"
 	read -n1
 	fi
