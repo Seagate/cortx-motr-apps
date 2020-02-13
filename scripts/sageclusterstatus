@@ -1,0 +1,85 @@
+# Ganesan Umanesan <ganesan.umanesan@seagate.com>
+# 10/02/2019 - Initial script
+# 11/02/2019 - getchar function added
+
+#!/usr/bin/env bash
+
+args=("$@")
+CLIENTS=client-2[1-8]
+SERVERS+=sage-tier1-[1-2],
+SERVERS+=sage-tier2-[1-4],
+SERVERS+=sage-tier3-[1-1],
+
+getchar()
+{
+	if [ "${args[0]}" == "-d" ]; then
+	echo -n "Press key:"
+	read -n1
+	fi
+}
+
+echo '#####'
+echo `date`
+echo '#####'
+
+echo "-[ ssh ]-"
+pdsh -w  $CLIENTS uname -r | sort
+getchar
+
+echo "-[ ssh ]-"
+pdsh -w  $SERVERS uname -r | sort
+getchar
+
+echo "-[ mero rpm ]-"
+pdsh -w  $CLIENTS rpm -qa | grep mero-1.4 | sort
+getchar
+
+echo "-[ mero rpm ]-"
+pdsh -w  $SERVERS rpm -qa | grep mero-1.4 | sort
+getchar
+
+echo "-[ halon rpm ]-"
+pdsh -w  $CLIENTS rpm -qa | grep halon- | sort
+getchar
+
+echo "-[ halon rpm ]-"
+pdsh -w  $SERVERS rpm -qa | grep halon- | sort
+getchar
+
+echo "-[ lnet(clients) ]-"
+pdsh -w  $CLIENTS  rpm -q lustre-client-* | sort | cat -n
+pdsh -w  $CLIENTS  rpm -q lustre-client-devel-* | sort | cat -n
+pdsh -w  $CLIENTS  rpm -q kmod-lustre-client-* | sort | cat -n
+getchar
+
+echo "-[ lnet(servers) ]-"
+pdsh -w  $SERVERS  rpm -q lustre-client-* | sort | cat -n
+pdsh -w  $SERVERS  rpm -q lustre-client-devel-* | sort | cat -n
+pdsh -w  $SERVERS  rpm -q kmod-lustre-client-* | sort | cat -n
+getchar
+
+echo "-[ lnet status(clients) ]-"
+pdsh -w  $CLIENTS sudo lnetctl net show 2> /dev/null | grep @lo | sort | cat -n
+pdsh -w  $CLIENTS sudo lnetctl net show 2> /dev/null | grep @tcp | sort | cat -n
+pdsh -w  $CLIENTS sudo lnetctl net show 2> /dev/null | grep @o2ib | sort | cat -n
+pdsh -w  $CLIENTS sudo lnetctl net show 2> /dev/null | sort
+getchar
+
+echo "-[ lnet status(servers) ]-"
+pdsh -w  $SERVERS sudo lnetctl net show 2> /dev/null | grep @lo | sort | cat -n
+pdsh -w  $SERVERS sudo lnetctl net show 2> /dev/null | grep @tcp | sort | cat -n
+pdsh -w  $SERVERS sudo lnetctl net show 2> /dev/null | grep @o2ib | sort | cat -n
+pdsh -w  $SERVERS sudo lnetctl net show 2> /dev/null | sort
+getchar
+
+echo "-[ Mero status(clients) ]-"
+ssh -A client-21 hctl mero status | grep client
+getchar
+
+echo "-[ Mero status(tier nodes) ]-"
+ssh -A client-21 hctl mero status | grep sage-tier
+getchar
+
+echo "-[ Mero status(pools) ]-"
+ssh -A client-21 hctl mero status | grep pool
+echo "Done."
