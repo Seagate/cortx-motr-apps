@@ -1,8 +1,28 @@
+#/*
+# * COPYRIGHT 2014 SEAGATE LLC
+# *
+# * THIS DRAWING/DOCUMENT, ITS SPECIFICATIONS, AND THE DATA CONTAINED
+# * HEREIN, ARE THE EXCLUSIVE PROPERTY OF SEAGATE LLC,
+# * ISSUED IN STRICT CONFIDENCE AND SHALL NOT, WITHOUT
+# * THE PRIOR WRITTEN PERMISSION OF SEAGATE TECHNOLOGY LIMITED,
+# * BE REPRODUCED, COPIED, OR DISCLOSED TO A THIRD PARTY, OR
+# * USED FOR ANY PURPOSE WHATSOEVER, OR STORED IN A RETRIEVAL SYSTEM
+# * EXCEPT AS ALLOWED BY THE TERMS OF SEAGATE LICENSES AND AGREEMENTS.
+# *
+# * YOU SHOULD HAVE RECEIVED A COPY OF SEAGATE'S LICENSE ALONG WITH
+# * THIS RELEASE. IF NOT PLEASE CONTACT A SEAGATE REPRESENTATIVE
+# * http://www.xyratex.com/contact
+# *
+# * Original author:  Ganesan Umanesan <ganesan.umanesan@seagate.com>
+# * Original creation date: 10-Jan-2017
+#*/
+
 # Ganesan Umanesan <ganesan.umanesan@seagate.com>
 # 10/02/2019 - Initial script
 # 11/02/2019 - getchar function added
 # 26/02/2019 - functions added
 # 26/02/2019 - getoption added
+# 27/02/2019 - paritygroup added
 
 #!/usr/bin/env bash
 
@@ -22,7 +42,6 @@ getchar()
 	fi
 }
 
-
 sshstat()
 {
 	echo "-[ ssh ]-"
@@ -32,7 +51,6 @@ sshstat()
 	pdsh -w  $SERVERS uname -r | sort
 	getchar
 }
-
 
 merorpms()
 {
@@ -54,7 +72,6 @@ halonrpms()
 	getchar
 }
 
-
 lnetrpms()
 {
 	echo "-[ lnet(clients) ]-"
@@ -68,7 +85,6 @@ lnetrpms()
 	pdsh -w  $SERVERS  rpm -q kmod-lustre-client-* | sort | cat -n
 	getchar
 }
-
 
 lnetstat()
 {
@@ -98,6 +114,13 @@ merostat()
 	ssh -A client-21 hctl mero status | grep pool
 }
 
+paritygroup()
+{
+	echo "-[ Parity group ]-"
+	ssh -A sage-tier1-1 cat /etc/halon/halon_facts.yaml | egrep "_units|unit_|pool_id"
+	getchar
+}
+
 #
 # MAIN
 #
@@ -106,11 +129,10 @@ echo '#####'
 echo `date`
 echo '#####'
 
-
 # Note that we use `"$@"' to let each command-line parameter expand to a
 # separate word. The quotes around `$@' are essential!
 # We need TEMP as the `eval set --' would nuke the return value of getopt.
-TEMP=$( getopt -o isrlm --long interactive,ssh,rpms,lnet,mero \
+TEMP=$( getopt -o isrlmp --long interactive,ssh,rpms,lnet,mero,paritygroup \
         -n "$PROG_NAME" -- "$@" )
 
 [[ $? != 0 ]] && echo 'help please'
@@ -145,6 +167,11 @@ while true ;
      	-m|--mero)
        	WHOLESYSTEM=0
     	merostat
+    	shift
+    	;;  	
+     	-p|--paritygroup)
+       	WHOLESYSTEM=0
+    	paritygroup
     	shift
     	;;  	
 		--)     
