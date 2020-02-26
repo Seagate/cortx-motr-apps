@@ -2,10 +2,12 @@
 # 10/02/2019 - Initial script
 # 11/02/2019 - getchar function added
 # 26/02/2019 - functions added
+# 26/02/2019 - getoption added
 
 #!/usr/bin/env bash
 
-ARGS=("$@")
+INTERACTIVE=0
+WHOLESYSTEM=1
 CLIENTS=client-2[1-8]
 SERVERS=
 SERVERS+=sage-tier1-[1-2],
@@ -14,7 +16,7 @@ SERVERS+=sage-tier3-[1-1],
 
 getchar()
 {
-	if [ "${ARGS[0]}" == "-d" ]; then
+	if [ "$INTERACTIVE" -eq 1 ]; then
 	echo -n "Press key:"
 	read -n1
 	fi
@@ -104,10 +106,68 @@ echo '#####'
 echo `date`
 echo '#####'
 
-sshstat
-merorpms
-halonrpms
-lnetrpms
-lnetstat
-merostat
+
+# Note that we use `"$@"' to let each command-line parameter expand to a
+# separate word. The quotes around `$@' are essential!
+# We need TEMP as the `eval set --' would nuke the return value of getopt.
+TEMP=$( getopt -o isrlm --long interactive,ssh,rpms,lnet,mero \
+        -n "$PROG_NAME" -- "$@" )
+
+[[ $? != 0 ]] && echo 'help please'
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$TEMP"
+
+while true ; 
+	do
+    case "$1" in
+        -i|--interactive)           
+       	INTERACTIVE=1
+      	shift
+       	;;
+       	-s|--ssh)
+       	WHOLESYSTEM=0
+      	sshstat
+      	shift
+     	;;
+     	-r|--rpms)
+       	WHOLESYSTEM=0
+       	merorpms
+       	halonrpms
+       	lnetrpms
+     	shift
+      	;;
+     	-l|--lnet)
+       	WHOLESYSTEM=0
+    	lnetstat
+     	shift
+    	;;
+     	-m|--mero)
+       	WHOLESYSTEM=0
+    	merostat
+    	shift
+    	;;  	
+		--)     
+       	shift
+     	break 
+     	;;
+    	*)
+      	echo 'getopt: internal error...'
+      	exit 1 
+      	;;
+   	esac
+    done
+
+# do all if no options
+if [ $WHOLESYSTEM -eq 1 ]; then
+	sshstat
+	merorpms
+	halonrpms
+	lnetrpms
+	lnetstat
+	merostat
+fi
+
+echo '#####'
 echo "Done."
+echo '#####'
