@@ -24,81 +24,81 @@
 # 26/02/2019 - getoption added
 # 27/02/2019 - paritygroup added
 
-#!/usr/bin/env bash
+#!/usr/bin/bash
 
 INTERACTIVE=0
 WHOLESYSTEM=1
-CLIENTS=client-2[1-8]
+CLIENTS='client-2[1-8]'
 SERVERS=
-SERVERS+=sage-tier1-[1-2],
-SERVERS+=sage-tier2-[1-4],
-SERVERS+=sage-tier3-[1-1],
+SERVERS+='sage-tier1-[1-2]',
+SERVERS+='sage-tier2-[1-4]',
+SERVERS+='sage-tier3-[1-1]',
 
 getchar()
 {
 	if [ "$INTERACTIVE" -eq 1 ]; then
 	echo -n "Press key:"
-	read -n1
+	read -rn1
 	fi
 }
 
 sshstat()
 {
 	echo "-[ ssh ]-"
-	pdsh -w  $CLIENTS uname -r | sort
+	pdsh -w  "$CLIENTS" uname -r | sort
 	getchar
 	echo "-[ ssh ]-"
-	pdsh -w  $SERVERS uname -r | sort
+	pdsh -w  "$SERVERS" uname -r | sort
 	getchar
 }
 
 merorpms()
 {
 	echo "-[ mero rpm ]-"
-	pdsh -w  $CLIENTS rpm -qa | grep mero-1.4 | sort
+	pdsh -w  "$CLIENTS" rpm -qa | grep mero-1.4 | sort
 	getchar
 	echo "-[ mero rpm ]-"
-	pdsh -w  $SERVERS rpm -qa | grep mero-1.4 | sort
+	pdsh -w  "$SERVERS" rpm -qa | grep mero-1.4 | sort
 	getchar
 }
 
 halonrpms()
 {
 	echo "-[ halon rpm ]-"
-	pdsh -w  $CLIENTS rpm -qa | grep halon- | sort
+	pdsh -w  "$CLIENTS" rpm -qa | grep halon- | sort
 	getchar
 	echo "-[ halon rpm ]-"
-	pdsh -w  $SERVERS rpm -qa | grep halon- | sort
+	pdsh -w  "$SERVERS" rpm -qa | grep halon- | sort
 	getchar
 }
 
 lnetrpms()
 {
 	echo "-[ lnet(clients) ]-"
-	pdsh -w  $CLIENTS  rpm -q lustre-client-* | sort | cat -n
-	pdsh -w  $CLIENTS  rpm -q lustre-client-devel-* | sort | cat -n
-	pdsh -w  $CLIENTS  rpm -q kmod-lustre-client-* | sort | cat -n
+	pdsh -w  "$CLIENTS"  rpm -q lustre-client-* | sort | cat -n
+	pdsh -w  "$CLIENTS"  rpm -q lustre-client-devel-* | sort | cat -n
+	pdsh -w  "$CLIENTS"  rpm -q kmod-lustre-client-* | sort | cat -n
 	getchar
 	echo "-[ lnet(servers) ]-"
-	pdsh -w  $SERVERS  rpm -q lustre-client-* | sort | cat -n
-	pdsh -w  $SERVERS  rpm -q lustre-client-devel-* | sort | cat -n
-	pdsh -w  $SERVERS  rpm -q kmod-lustre-client-* | sort | cat -n
+	pdsh -w  "$SERVERS"  rpm -q lustre-client-* | sort | cat -n
+	pdsh -w  "$SERVERS"  rpm -q lustre-client-devel-* | sort | cat -n
+	pdsh -w  "$SERVERS"  rpm -q kmod-lustre-client-* | sort | cat -n
 	getchar
 }
 
 lnetstat()
 {
 	echo "-[ lnet status(clients) ]-"
-	pdsh -w  $CLIENTS sudo lnetctl net show 2> /dev/null | grep @lo | sort | cat -n
-	pdsh -w  $CLIENTS sudo lnetctl net show 2> /dev/null | grep @tcp | sort | cat -n
-	pdsh -w  $CLIENTS sudo lnetctl net show 2> /dev/null | grep @o2ib | sort | cat -n
-	pdsh -w  $CLIENTS sudo lnetctl net show 2> /dev/null | sort
+	pdsh -w  "$CLIENTS" sudo lnetctl net show 2> /dev/null | grep @lo | sort | cat -n
+	pdsh -w  "$CLIENTS" sudo lnetctl net show 2> /dev/null | grep @tcp | sort | cat -n
+	pdsh -w  "$CLIENTS" sudo lnetctl net show 2> /dev/null | grep @o2ib | sort | cat -n
+	pdsh -w  "$CLIENTS" sudo lnetctl net show 2> /dev/null | sort
 	getchar
 	echo "-[ lnet status(servers) ]-"
-	pdsh -w  $SERVERS sudo lnetctl net show 2> /dev/null | grep @lo | sort | cat -n
-	pdsh -w  $SERVERS sudo lnetctl net show 2> /dev/null | grep @tcp | sort | cat -n
-	pdsh -w  $SERVERS sudo lnetctl net show 2> /dev/null | grep @o2ib | sort | cat -n
-	pdsh -w  $SERVERS sudo lnetctl net show 2> /dev/null | sort
+	pdsh -w  "$SERVERS" sudo lnetctl net show 2> /dev/null | grep @lo | sort | cat -n
+	pdsh -w  "$SERVERS" sudo lnetctl net show 2> /dev/null | grep @tcp | sort | cat -n
+	pdsh -w  "$SERVERS" sudo lnetctl net show 2> /dev/null | grep @o2ib | sort | cat -n
+	pdsh -w  "$SERVERS" sudo lnetctl net show 2> /dev/null | sort
 	getchar
 }
 
@@ -117,7 +117,7 @@ merostat()
 paritygroup()
 {
 	echo "-[ Parity group ]-"
-	ssh -A sage-tier1-1 cat /etc/halon/halon_facts.yaml | egrep "_units|unit_|pool_id"
+	ssh -A sage-tier1-1 cat /etc/halon/halon_facts.yaml | grep -E "_units|unit_|pool_id"
 	getchar
 }
 
@@ -126,7 +126,7 @@ paritygroup()
 #
 
 echo '#####'
-echo `date`
+date
 echo '#####'
 
 # Note that we use `"$@"' to let each command-line parameter expand to a
