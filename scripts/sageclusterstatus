@@ -18,13 +18,21 @@
 #*/
 
 # Ganesan Umanesan <ganesan.umanesan@seagate.com>
-# 10/02/2019 - Initial script
-# 11/02/2019 - getchar function added
-# 26/02/2019 - functions added
-# 26/02/2019 - getoption added
-# 27/02/2019 - paritygroup added
+# 10/02/2020 - Initial script
+# 11/02/2020 - getchar function added
+# 26/02/2020 - functions added
+# 26/02/2020 - getoption added
+# 27/02/2020 - paritygroup added
+# 04/03/2020 - usage added
 
 #!/usr/bin/bash
+
+#
+# Glo1bal vars
+#
+
+# constants
+readonly PROG_NAME=$(basename $0)
 
 INTERACTIVE=0
 WHOLESYSTEM=1
@@ -33,6 +41,10 @@ SERVERS=
 SERVERS+='sage-tier1-[1-2]',
 SERVERS+='sage-tier2-[1-4]',
 SERVERS+='sage-tier3-[1-1]',
+
+#
+# Functions
+#
 
 getchar()
 {
@@ -122,20 +134,54 @@ paritygroup()
 }
 
 #
-# MAIN
+# Usage
 #
 
-echo '#####'
-date
-echo '#####'
+usage()
+{
+    cat <<USAGE_END
+Usage: $(basename $0) [-h|--help] [options]
+	
+    -i|--interactive   	interactive mode. prints a set of ouputs
+                        waits for any key press to continue.
+
+    -s|--ssh       	ssh access.
+    			output uname -r
+
+    -r|--rpms   	print installed rpm packages
+    			mero, halon and lnet rpms are printed.
+
+    -l|--lnet   	print installed rpm packages
+    			mero, halon and lnet rpms are printed.
+
+    -m|--mero   	print mero status
+    			clients and tier-nodes online statuses are printed.
+    			Also printed are pool parameters.
+
+    -p|--paritygroup   	print parity group information
+    			pool name, N, P, K values are printed.
+
+    -h|--help           Print this help screen.
+USAGE_END
+
+	exit 1
+}
+
+#
+# MAIN
+#
 
 # Note that we use `"$@"' to let each command-line parameter expand to a
 # separate word. The quotes around `$@' are essential!
 # We need TEMP as the `eval set --' would nuke the return value of getopt.
-TEMP=$( getopt -o isrlmp --long interactive,ssh,rpms,lnet,mero,paritygroup \
+TEMP=$( getopt -o isrlmph --long interactive,ssh,rpms,lnet,mero,paritygroup,help \
         -n "$PROG_NAME" -- "$@" )
 
-[[ $? != 0 ]] && echo 'help please'
+[[ $? != 0 ]] && usage
+
+echo '#####'
+date
+echo '#####'
 
 # Note the quotes around `$TEMP': they are essential!
 eval set -- "$TEMP"
@@ -172,6 +218,11 @@ while true ;
      	-p|--paritygroup)
        	WHOLESYSTEM=0
     	paritygroup
+    	shift
+    	;;  	
+     	-h|--help)
+       	WHOLESYSTEM=0
+    	usage
     	shift
     	;;  	
 		--)     
