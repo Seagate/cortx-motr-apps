@@ -673,6 +673,8 @@ int c0appz_init(int idx)
 int c0appz_free(void)
 {
 	m0_clovis_fini(clovis_instance, true);
+	memset(c0rcfile, 0, sizeof(c0rcfile));
+	memset(c0rc, 0, sizeof(c0rc));
 	return 0;
 }
 

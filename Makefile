@@ -97,7 +97,7 @@ test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 	cmp $(FILE1) $(FILE3) || echo "ERROR: Async Test Failed !!"
 	@echo "#####"
 	$(SUDO) ./$(EXE3) 0 1048577
-	sleep 5
+	#sleep 5
 	$(SUDO) ./$(EXE3) 0 1048599
 
 #yaml
