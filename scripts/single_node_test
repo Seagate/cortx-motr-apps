@@ -59,8 +59,8 @@ c0fidtest()
 	log=$(pwd)/$log	#send to working directory
 	out=$(pwd)/$out	#send to working directory
 
-	log='/dev/null'
-	out='/dev/stdout'
+	# log='/dev/null'
+	# out='/dev/stdout'
 	
 	echo $log
 	echo $out
@@ -125,7 +125,7 @@ c0fidtest()
 	   	
 		#c0cat
 		rm -f m0trace.* # clean up  		
-		$c0ct $fid $bsz $cnt > $dwfile 2>> $log
+		$c0ct $fid $dwfile $bsz $cnt 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
 	  		echo "$c0ct $fid $bsz $cnt > $dwfile 2>> $log"
@@ -186,6 +186,7 @@ fi
 c0fidtest $1 $2 $3
 if [[ $? -ne 0 ]]; then
 	echo "c0fidtest $1 $2 $3"
+	echo "error $?"
 	echo "failed!!"
 else
 	echo "c0fidtest $1 $2 $3"
