@@ -126,10 +126,19 @@ merostat()
 	ssh -A client-21 hctl mero status | grep pool
 }
 
+format()
+{
+	input=$(cat)
+	input=$(echo "$input" | sed 's/[[:space:]]*//g')
+	input=$(echo "$input" | awk -F: 'NF!=0 {printf("%s %s\t" (/size/?RS:FS),$1,$2); if(/group/) printf("\n")}')
+	input=$(echo "$input" | sed 's/://g')
+	echo "$input"
+}
+
 paritygroup()
 {
 	echo "-[ Parity group ]-"
-	ssh -A sage-tier1-1 cat /etc/halon/halon_facts.yaml | grep -E "_units|unit_|pool_id"
+	ssh -A sage-tier1-1 cat /etc/halon/halon_facts.yaml | grep -E "_units|unit_|pool_id" | format
 	getchar
 }
 
