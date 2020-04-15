@@ -143,6 +143,8 @@ clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) $(EXE5) m0trace.*
 	rm -f $(FILE1) $(FILE2) $(FILE3)
 	rm -f $(EXE4)
+	rm -f snodet-* fidout-* Sage_Bunle-*
+	rm -f upFile dwFile
 
 m0t1fs:
 	touch /mnt/m0t1fs/0:3000
@@ -150,6 +152,12 @@ m0t1fs:
 	dd if=/dev/zero of=/mnt/m0t1fs/0:3000 bs=4M count=10
 	ls -lh /mnt/m0t1fs/0:3000
 	rm -rf /mnt/m0t1fs/0:3000
+
+bigtest:
+	make
+	make fgen
+	touch ./.fgenrc
+	./scripts/single_node_test 4096 1024 1
 
 #
 #MPI Appz
