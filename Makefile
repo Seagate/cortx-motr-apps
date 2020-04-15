@@ -157,7 +157,15 @@ bigtest:
 	make
 	make fgen
 	touch ./.fgenrc
-	./scripts/single_node_test 4096 1024 1
+	./scripts/single_node_test 4096 1024*1   1
+	./scripts/single_node_test 4096 1024*2   1
+	./scripts/single_node_test 4096 1024*4   1
+	./scripts/single_node_test 4096 1024*8   1
+	./scripts/single_node_test 4096 1024*16  1
+	./scripts/single_node_test 4096 1024*32  1
+	./scripts/single_node_test 4096 1024*64  1
+	./scripts/single_node_test 4096 1024*128 1
+	./scripts/single_node_test 4096 1024*256 1
 
 #
 #MPI Appz
