@@ -107,8 +107,8 @@ yaml:
 	@ls m0trace.* &> /dev/null || (echo "No traces!" && exit 1)
 	@for file in m0trace.*; do					\
 		echo $$file;							\
-	ls -lh $$file;							\
-		m0trace -Y -i $$file -o $$file.yml;	\
+	ls -lh $$file;								\
+		m0trace -Y -i $$file -o $$file.yml;		\
 		ls -lh $$file.yml;						\
 	done
 	tar -jcvf $(TARF) m0trace.*.yml
@@ -166,6 +166,7 @@ bigtest:
 	./scripts/single_node_test 4096 1024*64  1
 	./scripts/single_node_test 4096 1024*128 1
 	./scripts/single_node_test 4096 1024*256 1
+	./scripts/single_node_test 4096 1024*512 1
 
 #
 #MPI Appz

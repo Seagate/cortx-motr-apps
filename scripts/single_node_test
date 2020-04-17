@@ -186,8 +186,16 @@ fi
 c0fidtest $1 $2 $3
 if [[ $? -ne 0 ]]; then
 	echo "c0fidtest $1 $2 $3"
-	echo "error $?"
 	echo "failed!!"
+	echo "compressing..."
+	ls -a m0trace.*
+	tar -tvf $bundle
+	bzip2 $bundle
+	echo "verifying..."
+	tar -jtvf "$bundle.bz2"
+	ls -lh *.bz2
+	rm -f m0trace.*
+	echo "done!!"
 else
 	echo "c0fidtest $1 $2 $3"
 	echo "success!!"
