@@ -143,7 +143,7 @@ clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) $(EXE5) m0trace.*
 	rm -f $(FILE1) $(FILE2) $(FILE3)
 	rm -f $(EXE4)
-	rm -f snodet-* fidout-* Sage_Bunle-*
+	rm -f snodet-* fidout-*
 	rm -f upFile dwFile
 
 m0t1fs:
