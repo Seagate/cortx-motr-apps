@@ -31,6 +31,7 @@ c0cp='./c0cp'
 c0rm='./c0rm'
 c0ct='./c0ct'
 fgen='./fgen'
+c0cp_async='./c0cp_async'
 
 #files
 ofp='dwFile'
@@ -41,7 +42,7 @@ tar='Sage_Bunle'
 #####
 test()
 { 
-	log="snodet"	#logs
+	log="sfilet"	#logs
 	out="fidout"	#fids
 	bsz=$1			#bsize (default 4K)
 	bsz=$((bsz))	#allow arithmetic
@@ -60,8 +61,8 @@ test()
 	# log='/dev/null'
 	# out='/dev/stdout'
 
-	log='/dev/stderr'
-	out='/dev/stdout'
+ 	# log='/dev/stderr'
+	# out='/dev/stdout'
 	
 	# echo $log
 	# echo $out
@@ -70,7 +71,7 @@ test()
 	tar=$(pwd)/$tar	#send to working directory
 	
 	#move to executable directory
-	pushd $(dirname $(dirname $0))
+	pushd $(dirname $(dirname $0)) > /dev/null
 
 	#check executables	
 	if [[ ! -x "$c0cp" ]]; then
@@ -93,6 +94,10 @@ test()
     	echo "error! file $fgen is not executable nor found"
     	return 15
 	fi
+	if [[ ! -x "$c0cp_async" ]]; then
+    	echo "error! file $c0cp_async is not executable nor found"
+    	return 16
+	fi
 	
 	echo "block size = $bsz, count = $cnt, filename = $inf"	
 
@@ -104,6 +109,7 @@ test()
 		
 	#c0cp
 	rm -f m0trace.* # clean up  		
+	echo "$c0cp $fid $inf $bsz $cnt 2>> $log" >> $log
 	$c0cp $fid $inf $bsz $cnt 2>> $log
 	if [[ $? -ne 0 ]]; then
 		echo
@@ -118,6 +124,7 @@ test()
 	   	
 	#c0cat
 	rm -f m0trace.* # clean up  		
+	echo "$c0ct $fid $ofp $bsz $cnt 2>> $log" >> $log
 	$c0ct $fid $ofp $bsz $cnt 2>> $log
 	if [[ $? -ne 0 ]]; then
 		echo
@@ -128,6 +135,7 @@ test()
 	fi
 
 	#cmp		
+	echo "cmp $inf $ofp" >> $log
 	cmp $inf $ofp
 	if [[ $? -ne 0 ]]; then
 	   	echo
@@ -141,6 +149,68 @@ test()
 	
 	#c0rm
 	rm -f m0trace.* # clean up  		
+	echo "$c0rm $fid 2>> $log" >> $log 
+	$c0rm $fid 2>> $log 
+	if [[ $? -ne 0 ]]; then
+		echo
+	  	echo "$c0rm $fid 2>> $log"
+	  	#remove fid if possible
+	  	$c0rm $fid 2>> $log 	  		
+	  	#bundle trace
+	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
+	  	tar -rvf $tar $(ls m0trace.*.yml)
+	  	return 23
+	fi
+		  
+	printf "\t [ OK ]\n" >> $out
+	
+	fid=$($fgen 2>> $log)
+	printf "fid: %s" "$fid" >> $out
+		
+	#c0cp_aync
+	cp=$c0cp_async
+	rm -f m0trace.* # clean up  		
+	echo "$cp $fid $inf $bsz $cnt 8 2>> $log" >> $log
+	$cp $fid $inf $bsz $cnt 8 2>> $log
+	if [[ $? -ne 0 ]]; then
+		echo
+	  	echo "$cp $fid $inf $bsz $cnt 8 2>> $log"
+	  	#remove fid if possible
+	  	$c0rm $fid 2>> $log 
+	  	#bundle trace
+	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
+	  	tar -rvf $tar $(ls m0trace.*.yml)
+	  	return 20
+	fi
+	   	
+	#c0cat
+	rm -f m0trace.* # clean up  		
+	echo "$c0ct $fid $ofp $bsz $cnt 2>> $log" >> $log
+	$c0ct $fid $ofp $bsz $cnt 2>> $log
+	if [[ $? -ne 0 ]]; then
+		echo
+	  	echo "$c0ct $fid $bsz $cnt > $ofp 2>> $log"
+	  	#remove fid if possible
+	  	$c0rm $fid 2>> $log 	  		
+	  	return 21
+	fi
+
+	#cmp		
+	echo "cmp $inf $ofp" >> $log
+	cmp $inf $ofp
+	if [[ $? -ne 0 ]]; then
+	   	echo
+	  	echo "cmp $inf $ofp"
+	  	echo "error! compare failed!!"
+	  	#bundle trace
+	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
+	  	tar -rvf $tar $(ls m0trace.*.yml)
+	  	return 22
+	fi
+	
+	#c0rm
+	rm -f m0trace.* # clean up  		
+	echo "$c0rm $fid 2>> $log" >> $log 
 	$c0rm $fid 2>> $log 
 	if [[ $? -ne 0 ]]; then
 		echo
@@ -155,11 +225,12 @@ test()
 		  
 	printf "\t [ OK ]\n" >> $out
 
+
 	echo $(date) >> $out
 	echo $(date)
 
 	#move to working directory
-	popd
+	popd > /dev/null
 
 	#success
 	return 0
