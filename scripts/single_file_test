@@ -33,9 +33,8 @@ c0ct='./c0ct'
 fgen='./fgen'
 
 #files
-upfile='upFile'
-dwfile='dwFile'
-bundle='Sage_Bunle'
+ofp='dwFile'
+tar='Sage_Bunle'
 
 #####
 #test()
@@ -51,21 +50,24 @@ test()
 	cnt=$(stat -c%s "$inf")	#filesize in bytes	
 	cnt=$((cnt/bsz))		#count
 	
-	log="$log-$$_bsz${bsz}_cnt${cnt}_num${num}.log"
+	log="$log-$$_bsz${bsz}_cnt${cnt}.log"
 	out="$out-$$_$(date +%Y%m%d-%H:%M:%S).txt"
-	bundle="$bundle-$(date +%Y%m%d).tar"
+	tar="$tar-$(date +%Y%m%d).tar"
 	
 	log=$(pwd)/$log	#send to working directory
 	out=$(pwd)/$out	#send to working directory
 
 	# log='/dev/null'
 	# out='/dev/stdout'
+
+	log='/dev/stderr'
+	out='/dev/stdout'
 	
 	# echo $log
 	# echo $out
 	
-	dwfile=$(pwd)/$dwfile	#send to working directory
-	bundle=$(pwd)/$bundle	#send to working directory
+	ofp=$(pwd)/$ofp	#send to working directory
+	tar=$(pwd)/$tar	#send to working directory
 	
 	#move to executable directory
 	pushd $(dirname $(dirname $0))
@@ -110,30 +112,30 @@ test()
 	  	$c0rm $fid 2>> $log 
 	  	#bundle trace
 	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
-	  	tar -rvf $bundle $(ls m0trace.*.yml)
+	  	tar -rvf $tar $(ls m0trace.*.yml)
 	  	return 20
 	fi
 	   	
 	#c0cat
 	rm -f m0trace.* # clean up  		
-	$c0ct $fid $dwfile $bsz $cnt 2>> $log
+	$c0ct $fid $ofp $bsz $cnt 2>> $log
 	if [[ $? -ne 0 ]]; then
 		echo
-	  	echo "$c0ct $fid $bsz $cnt > $dwfile 2>> $log"
+	  	echo "$c0ct $fid $bsz $cnt > $ofp 2>> $log"
 	  	#remove fid if possible
 	  	$c0rm $fid 2>> $log 	  		
 	  	return 21
 	fi
 
 	#cmp		
-	cmp $inf $dwfile
+	cmp $inf $ofp
 	if [[ $? -ne 0 ]]; then
 	   	echo
-	  	echo "cmp $inf $dwfile"
+	  	echo "cmp $inf $ofp"
 	  	echo "error! compare failed!!"
 	  	#bundle trace
 	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
-	  	tar -rvf $bundle $(ls m0trace.*.yml)
+	  	tar -rvf $tar $(ls m0trace.*.yml)
 	  	return 22
 	fi
 	
@@ -147,7 +149,7 @@ test()
 	  	$c0rm $fid 2>> $log 	  		
 	  	#bundle trace
 	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
-	  	tar -rvf $bundle $(ls m0trace.*.yml)
+	  	tar -rvf $tar $(ls m0trace.*.yml)
 	  	return 23
 	fi
 		  
@@ -177,13 +179,15 @@ test $1 $2
 #success	
 if [[ $? -eq 0 ]]; then
 	echo "$(basename $0) $1 $2"
-	echo "success!!"
+	echo "success!"
 	exit
 fi
 
 #make executables
 if [[ $? -lt 20 ]]; then
 	echo "run make commands"
+	echo "make fgen"
+	echo "make"
 	exit
 fi
 
@@ -194,12 +198,12 @@ if [[ $? -lt 30 ]]; then
 	echo "compressing..."
 	ls -a m0trace.*
 	rm -f m0trace.*
-	tar -tvf $bundle
-#	bzip2 $bundle
+	tar -tvf $tar
+#	bzip2 $tar
 #	echo "verifying..."
-#	tar -jtvf "$bundle.bz2"
+#	tar -jtvf "$tar.bz2"
 #	ls -lh *.bz2
-	echo "done!!"
+	echo "done!"
 	exit
 fi
 
