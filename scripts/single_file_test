@@ -17,7 +17,6 @@
 # * Original creation date: 10-Jan-2017
 # */
 
-
 #!/usr/bin/env bash
 #
 # This script clean install given Mero packages.
@@ -38,6 +37,16 @@ ofp='dwFile'
 tar='Sage_Bunle'
 
 #####
+#runc()
+#####
+runc()
+{ 
+	echo "$@"
+	echo "$@" >> $log
+	eval "$@" 2>> $log
+}
+
+#####
 #test()
 #####
 test()
@@ -51,8 +60,9 @@ test()
 	cnt=$(stat -c%s "$inf")	#filesize in bytes	
 	cnt=$((cnt/bsz))		#count
 	
-	log="$log-$$_bsz${bsz}_cnt${cnt}.log"
-	out="$out-$$_$(date +%Y%m%d-%H:%M:%S).txt"
+	# daily collection
+	log="$log-$(date +%Y%m%d).log"
+	out="$out-$(date +%Y%m%d).log"
 	tar="$tar-$(date +%Y%m%d).tar"
 	
 	log=$(pwd)/$log	#send to working directory
@@ -102,15 +112,16 @@ test()
 	echo "block size = $bsz, count = $cnt, filename = $inf"	
 
 	echo $(date)
-	echo $(date) >> $out
+	echo "+$(date)" >> $out
+	echo "+$(date)" >> $log
 	
 	fid=$($fgen 2>> $log)
 	printf "fid: %s" "$fid" >> $out
 		
 	#c0cp
-	rm -f m0trace.* # clean up  		
-	echo "$c0cp $fid $inf $bsz $cnt 2>> $log" >> $log
-	$c0cp $fid $inf $bsz $cnt 2>> $log
+	rm -f m0trace.* # clean up
+	cmd="$c0cp $fid $inf $bsz $cnt"
+	runc $cmd
 	if [[ $? -ne 0 ]]; then
 		echo
 	  	echo "$c0cp $fid $inf $bsz $cnt 2>> $log"
@@ -124,8 +135,8 @@ test()
 	   	
 	#c0cat
 	rm -f m0trace.* # clean up  		
-	echo "$c0ct $fid $ofp $bsz $cnt 2>> $log" >> $log
-	$c0ct $fid $ofp $bsz $cnt 2>> $log
+	cmd="$c0ct $fid $ofp $bsz $cnt"
+	runc $cmd
 	if [[ $? -ne 0 ]]; then
 		echo
 	  	echo "$c0ct $fid $bsz $cnt > $ofp 2>> $log"
@@ -149,8 +160,8 @@ test()
 	
 	#c0rm
 	rm -f m0trace.* # clean up  		
-	echo "$c0rm $fid 2>> $log" >> $log 
-	$c0rm $fid 2>> $log 
+	cmd="$c0rm $fid"
+	runc $cmd
 	if [[ $? -ne 0 ]]; then
 		echo
 	  	echo "$c0rm $fid 2>> $log"
@@ -162,16 +173,14 @@ test()
 	  	return 23
 	fi
 		  
-	printf "\t [ OK ]\n" >> $out
-	
+	printf "\t [ OK ]\n" >> $out		
 	fid=$($fgen 2>> $log)
 	printf "fid: %s" "$fid" >> $out
 		
 	#c0cp_aync
-	cp=$c0cp_async
 	rm -f m0trace.* # clean up  		
-	echo "$cp $fid $inf $bsz $cnt 8 2>> $log" >> $log
-	$cp $fid $inf $bsz $cnt 8 2>> $log
+	cmd="$c0cp_async $fid $inf $bsz $cnt 8"
+	runc $cmd
 	if [[ $? -ne 0 ]]; then
 		echo
 	  	echo "$cp $fid $inf $bsz $cnt 8 2>> $log"
@@ -185,8 +194,8 @@ test()
 	   	
 	#c0cat
 	rm -f m0trace.* # clean up  		
-	echo "$c0ct $fid $ofp $bsz $cnt 2>> $log" >> $log
-	$c0ct $fid $ofp $bsz $cnt 2>> $log
+	cmd="$c0ct $fid $ofp $bsz $cnt"
+	runc $cmd
 	if [[ $? -ne 0 ]]; then
 		echo
 	  	echo "$c0ct $fid $bsz $cnt > $ofp 2>> $log"
@@ -210,8 +219,8 @@ test()
 	
 	#c0rm
 	rm -f m0trace.* # clean up  		
-	echo "$c0rm $fid 2>> $log" >> $log 
-	$c0rm $fid 2>> $log 
+	cmd="$c0rm $fid"
+	runc $cmd
 	if [[ $? -ne 0 ]]; then
 		echo
 	  	echo "$c0rm $fid 2>> $log"
@@ -225,9 +234,9 @@ test()
 		  
 	printf "\t [ OK ]\n" >> $out
 
-
-	echo $(date) >> $out
 	echo $(date)
+	echo "+$(date)" >> $out
+	echo "+$(date)" >> $log
 
 	#move to working directory
 	popd > /dev/null
