@@ -1,0 +1,47 @@
+#/*
+# * COPYRIGHT 2014 SEAGATE LLC
+# *
+# * THIS DRAWING/DOCUMENT, ITS SPECIFICATIONS, AND THE DATA CONTAINED
+# * HEREIN, ARE THE EXCLUSIVE PROPERTY OF SEAGATE LLC,
+# * ISSUED IN STRICT CONFIDENCE AND SHALL NOT, WITHOUT
+# * THE PRIOR WRITTEN PERMISSION OF SEAGATE TECHNOLOGY LIMITED,
+# * BE REPRODUCED, COPIED, OR DISCLOSED TO A THIRD PARTY, OR
+# * USED FOR ANY PURPOSE WHATSOEVER, OR STORED IN A RETRIEVAL SYSTEM
+# * EXCEPT AS ALLOWED BY THE TERMS OF SEAGATE LICENSES AND AGREEMENTS.
+# *
+# * YOU SHOULD HAVE RECEIVED A COPY OF SEAGATE'S LICENSE ALONG WITH
+# * THIS RELEASE. IF NOT PLEASE CONTACT A SEAGATE REPRESENTATIVE
+# * http://www.xyratex.com/contact
+# *
+# * Original author:  Ganesan Umanesan <ganesan.umanesan@seagate.com>
+# * Original creation date: 24-Apr-2020
+#*/
+
+
+#!/usr/bin/env bash
+#
+# This script generates a number of random files.
+# It should work on Red Hat and Debian based systems.
+#
+# Ganesan Umanesan <ganesan.umanesan@seagate.com>
+# 24/04/2020
+
+#location
+#default to /tmp
+dir=${1:-'/tmp'}	
+dir=$(echo $dir | sed 's/\/$//')
+if [ ! -d $dir ]; then
+	echo "error! $dir does not exist"
+	exit
+fi
+
+ofp=''	#output fille
+cnt=0	#number of blocks
+for i in {1..10}
+do
+	ofp="$dir/"$((2 ** (i+1)))"MB"
+	cnt=$((1024 * $((2 ** (i-1)))))
+	echo "[4096 $cnt $ofp]" 
+	echo dd if=/dev/urandom of="$ofp" bs=4096 count="$cnt"
+	dd if=/dev/urandom of="$ofp" bs=4096 count="$cnt"	
+done
