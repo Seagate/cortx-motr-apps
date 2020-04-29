@@ -40,7 +40,7 @@ cnt=0	#number of blocks
 for i in {1..10}
 do
 	ofp="$dir/"$((2 ** (i+1)))"MB"
-	cnt=$((1024 * $((2 ** (i-1)))))
+	cnt=$((1024 * (2 ** (i-1))))
 	echo "[4096 $cnt $ofp]" 
 	echo dd if=/dev/urandom of="$ofp" bs=4096 count="$cnt"
 	dd if=/dev/urandom of="$ofp" bs=4096 count="$cnt"	
