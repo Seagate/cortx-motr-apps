@@ -141,8 +141,8 @@ int c0appz_timeout(uint64_t sz)
 	bw_wtime  = (double)(sz) / 1000000.0 / wt;
 
 
-	fprintf(stderr,"[ cput: %08.4lf s %08.4lf MB/s ]", ct, bw_ctime);
-	fprintf(stderr,"[ wclk: %08.4lf s %08.4lf MB/s ]", wt, bw_wtime);
+	fprintf(stderr,"[ cput: %10.4lf s %10.4lf MB/s ]", ct, bw_ctime);
+	fprintf(stderr,"[ wclk: %10.4lf s %10.4lf MB/s ]", wt, bw_wtime);
 	fprintf(stderr,"\n");
 	return 0;
 }
@@ -268,12 +268,12 @@ free_vecs:
 	if (rc == 0) {
 		time = (double) read_time / M0_TIME_ONE_SECOND;
 		fs_bw = last_index / 1000000.0 / time;
-		fprintf(stderr," i/o[ read from fs: %08.4lf s %08.4lf MB/s ]",
+		fprintf(stderr," i/o[ OSFS: %10.4lf s %10.4lf MB/s ]",
 			time, fs_bw);
 
 		time = (double) write_time / M0_TIME_ONE_SECOND;
 		clovis_bw = last_index / 1000000.0 / time;
-		fprintf(stderr,"[ write to mero: %08.4lf s %08.4lf MB/s ]\n",
+		fprintf(stderr,"[ MERO: %10.4lf s %10.4lf MB/s ]\n",
 			time, clovis_bw);
 	}
 	return rc;
@@ -503,12 +503,12 @@ free_vecs:
 	if (rc == 0) {
 		time = (double) read_time / M0_TIME_ONE_SECOND;
 		clovis_bw = last_index / 1000000.0 / time;
-		fprintf(stderr," i/o[ read from mero: %08.4lf s %08.4lf MB/s ]",
+		fprintf(stderr," i/o[ MERO: %10.4lf s %10.4lf MB/s ]",
 			time, clovis_bw);
 
 		time = (double) write_time / M0_TIME_ONE_SECOND;
 		fs_bw = last_index / 1000000.0 / time;
-		fprintf(stderr,"[ write to fs: %08.4lf s %08.4lf MB/s ]\n",
+		fprintf(stderr,"[ OSFS: %10.4lf s %10.4lf MB/s ]\n",
 			time, fs_bw);
 	}
 	return rc;
