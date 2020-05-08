@@ -22,21 +22,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libgen.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "c0appz.h"
 
 /* main */
 int main(int argc, char **argv)
 {
-	int64_t  idh;   /* object id high */
-	int64_t  idl;   /* object is low  */
-	int      bsz;   /* block size     */
-	int      cnt;   /* count          */
-	char    *fname;	/* input filename */
+	int64_t	idh;	/* object id high	*/
+	int64_t	idl;   	/* object is low  	*/
+	int    	bsz;   	/* block size     	*/
+	int    	cnt;   	/* count          	*/
+	int    	fsz;   	/* file size		*/
+	char   	*fname;	/* input filename 	*/
 
 	/* check input */
 	if (argc != 6) {
 		fprintf(stderr,"Usage:\n");
-		fprintf(stderr,"%s idh idl filename bsz cnt\n",
+		fprintf(stderr,"%s idh idl filename bsz fsz\n",
 			basename(argv[0]));
 		return -1;
 	}
@@ -56,8 +59,9 @@ int main(int argc, char **argv)
 	idh   = atoll(argv[1]);
 	idl   = atoll(argv[2]);
 	bsz   = atoi(argv[4]);
-	cnt   = atoi(argv[5]);
+	fsz   = atoi(argv[5]);
 	fname = argv[3];
+	cnt	  = (fsz+bsz-1)/bsz;
 
 	/* initialize resources */
 	if (c0appz_init(0) != 0) {
@@ -76,6 +80,10 @@ int main(int argc, char **argv)
 		c0appz_free();
 		return -3;
 	};
+
+	/* resize */
+	truncate(fname,fsz);
+	printf("%s %d\n",fname, fsz);
 
 	/* time out/in */
 	fprintf(stderr,"%4s","i/o");

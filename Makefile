@@ -18,6 +18,10 @@
 # *
 # * Subsequent Modification: Abhishek Saha <abhishek.saha@seagate.com>
 # * Modification Date: 02-Nov-2018
+# *
+# * Modification: Ganesan Umanesan <ganesan.umanesan@seagate.com>
+# * Modification Date: 07-May-2020
+# * 
 #*/
 
 
@@ -43,13 +47,21 @@ TARF = m0trace_$(shell date +%Y%m%d-%H%M%S).tar.bz2
 TARN = $(shell ls -la m0trace.* &> /dev/null | wc -l)
 NODE = $(shell eval uname -n)
 
-#c0cp parameters
+#dd block size, count and filesize
+#dd can have any block size and a random 
+#number of blocks, making the file size 
+#random
+DDZ := 1032
+CNT := $(shell expr 100 + $$RANDOM % 1000)
+#CNT := $(shell expr 1024 \* 16)
+#CNT := 1024
+FSZ := $(shell expr $(DDZ) \* $(CNT) )
+
+#c0cp block size
 #valid block sizes are: 4KB ~ 32MB
 #4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
 #1048576, 2097152, 4194304, 8388608, 16777216, 33554432
-BSZ = 4096
-CNT = $(shell expr 1024 \* 16)
-#CNT = 1024
+BSZ := 4096
 
 #compiler/linker options
 LFLAGS += -lm -lpthread -lrt -lgf_complete -lyaml -luuid -lmero
@@ -79,18 +91,19 @@ $(EXE5):
 	gcc c0appz.c c0cp_async.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE5)
 
 test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
-	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(BSZ) count=$(CNT)
+	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
 	@echo "#####"
 	@ls -lh $(FILE1)
-	$(SUDO) ./$(EXE1) 0 1048577 $(FILE1) $(BSZ) $(CNT)
+	$(SUDO) ./$(EXE1) 0 1048577 $(FILE1) $(BSZ)
 	@echo "#####"
-	$(SUDO) ./$(EXE2) 0 1048577 $(FILE2) $(BSZ) $(CNT) 
-	@ls -lh $(FILE2)
+	@ls -la $(FILE1)
+	$(SUDO) ./$(EXE2) 0 1048577 $(FILE2) $(BSZ) $(FSZ)
+	@ls -la $(FILE2)
 	@echo "#####"
-	@ls -lh $(FILE1)
-	$(SUDO) ./$(EXE5) 0 1048599 $(FILE1) $(BSZ) $(CNT) 8
+	@ls -la $(FILE1)
+	$(SUDO) ./$(EXE5) 0 1048599 $(FILE1) $(BSZ) 8
 	@echo "#####"
-	$(SUDO) ./$(EXE2) 0 1048599 $(FILE3) $(BSZ) $(CNT) 
+	$(SUDO) ./$(EXE2) 0 1048599 $(FILE3) $(BSZ) $(FSZ) 
 	@ls -ls $(FILE3)
 	@echo "#####"
 	cmp $(FILE1) $(FILE2) || echo "ERROR: Test Failed !!"

@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libgen.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "c0appz.h"
 
 /* main */
@@ -32,11 +34,12 @@ int main(int argc, char **argv)
 	int bsz;		/* block size 		*/
 	int cnt;		/* count			*/
 	char *fname;	/* input filename 	*/
+	struct stat fs;	/* file statistics	*/
 
 	/* check input */
-	if (argc != 6) {
+	if (argc != 5) {
 		fprintf(stderr,"Usage:\n");
-		fprintf(stderr,"%s idh idl filename bsz cnt\n", basename(argv[0]));
+		fprintf(stderr,"%s idh idl filename bsz\n", basename(argv[0]));
 		return -1;
 	}
 
@@ -54,9 +57,14 @@ int main(int argc, char **argv)
 	/* set input */
 	idh = atoll(argv[1]);
 	idl = atoll(argv[2]);
-	bsz = atoi(argv[4]);
-	cnt = atoi(argv[5]);
 	fname = argv[3];
+	bsz = atoi(argv[4]);
+//	cnt 	= atoi(argv[5]);
+
+	/* extend */
+	stat(fname, &fs);
+	cnt = (fs.st_size + bsz - 1)/bsz;
+	truncate(fname,fs.st_size + bsz - 1);
 
 	/* initialize resources */
 	if (c0appz_init(0) != 0) {
@@ -75,6 +83,10 @@ int main(int argc, char **argv)
 		c0appz_free();
 		return -3;
 	};
+
+	/* resize */
+	truncate(fname,fs.st_size);
+	printf("%s %d\n",fname, (int)fs.st_size);
 
 	/* time out/in */
 	fprintf(stderr,"%4s","i/o");

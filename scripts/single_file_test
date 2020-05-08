@@ -41,8 +41,8 @@ tar='Sage_Bunle'
 #####
 runc()
 { 
-	echo "$@"
-	echo "$@" >> $log
+	echo ">>$@"
+	echo ">>$@" >> $log
 	eval "$@" 2>> $log
 }
 
@@ -56,15 +56,13 @@ test()
 	bsz=$1			#bsize (default 4K)
 	bsz=$((bsz))	#allow arithmetic
 	inf=$2			#input filename
-
-	cnt=$(stat -c%s "$inf")	#filesize in bytes	
-	cnt=$((cnt/bsz))		#count
 	
 	# daily collection
 	log="$log-$(date +%Y%m%d).log"
 	out="$out-$(date +%Y%m%d).log"
 	tar="$tar-$(date +%Y%m%d).tar"
 	
+	fsz=$(stat -c%s "$inf")	#filesize in bytes	
 	log=$(pwd)/$log	#send to working directory
 	out=$(pwd)/$out	#send to working directory
 
@@ -109,7 +107,7 @@ test()
     	return 16
 	fi
 	
-	echo "block size = $bsz, count = $cnt, filename = $inf"	
+	echo "bsz = $bsz, fsz = $fsz, fname = $inf"	
 
 	echo $(date)
 	echo "+$(date)" >> $out
@@ -120,11 +118,9 @@ test()
 		
 	#c0cp
 	rm -f m0trace.* # clean up
-	cmd="$c0cp $fid $inf $bsz $cnt"
+	cmd="$c0cp $fid $inf $bsz"
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
-		echo
-	  	echo "$c0cp $fid $inf $bsz $cnt 2>> $log"
 	  	#remove fid if possible
 	  	$c0rm $fid 2>> $log 
 	  	#bundle trace
@@ -135,22 +131,18 @@ test()
 	   	
 	#c0cat
 	rm -f m0trace.* # clean up  		
-	cmd="$c0ct $fid $ofp $bsz $cnt"
+	cmd="$c0ct $fid $ofp $bsz $fsz"
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
-		echo
-	  	echo "$c0ct $fid $bsz $cnt > $ofp 2>> $log"
 	  	#remove fid if possible
 	  	$c0rm $fid 2>> $log 	  		
 	  	return 21
 	fi
 
 	#cmp		
-	echo "cmp $inf $ofp" >> $log
-	cmp $inf $ofp
+	cmd="cmp $inf $ofp"
+	runc $cmd
 	if [[ $? -ne 0 ]]; then
-	   	echo
-	  	echo "cmp $inf $ofp"
 	  	echo "error! compare failed!!"
 	  	#bundle trace
 	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
@@ -163,8 +155,6 @@ test()
 	cmd="$c0rm $fid"
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
-		echo
-	  	echo "$c0rm $fid 2>> $log"
 	  	#remove fid if possible
 	  	$c0rm $fid 2>> $log 	  		
 	  	#bundle trace
@@ -179,12 +169,10 @@ test()
 		
 	#c0cp_aync
 	rm -f m0trace.* # clean up  		
-	cmd="$c0cp_async $fid $inf $bsz $cnt 8"
+	cmd="$c0cp_async $fid $inf $bsz 8"
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
-		echo
-	  	echo "$cp $fid $inf $bsz $cnt 8 2>> $log"
-	  	#remove fid if possible
+		#remove fid if possible
 	  	$c0rm $fid 2>> $log 
 	  	#bundle trace
 	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
@@ -194,22 +182,18 @@ test()
 	   	
 	#c0cat
 	rm -f m0trace.* # clean up  		
-	cmd="$c0ct $fid $ofp $bsz $cnt"
+	cmd="$c0ct $fid $ofp $bsz $fsz"
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
-		echo
-	  	echo "$c0ct $fid $bsz $cnt > $ofp 2>> $log"
 	  	#remove fid if possible
 	  	$c0rm $fid 2>> $log 	  		
 	  	return 21
 	fi
 
 	#cmp		
-	echo "cmp $inf $ofp" >> $log
-	cmp $inf $ofp
+	cmd="cmp $inf $ofp"
+	runc $cmd
 	if [[ $? -ne 0 ]]; then
-	   	echo
-	  	echo "cmp $inf $ofp"
 	  	echo "error! compare failed!!"
 	  	#bundle trace
 	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
@@ -222,8 +206,6 @@ test()
 	cmd="$c0rm $fid"
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
-		echo
-	  	echo "$c0rm $fid 2>> $log"
 	  	#remove fid if possible
 	  	$c0rm $fid 2>> $log 	  		
 	  	#bundle trace
