@@ -28,7 +28,6 @@
 #include <inttypes.h>
 #include <time.h>
 #include <openssl/md5.h>
-
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -39,7 +38,7 @@
 #define DEBUG 0
 #endif
 
-#define C0FIDGENRC "./.fgenrc"
+#define FGENRC ".c0fgenrc"
 
 /* function prototypes */
 int m_addr(char *mbuf, int msz);
@@ -85,7 +84,8 @@ int main(int argc, char **argv)
      */
 
     /* local MAC/IP addresses */
-	if(m_addr(buf,512)!=0){
+	if(m_addr(buf,512)!=0)
+	{
 		fprintf(stderr,"error! insufficient salt.\n");
 		fprintf(stderr,"ioctl() could not obtain mac addresses.\n");
 		return -2;
@@ -97,11 +97,23 @@ int main(int argc, char **argv)
 	#endif
     MD5_Update(&c, buf, strlen(buf));
 
+    char fname[128] = {0};
+    char *homed = getenv("HOME");
+	snprintf(fname,128,"%s/%s",homed,FGENRC);
+
+	/*
+	 * create file anyway
+	 * if it does not exist
+	 * */
+    fp = fopen(fname, "a");
+    fclose(fp);
+
 	/* read counter */
-    fp = fopen(C0FIDGENRC, "r");
-    if (fp == NULL) {
-        fprintf(stderr,"error! could not open resource file %s\n", C0FIDGENRC);
-        fprintf(stderr,"touch %s\n", C0FIDGENRC);
+    fp = fopen(fname, "r");
+    if(!fp)
+    {
+        fprintf(stderr,"error! could not open resource file %s\n", fname);
+        fprintf(stderr,"touch %s\n", fname);
         return -1;
     }
 
@@ -116,9 +128,10 @@ int main(int argc, char **argv)
 	#endif
 
     /* write counter */
-    fp = fopen(C0FIDGENRC, "w");
-    if (fp == NULL) {
-        fprintf(stderr,"error! could not open resource file %s\n", C0FIDGENRC);
+    fp = fopen(fname, "w");
+    if(!fp)
+    {
+        fprintf(stderr,"error! could not open resource file %s\n", fname);
         return -1;
     }
 
@@ -148,7 +161,9 @@ int main(int argc, char **argv)
 	printf("\n");
 
 	/* success */
+	#if DEBUG
 	fprintf(stderr,"%s success\n",basename(argv[0]));
+	#endif
 	return 0;
 }
 
