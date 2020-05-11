@@ -46,8 +46,8 @@ int m_addr(char *mbuf, int msz);
 /* main */
 int main(int argc, char **argv)
 {
-	int64_t  idh;	/* object id high 	*/
-	int64_t  idl;	/* object id low	*/
+	uint64_t  idh;	/* object id high 	*/
+	uint64_t  idl;	/* object id low	*/
     FILE *fp;
     MD5_CTX c;
     char buf[512];
@@ -61,20 +61,22 @@ int main(int argc, char **argv)
 
     /* utc */
     memset(buf, 0x00, 512);
-    sprintf(buf, "%d", (int)time(NULL));
+    sprintf(buf, "%d\n", (int)time(NULL));
 	#if DEBUG
-    fprintf(stderr, "%s\n", buf);
-    fprintf(stderr, "sz = %d\n",(int)strlen(buf));
+    fprintf(stderr, "%s:\n",__FUNCTION__);
+    fprintf(stderr,"%s",buf);
+    fprintf(stderr,"size = %d\n",(int)strlen(buf));
 	#endif
     MD5_Update(&c, buf, strlen(buf));
 
     /* srandom */
 	srandom(0);
     memset(buf, 0x00, 512);
-    sprintf(buf, "%d", (int)random());
+    sprintf(buf, "%d\n", (int)random());
 	#if DEBUG
-    fprintf(stderr, "%s\n", buf);
-    fprintf(stderr, "sz = %d\n",(int)strlen(buf));
+    fprintf(stderr, "%s:\n",__FUNCTION__);
+    fprintf(stderr,"%s",buf);
+    fprintf(stderr,"size = %d\n",(int)strlen(buf));
 	#endif
     MD5_Update(&c, buf, strlen(buf));
 
@@ -94,6 +96,15 @@ int main(int argc, char **argv)
 	fprintf(stderr, "%s:\n",__FUNCTION__);
 	fprintf(stderr,"%s",buf);
 	fprintf(stderr,"size = %d\n",(int)strlen(buf));
+	#endif
+    MD5_Update(&c, buf, strlen(buf));
+
+    /* host/user */
+    sprintf(buf, "%s/%s\n", getenv("HOSTNAME"),getenv("USER"));
+	#if DEBUG
+    fprintf(stderr, "%s:\n",__FUNCTION__);
+    fprintf(stderr,"%s",buf);
+    fprintf(stderr,"size = %d\n",(int)strlen(buf));
 	#endif
     MD5_Update(&c, buf, strlen(buf));
 
@@ -121,11 +132,13 @@ int main(int argc, char **argv)
     fgets(buf, 512, fp);
     fclose(fp);
 
-    sprintf(buf, "%d", (int)atoi(buf));
-    MD5_Update(&c, buf, strlen(buf));
+    sprintf(buf, "%d\n", (int)atoi(buf));
 	#if DEBUG
-    fprintf(stderr, "[ counter = %s ]\n", buf);
+    fprintf(stderr, "%s:\n",__FUNCTION__);
+    fprintf(stderr,"%s",buf);
+    fprintf(stderr,"size = %d\n",(int)strlen(buf));
 	#endif
+    MD5_Update(&c, buf, strlen(buf));
 
     /* write counter */
     fp = fopen(fname, "w");
@@ -145,19 +158,18 @@ int main(int argc, char **argv)
 	#if DEBUG
     int n;
     fprintf(stderr, "md5: ");
-    for(n=0; n<MD5_DIGEST_LENGTH; n++)
-    	fprintf(stderr, "%02x", chksum[n]);
+    for(n=0; n<MD5_DIGEST_LENGTH; n++) fprintf(stderr, "%02x", chksum[n]);
     fprintf(stderr, "\n");
 	#endif
 
 	#if DEBUG
-	fprintf(stderr, "[%" PRId64 ", " "%" PRId64 "]", idh, idl);
+	fprintf(stderr, "[%" PRIu64 ", " "%" PRIu64 "]", idh, idl);
 	fprintf(stderr, "\n");
 	#endif
 
-	memmove(&idh, &chksum[0], sizeof(int64_t));
-	memmove(&idl, &chksum[8], sizeof(int64_t));
-	printf("%" PRId64 " " "%" PRId64, idh,idl);
+	memmove(&idh, &chksum[0], sizeof(uint64_t));
+	memmove(&idl, &chksum[8], sizeof(uint64_t));
+	printf("%" PRIu64 " " "%" PRIu64, idh,idl);
 	printf("\n");
 
 	/* success */
