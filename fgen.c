@@ -37,11 +37,12 @@
 #ifndef DEBUG
 #define DEBUG 0
 #endif
-
+#define dbg(x) do { if (DEBUG) dbgprint(x); } while (0)
 #define FGENRC ".c0fgenrc"
 
 /* function prototypes */
 int m_addr(char *mbuf, int msz);
+int dbgprint(char *str);
 
 /* main */
 int main(int argc, char **argv)
@@ -62,23 +63,15 @@ int main(int argc, char **argv)
     /* utc */
     memset(buf, 0x00, 512);
     sprintf(buf, "%d\n", (int)time(NULL));
-	#if DEBUG
-    fprintf(stderr, "%s:\n",__FUNCTION__);
-    fprintf(stderr,"%s",buf);
-    fprintf(stderr,"size = %d\n",(int)strlen(buf));
-	#endif
     MD5_Update(&c, buf, strlen(buf));
+    dbg(buf);
 
     /* srandom */
 	srandom(0);
     memset(buf, 0x00, 512);
     sprintf(buf, "%d\n", (int)random());
-	#if DEBUG
-    fprintf(stderr, "%s:\n",__FUNCTION__);
-    fprintf(stderr,"%s",buf);
-    fprintf(stderr,"size = %d\n",(int)strlen(buf));
-	#endif
     MD5_Update(&c, buf, strlen(buf));
+    dbg(buf);
 
     /*
      * TO DO
@@ -92,21 +85,13 @@ int main(int argc, char **argv)
 		fprintf(stderr,"ioctl() could not obtain mac addresses.\n");
 		return -2;
 	}
-	#if DEBUG
-	fprintf(stderr, "%s:\n",__FUNCTION__);
-	fprintf(stderr,"%s",buf);
-	fprintf(stderr,"size = %d\n",(int)strlen(buf));
-	#endif
     MD5_Update(&c, buf, strlen(buf));
+    dbg(buf);
 
     /* host/user */
     sprintf(buf, "%s/%s\n", getenv("HOSTNAME"),getenv("USER"));
-	#if DEBUG
-    fprintf(stderr, "%s:\n",__FUNCTION__);
-    fprintf(stderr,"%s",buf);
-    fprintf(stderr,"size = %d\n",(int)strlen(buf));
-	#endif
     MD5_Update(&c, buf, strlen(buf));
+    dbg(buf);
 
     char fname[128] = {0};
     char *homed = getenv("HOME");
@@ -133,12 +118,8 @@ int main(int argc, char **argv)
     fclose(fp);
 
     sprintf(buf, "%d\n", (int)atoi(buf));
-	#if DEBUG
-    fprintf(stderr, "%s:\n",__FUNCTION__);
-    fprintf(stderr,"%s",buf);
-    fprintf(stderr,"size = %d\n",(int)strlen(buf));
-	#endif
     MD5_Update(&c, buf, strlen(buf));
+    dbg(buf);
 
     /* write counter */
     fp = fopen(fname, "w");
@@ -176,6 +157,17 @@ int main(int argc, char **argv)
 	#if DEBUG
 	fprintf(stderr,"%s success\n",basename(argv[0]));
 	#endif
+	return 0;
+}
+
+/*
+ * dbgprint()
+ */
+int dbgprint(char *str)
+{
+    fprintf(stderr, "%s:\n",__FUNCTION__);
+    fprintf(stderr,"%s",str);
+    fprintf(stderr,"size = %d\n",(int)strlen(str));
 	return 0;
 }
 
