@@ -114,6 +114,13 @@ static void clovis_aio_stable_cb(struct m0_clovis_op *op);
 static void clovis_aio_failed_cb(struct m0_clovis_op *op);
 /*
  ******************************************************************************
+ * GLOBAL VARIABLES
+ ******************************************************************************
+ */
+int perf=0;	/* performance */
+
+/*
+ ******************************************************************************
  * EXTERN FUNCTIONS
  ******************************************************************************
  */
@@ -265,6 +272,7 @@ free_vecs:
 	}
 	fclose(fp);
 
+	if(perf){
 	if (rc == 0) {
 		time = (double) read_time / M0_TIME_ONE_SECOND;
 		fs_bw = last_index / 1000000.0 / time;
@@ -276,6 +284,8 @@ free_vecs:
 		fprintf(stderr,"[ MERO: %10.4lf s %10.4lf MB/s ]\n",
 			time, clovis_bw);
 	}
+	}
+
 	return rc;
 }
 
@@ -500,6 +510,7 @@ free_vecs:
 	write_time = m0_time_add(write_time,
 				 m0_time_sub(m0_time_now(), st));
 
+	if(perf){
 	if (rc == 0) {
 		time = (double) read_time / M0_TIME_ONE_SECOND;
 		clovis_bw = last_index / 1000000.0 / time;
@@ -510,6 +521,7 @@ free_vecs:
 		fs_bw = last_index / 1000000.0 / time;
 		fprintf(stderr,"[ OSFS: %10.4lf s %10.4lf MB/s ]\n",
 			time, fs_bw);
+	}
 	}
 	return rc;
 }

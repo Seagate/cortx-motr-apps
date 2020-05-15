@@ -22,18 +22,45 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libgen.h>
+#include <unistd.h>
 #include "c0appz.h"
+
+/*
+ ******************************************************************************
+ * EXTERN VARIABLES
+ ******************************************************************************
+ */
+extern int perf; /* performance */
 
 /* main */
 int main(int argc, char **argv)
 {
-	int64_t idh;	/* object id high 	*/
-	int64_t idl;	/* object id low 	*/
+	uint64_t idh;	/* object id high 	*/
+	uint64_t idl;	/* object id low 	*/
+	int opt=0;		/* options			*/
+
+	/* getopt */
+	while((opt = getopt(argc, argv, ":p"))!=-1){
+		switch(opt){
+			case 'p':
+				perf = 1;
+				break;
+			case ':':
+				fprintf(stderr,"option needs a value\n");
+				break;
+			case '?':
+				fprintf(stderr,"unknown option: %c\n", optopt);
+				break;
+			default:
+				fprintf(stderr,"unknown default option: %c\n", optopt);
+				break;
+		}
+	}
 
 	/* check input */
-	if (argc != 3) {
+	if(argc-optind!=2){
 		fprintf(stderr,"Usage:\n");
-		fprintf(stderr,"%s idh idl\n", basename(argv[0]));
+		fprintf(stderr,"%s [options] idh idl\n", basename(argv[0]));
 		return -1;
 	}
 
@@ -49,38 +76,44 @@ int main(int argc, char **argv)
 	c0appz_putrc();
 
 	/* set input */
-	idh = atoll(argv[1]);
-	idl = atoll(argv[2]);
+	idh = atoll(argv[optind+0]);
+	idl = atoll(argv[optind+1]);
 
 	/* initialize resources */
-	if (c0appz_init(0) != 0) {
+	if(c0appz_init(0) != 0){
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
 
 	/* time out/in */
-	fprintf(stderr,"%4s","init");
-	c0appz_timeout(0);
-	c0appz_timein();
+	if(perf){
+		fprintf(stderr,"%4s","init");
+		c0appz_timeout(0);
+		c0appz_timein();
+	}
 
 	/* delete */
-	if (c0appz_rm(idh,idl) != 0) {
+	if(c0appz_rm(idh,idl) != 0){
 		fprintf(stderr,"error! delete object failed.\n");
 		c0appz_free();
 		return -3;
 	};
 
 	/* time out/in */
-	fprintf(stderr,"%4s","i/o");
-	c0appz_timeout(0);
-	c0appz_timein();
+	if(perf){
+		fprintf(stderr,"%4s","i/o");
+		c0appz_timeout(0);
+		c0appz_timein();
+	}
 
 	/* free resources*/
 	c0appz_free();
 
 	/* time out */
-	fprintf(stderr,"%4s","free");
-	c0appz_timeout(0);
+	if(perf){
+		fprintf(stderr,"%4s","free");
+		c0appz_timeout(0);
+	}
 
 	/* success */
 	fprintf(stderr,"%s success\n",basename(argv[0]));

@@ -26,6 +26,13 @@
 #include <unistd.h>
 #include "c0appz.h"
 
+/*
+ ******************************************************************************
+ * EXTERN VARIABLES
+ ******************************************************************************
+ */
+extern int perf; /* performance */
+
 /* main */
 int main(int argc, char **argv)
 {
@@ -35,12 +42,31 @@ int main(int argc, char **argv)
 	int    	cnt;   	/* count          	*/
 	int    	fsz;   	/* file size		*/
 	char   	*fname;	/* input filename 	*/
+	int opt=0;		/* options			*/
+//	int perf=0;		/* performance 		*/
+
+	/* getopt */
+	while((opt = getopt(argc, argv, ":p"))!=-1){
+		switch(opt){
+			case 'p':
+				perf = 1;
+				break;
+			case ':':
+				fprintf(stderr,"option needs a value\n");
+				break;
+			case '?':
+				fprintf(stderr,"unknown option: %c\n", optopt);
+				break;
+			default:
+				fprintf(stderr,"unknown default option: %c\n", optopt);
+				break;
+		}
+	}
 
 	/* check input */
-	if (argc != 6) {
+	if(argc-optind!=5){
 		fprintf(stderr,"Usage:\n");
-		fprintf(stderr,"%s idh idl filename bsz fsz\n",
-			basename(argv[0]));
+		fprintf(stderr,"%s [options] idh idl filename bsz fsz\n",basename(argv[0]));
 		return -1;
 	}
 
@@ -56,26 +82,28 @@ int main(int argc, char **argv)
 	c0appz_putrc();
 
 	/* set input */
-	idh   = atoll(argv[1]);
-	idl   = atoll(argv[2]);
-	bsz   = atoi(argv[4]);
-	fsz   = atoi(argv[5]);
-	fname = argv[3];
-	cnt	  = (fsz+bsz-1)/bsz;
+	idh	= atoll(argv[optind+0]);
+	idl = atoll(argv[optind+1]);
+	fname = argv[optind+2];
+	bsz = atoi(argv[optind+3]);
+	fsz = atoi(argv[optind+4]);
+	cnt = (fsz+bsz-1)/bsz;
 
 	/* initialize resources */
-	if (c0appz_init(0) != 0) {
+	if(c0appz_init(0)!=0){
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return -2;
 	}
 
 	/* time out/in */
-	fprintf(stderr,"%4s","init");
-	c0appz_timeout(0);
-	c0appz_timein();
+	if(perf){
+		fprintf(stderr,"%4s","init");
+		c0appz_timeout(0);
+		c0appz_timein();
+	}
 
 	/* cat */
-	if (c0appz_cat(idh, idl, bsz, cnt, fname) != 0) {
+	if(c0appz_cat(idh,idl,bsz,cnt,fname)!=0){
 		fprintf(stderr,"error! cat object failed.\n");
 		c0appz_free();
 		return -3;
@@ -86,16 +114,20 @@ int main(int argc, char **argv)
 	printf("%s %d\n",fname, fsz);
 
 	/* time out/in */
-	fprintf(stderr,"%4s","i/o");
-	c0appz_timeout((uint64_t)bsz * (uint64_t)cnt);
-	c0appz_timein();
+	if(perf){
+		fprintf(stderr,"%4s","i/o");
+		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt);
+		c0appz_timein();
+	}
 
 	/* free resources*/
 	c0appz_free();
 
 	/* time out */
-	fprintf(stderr,"%4s","free");
-	c0appz_timeout(0);
+	if(perf){
+		fprintf(stderr,"%4s","free");
+		c0appz_timeout(0);
+	}
 
 	/* success */
 	fprintf(stderr,"%s success\n",basename(argv[0]));
