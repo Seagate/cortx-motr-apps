@@ -24,6 +24,7 @@
 #include <libgen.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "c0appz.h"
 
 /*
@@ -32,7 +33,34 @@
  ******************************************************************************
  */
 extern int perf; /* performance */
+extern int qos_total_weight; /* bytes read or written */
+extern pthread_mutex_t qos_lock;
 
+/*
+ * qos_print_bw(void)
+ */
+int qos_print_bw(void)
+{
+	double bw=0;
+	bw=(double)qos_total_weight/1000000;
+	/* reset total weight */
+	pthread_mutex_lock(&qos_lock);
+	qos_total_weight=0;
+	pthread_mutex_unlock(&qos_lock);
+	printf("bw = %06.3f MB/s\n",bw);
+	return 0;
+}
+
+/* thread function */
+void *threadfunc(void *arg)
+{
+    while(1)
+    {
+        qos_print_bw();
+        sleep(1);
+    }
+    return 0;
+}
 
 /* main */
 int main(int argc, char **argv)
@@ -104,6 +132,11 @@ int main(int argc, char **argv)
 		fprintf(stderr,"%4s","init");
 		c0appz_timeout(0);
 		c0appz_timein();
+	}
+
+	if(perf){
+		pthread_t tid;
+		pthread_create(&tid, NULL, &threadfunc, NULL);
 	}
 
 	/* copy */

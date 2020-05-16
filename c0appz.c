@@ -118,6 +118,8 @@ static void clovis_aio_failed_cb(struct m0_clovis_op *op);
  ******************************************************************************
  */
 int perf=0;	/* performance */
+int qos_total_weight=0; /* total bytes read or written */
+pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
 
 /*
  ******************************************************************************
@@ -259,6 +261,11 @@ int c0appz_cp(int64_t idhi, int64_t idlo, char *filename, int bsz, int cnt)
 			fprintf(stderr, "writing to object failed!\n");
 		write_time = m0_time_add(write_time,
 					 m0_time_sub(m0_time_now(), st));
+
+		/* update total weight */
+		pthread_mutex_lock(&qos_lock);
+		qos_total_weight += block_count * bsz;
+		pthread_mutex_unlock(&qos_lock);
 
 free_vecs:
 		/* Free bufvec's and indexvec's */
