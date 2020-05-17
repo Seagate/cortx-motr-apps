@@ -52,7 +52,7 @@ int qos_print_bw(void)
 }
 
 /* thread function */
-void *threadfunc(void *arg)
+void *disp_realtime_bw(void *arg)
 {
     while(1)
     {
@@ -65,13 +65,14 @@ void *threadfunc(void *arg)
 /* main */
 int main(int argc, char **argv)
 {
-	int64_t idh;	/* object id high 	*/
-	int64_t idl;	/* object is low	*/
-	int bsz;		/* block size 		*/
-	int cnt;		/* count			*/
-	char *fname;	/* input filename 	*/
-	struct stat fs;	/* file statistics	*/
-	int opt;		/* options			*/
+	int64_t idh;	/* object id high 		*/
+	int64_t idl;	/* object is low		*/
+	int bsz;		/* block size 			*/
+	int cnt;		/* count				*/
+	char *fname;	/* input filename 		*/
+	struct stat fs;	/* file statistics		*/
+	int opt;		/* options				*/
+	pthread_t tid;	/* realtime bw thread	*/
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":p"))!=-1){
@@ -135,8 +136,7 @@ int main(int argc, char **argv)
 	}
 
 	if(perf){
-		pthread_t tid;
-		pthread_create(&tid, NULL, &threadfunc, NULL);
+		pthread_create(&tid,NULL,&disp_realtime_bw,NULL);
 	}
 
 	/* copy */
