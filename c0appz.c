@@ -118,7 +118,7 @@ static void clovis_aio_failed_cb(struct m0_clovis_op *op);
  * GLOBAL VARIABLES
  ******************************************************************************
  */
-int perf=0;	/* performance */
+int perf=0;							/* performance option 			*/
 extern int qos_total_weight; 		/* total bytes read or written 	*/
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
 
@@ -500,6 +500,11 @@ int c0appz_cat(int64_t idhi, int64_t idlo, int bsz, int cnt, char *filename)
 					 m0_time_sub(m0_time_now(), st));
 		if (bcnt_written != block_count)
 			rc = -EIO;
+
+		/* update total weight */
+		pthread_mutex_lock(&qos_lock);
+		qos_total_weight += block_count * bsz;
+		pthread_mutex_unlock(&qos_lock);
 
 free_vecs:
 		/* Free bufvec's and indexvec's */

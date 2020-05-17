@@ -24,6 +24,7 @@
 #include <libgen.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "c0appz.h"
 
 /*
@@ -36,14 +37,14 @@ extern int perf; /* performance */
 /* main */
 int main(int argc, char **argv)
 {
-	int64_t	idh;	/* object id high	*/
-	int64_t	idl;   	/* object is low  	*/
-	int    	bsz;   	/* block size     	*/
-	int    	cnt;   	/* count          	*/
-	int    	fsz;   	/* file size		*/
-	char   	*fname;	/* input filename 	*/
-	int opt=0;		/* options			*/
-//	int perf=0;		/* performance 		*/
+	int64_t	idh;	/* object id high		*/
+	int64_t	idl;   	/* object id low  		*/
+	int    	bsz;   	/* block size     		*/
+	int    	cnt;   	/* count          		*/
+	int    	fsz;   	/* file size			*/
+	char   	*fname;	/* input filename 		*/
+	int opt=0;		/* options				*/
+	pthread_t tid;	/* real-time bw thread	*/
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":p"))!=-1){
@@ -100,6 +101,10 @@ int main(int argc, char **argv)
 		fprintf(stderr,"%4s","init");
 		c0appz_timeout(0);
 		c0appz_timein();
+	}
+
+	if(perf){
+		pthread_create(&tid,NULL,&disp_realtime_bw,NULL);
 	}
 
 	/* cat */

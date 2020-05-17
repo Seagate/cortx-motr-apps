@@ -80,7 +80,7 @@ static int qos_print_bw(void)
 	pthread_mutex_lock(&qos_lock);
 	qos_total_weight=0;
 	pthread_mutex_unlock(&qos_lock);
-	printf("bw = %06.3f MB/s\n",bw);
+	printf("bw = %08.4f MB/s\n",bw);
 	return 0;
 }
 
