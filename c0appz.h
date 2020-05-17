@@ -32,6 +32,9 @@ int c0appz_putrc(void);
 int c0appz_timeout(uint64_t sz);
 int c0appz_timein();
 
+void *disp_realtime_bw(void *arg);
+
+
 /*
  ** ECMWF REQUIREMENTS
  ** synchronous/asynchronous get/put etc.
@@ -61,6 +64,7 @@ int c0appz_flush(struct m0_uint128* id, size_t size);
 
 
 int c0appz_generate_id(int64_t *idh, int64_t *idl);
+
 
 
 

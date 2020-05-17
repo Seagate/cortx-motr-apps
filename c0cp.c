@@ -33,34 +33,6 @@
  ******************************************************************************
  */
 extern int perf; /* performance */
-extern int qos_total_weight; /* bytes read or written */
-extern pthread_mutex_t qos_lock;
-
-/*
- * qos_print_bw(void)
- */
-int qos_print_bw(void)
-{
-	double bw=0;
-	bw=(double)qos_total_weight/1000000;
-	/* reset total weight */
-	pthread_mutex_lock(&qos_lock);
-	qos_total_weight=0;
-	pthread_mutex_unlock(&qos_lock);
-	printf("bw = %06.3f MB/s\n",bw);
-	return 0;
-}
-
-/* thread function */
-void *disp_realtime_bw(void *arg)
-{
-    while(1)
-    {
-        qos_print_bw();
-        sleep(1);
-    }
-    return 0;
-}
 
 /* main */
 int main(int argc, char **argv)
@@ -72,7 +44,7 @@ int main(int argc, char **argv)
 	char *fname;	/* input filename 		*/
 	struct stat fs;	/* file statistics		*/
 	int opt;		/* options				*/
-	pthread_t tid;	/* realtime bw thread	*/
+	pthread_t tid;	/* real-time bw thread	*/
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":p"))!=-1){

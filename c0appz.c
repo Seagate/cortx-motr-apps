@@ -112,14 +112,15 @@ static void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp);
 static void clovis_aio_executed_cb(struct m0_clovis_op *op);
 static void clovis_aio_stable_cb(struct m0_clovis_op *op);
 static void clovis_aio_failed_cb(struct m0_clovis_op *op);
+
 /*
  ******************************************************************************
  * GLOBAL VARIABLES
  ******************************************************************************
  */
 int perf=0;	/* performance */
-int qos_total_weight=0; /* total bytes read or written */
-pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
+extern int qos_total_weight; 		/* total bytes read or written 	*/
+extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
 
 /*
  ******************************************************************************
