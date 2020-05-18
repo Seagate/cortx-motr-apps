@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <inttypes.h>
 #include "c0appz.h"
 
 /*
@@ -37,11 +38,11 @@ extern int perf; /* performance */
 /* main */
 int main(int argc, char **argv)
 {
-	int64_t	idh;	/* object id high		*/
-	int64_t	idl;   	/* object id low  		*/
-	int    	bsz;   	/* block size     		*/
-	int    	cnt;   	/* count          		*/
-	int    	fsz;   	/* file size			*/
+	uint64_t	idh;	/* object id high		*/
+	uint64_t	idl;   	/* object id low  		*/
+	uint64_t bsz;   	/* block size     		*/
+	uint64_t cnt;   	/* count          		*/
+	uint64_t fsz;   	/* file size			*/
 	char   	*fname;	/* input filename 		*/
 	int opt=0;		/* options				*/
 	pthread_t tid;	/* real-time bw thread	*/
@@ -86,8 +87,8 @@ int main(int argc, char **argv)
 	idh	= atoll(argv[optind+0]);
 	idl = atoll(argv[optind+1]);
 	fname = argv[optind+2];
-	bsz = atoi(argv[optind+3]);
-	fsz = atoi(argv[optind+4]);
+	bsz = atoll(argv[optind+3]);
+	fsz = atoll(argv[optind+4]);
 	cnt = (fsz+bsz-1)/bsz;
 
 	/* initialize resources */
@@ -115,8 +116,8 @@ int main(int argc, char **argv)
 	};
 
 	/* resize */
-	truncate(fname,fsz);
-	printf("%s %d\n",fname, fsz);
+	truncate64(fname,fsz);
+	printf("%s %" PRIu64 "\n",fname,fsz);
 
 	/* time out/in */
 	if(perf){

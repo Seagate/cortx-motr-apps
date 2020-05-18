@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 	idh = atoll(argv[optind+0]);
 	idl = atoll(argv[optind+1]);
 	fname = argv[optind+2];
-	bsz = atoi(argv[optind+3]);
+	bsz = atoll(argv[optind+3]);
 
 	/* extend */
 	stat64(fname, &fs);
