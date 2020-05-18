@@ -46,7 +46,7 @@
 #define SZC0RCSTR                256
 #define SZC0RCFILE               256
 #define C0RCFLE                 "./.cappzrc"
-#define CLOVIS_MAX_BLOCK_COUNT  (200)
+#define CLOVIS_MAX_BLOCK_COUNT  (1024)
 #define CLOVIS_MAX_PER_WIO_SIZE (128*1024*1024)
 #define CLOVIS_MAX_PER_RIO_SIZE (512*1024*1024)
 

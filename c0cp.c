@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <inttypes.h>
 #include "c0appz.h"
 
 /*
@@ -37,14 +38,14 @@ extern int perf; /* performance */
 /* main */
 int main(int argc, char **argv)
 {
-	int64_t idh;	/* object id high 		*/
-	int64_t idl;	/* object is low		*/
-	int bsz;		/* block size 			*/
-	int cnt;		/* count				*/
-	char *fname;	/* input filename 		*/
-	struct stat fs;	/* file statistics		*/
-	int opt;		/* options				*/
-	pthread_t tid;	/* real-time bw thread	*/
+	uint64_t idh;		/* object id high 		*/
+	uint64_t idl;		/* object is low		*/
+	uint64_t bsz;		/* block size 			*/
+	uint64_t cnt;		/* count				*/
+	char *fname;		/* input filename 		*/
+	struct stat64 fs;	/* file statistics		*/
+	int opt;			/* options				*/
+	pthread_t tid;		/* real-time bw thread	*/
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":p"))!=-1){
@@ -90,9 +91,9 @@ int main(int argc, char **argv)
 	bsz = atoi(argv[optind+3]);
 
 	/* extend */
-	stat(fname, &fs);
+	stat64(fname, &fs);
 	cnt = (fs.st_size + bsz - 1)/bsz;
-	truncate(fname,fs.st_size + bsz - 1);
+	truncate64(fname,fs.st_size + bsz - 1);
 
 	/* initialize resources */
 	if(c0appz_init(0)!=0){
@@ -119,8 +120,8 @@ int main(int argc, char **argv)
 	};
 
 	/* resize */
-	truncate(fname,fs.st_size);
-	printf("%s %d\n",fname, (int)fs.st_size);
+	truncate64(fname,fs.st_size);
+	printf("%s %" PRIu64 "\n",fname,fs.st_size);
 
 	/* time out/in */
 	if(perf){
