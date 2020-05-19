@@ -33,7 +33,9 @@
  * EXTERN VARIABLES
  ******************************************************************************
  */
-extern int perf; /* performance */
+extern int perf; 	/* performance 	*/
+int force=0; 		/* overwrite  	*/
+
 
 /* main */
 int main(int argc, char **argv)
@@ -48,10 +50,13 @@ int main(int argc, char **argv)
 	pthread_t tid;		/* real-time bw thread	*/
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":p"))!=-1){
+	while((opt = getopt(argc, argv, ":pf"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
+				break;
+			case 'f':
+				force = 1;
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
@@ -108,6 +113,13 @@ int main(int argc, char **argv)
 		c0appz_timein();
 	}
 
+	/* create object */
+	if((c0appz_cr(idh,idl)!=0)&&(!force)){
+		fprintf(stderr,"error! create object failed.\n");
+		c0appz_free();
+		return -3;
+	}
+
 	if(perf){
 		pthread_create(&tid,NULL,&disp_realtime_bw,NULL);
 	}
@@ -121,7 +133,6 @@ int main(int argc, char **argv)
 
 	/* resize */
 	truncate64(fname,fs.st_size);
-	printf("%s %" PRIu64 "\n",fname,fs.st_size);
 
 	/* time out/in */
 	if(perf){
@@ -140,6 +151,7 @@ int main(int argc, char **argv)
 	}
 
 	/* success */
+	printf("%s %" PRIu64 "\n",fname,fs.st_size);
 	fprintf(stderr,"%s success\n",basename(argv[0]));
 	return 0;
 }

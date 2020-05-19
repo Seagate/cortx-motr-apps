@@ -175,7 +175,7 @@ int c0appz_timein()
 int c0appz_cp(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t cnt)
 {
 	int                i;
-	int                rc;
+	int                rc=0;
 	int                max_bcnt_per_op;
 	int                block_count;
 	int                bcnt_read;
@@ -202,14 +202,6 @@ int c0appz_cp(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t c
 	/* ids */
 	id.u_hi = idhi;
 	id.u_lo = idlo;
-
-	/* create object */
-	rc = create_object(id);
-	if (rc != 0) {
-		fprintf(stderr, "can't create object!\n");
-		fclose(fp);
-		return rc;
-	}
 
 	/* max_bcnt_per_op */
 	assert(CLOVIS_MAX_PER_WIO_SIZE>bsz);
@@ -774,6 +766,30 @@ static int open_entity(struct m0_clovis_entity *entity)
 }
 
 /*
+ * c0appz_cr()
+ * create a clovis object.
+ */
+int c0appz_cr(uint64_t idhi,uint64_t idlo)
+{
+	int rc=0;
+	struct m0_uint128 id={0};
+
+	/* ids */
+	id.u_hi = idhi;
+	id.u_lo = idlo;
+
+	/* create object */
+	rc = create_object(id);
+	if(rc!=0){
+		fprintf(stderr,"object already exists!\n");
+		return rc;
+	}
+
+	fprintf(stderr, "success! create objected!!\n");
+	return 0;
+}
+
+/*
  * create_object()
  * create clovis object.
  */
@@ -790,8 +806,8 @@ static int create_object(struct m0_uint128 id)
 
 	rc = open_entity(&obj.ob_entity);
 	if (!(rc < 0)) {
-		fprintf(stderr,"error! [%d]\n", rc);
-		fprintf(stderr,"object already exists\n");
+		// fprintf(stderr,"error! [%d]\n", rc);
+		// fprintf(stderr,"object already exists.\n");
 		return 1;
 	}
 

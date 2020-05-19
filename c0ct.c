@@ -117,7 +117,6 @@ int main(int argc, char **argv)
 
 	/* resize */
 	truncate64(fname,fsz);
-	printf("%s %" PRIu64 "\n",fname,fsz);
 
 	/* time out/in */
 	if(perf){
@@ -136,6 +135,7 @@ int main(int argc, char **argv)
 	}
 
 	/* success */
+	printf("%s %" PRIu64 "\n",fname,fsz);
 	fprintf(stderr,"%s success\n",basename(argv[0]));
 	return 0;
 }
