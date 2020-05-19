@@ -38,11 +38,11 @@ extern int perf; /* performance */
 /* main */
 int main(int argc, char **argv)
 {
-	uint64_t	idh;	/* object id high		*/
-	uint64_t	idl;   	/* object id low  		*/
-	uint64_t bsz;   	/* block size     		*/
-	uint64_t cnt;   	/* count          		*/
-	uint64_t fsz;   	/* file size			*/
+	uint64_t idh;	/* object id high		*/
+	uint64_t idl;   /* object id low  		*/
+	uint64_t bsz;   /* block size     		*/
+	uint64_t cnt;   /* count          		*/
+	uint64_t fsz;   /* file size			*/
 	char   	*fname;	/* input filename 		*/
 	int opt=0;		/* options				*/
 	pthread_t tid;	/* real-time bw thread	*/
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 	}
 
 	/* cat */
-	if(c0appz_cat(idh,idl,bsz,cnt,fname)!=0){
+	if(c0appz_ct(idh,idl,fname,bsz,cnt)!=0){
 		fprintf(stderr,"error! cat object failed.\n");
 		c0appz_free();
 		return -3;
