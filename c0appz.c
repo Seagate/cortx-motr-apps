@@ -46,9 +46,9 @@
 #define SZC0RCSTR                256
 #define SZC0RCFILE               256
 #define C0RCFLE                 "./.cappzrc"
-#define CLOVIS_MAX_BLOCK_COUNT  (1024)
-#define CLOVIS_MAX_PER_WIO_SIZE (128*1024*1024)
-#define CLOVIS_MAX_PER_RIO_SIZE (512*1024*1024)
+#define CLOVIS_MAX_BLOCK_COUNT  (512)
+#define CLOVIS_MAX_PER_WIO_SIZE (4*1024*1024)
+#define CLOVIS_MAX_PER_RIO_SIZE (4*1024*1024)
 
 /* static variables */
 static struct m0_clovis          *clovis_instance = NULL;
@@ -211,26 +211,27 @@ int c0appz_cp(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t c
 		return rc;
 	}
 
-	/* Loop for WRITE ops */
+	/* max_bcnt_per_op */
+	assert(CLOVIS_MAX_PER_WIO_SIZE>bsz);
 	max_bcnt_per_op = CLOVIS_MAX_PER_WIO_SIZE / bsz;
 	assert(max_bcnt_per_op != 0);
+	max_bcnt_per_op = max_bcnt_per_op < CLOVIS_MAX_BLOCK_COUNT ?
+			  max_bcnt_per_op :
+			  CLOVIS_MAX_BLOCK_COUNT;
+
 	last_index = 0;
 	M0_SET0(&read_time);
 	M0_SET0(&write_time);
 	while (cnt > 0) {
-		block_count = (cnt > CLOVIS_MAX_BLOCK_COUNT)?
-			       CLOVIS_MAX_BLOCK_COUNT:cnt;
+	    block_count = cnt > max_bcnt_per_op?
+	                  max_bcnt_per_op : cnt;
 
-		if (block_count > max_bcnt_per_op)
-			block_count = max_bcnt_per_op;
-
-		/* Allocate data buffers, bufvec and indexvec for write. */
-		rc = m0_bufvec_alloc(&data, block_count, bsz) ?:
-		     m0_bufvec_alloc(&attr, block_count, 1) ?:
-		     m0_indexvec_alloc(&ext, block_count);
-		if (rc != 0)
-			goto free_vecs;
-
+	    /* Allocate data buffers, bufvec and indexvec for write. */
+	    rc = m0_bufvec_alloc(&data, block_count, bsz) ?:
+	    m0_bufvec_alloc(&attr, block_count, 1) ?:
+	    m0_indexvec_alloc(&ext, block_count);
+	    if (rc != 0)
+	        goto free_vecs;
 		/*
 		 * Prepare indexvec for write: <clovis_block_count> from the
 		 * beginning of the object.
