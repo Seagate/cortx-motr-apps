@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <inttypes.h>
+#include <assert.h>
 #include "c0appz.h"
 
 /*
@@ -44,6 +45,7 @@ int main(int argc, char **argv)
 	uint64_t idl;		/* object is low		*/
 	uint64_t bsz;		/* block size 			*/
 	uint64_t cnt;		/* count				*/
+	uint64_t fsz;		/* initial file size	*/
 	char *fname;		/* input filename 		*/
 	struct stat64 fs;	/* file statistics		*/
 	int opt;			/* options				*/
@@ -94,11 +96,15 @@ int main(int argc, char **argv)
 	idl = atoll(argv[optind+1]);
 	fname = argv[optind+2];
 	bsz = atoll(argv[optind+3]);
+	assert(bsz>0);
+	assert(!(bsz%1024));
 
 	/* extend */
 	stat64(fname, &fs);
+	fsz = fs.st_size;
 	cnt = (fs.st_size + bsz - 1)/bsz;
 	truncate64(fname,fs.st_size + bsz - 1);
+	assert(!(fsz>cnt*bsz));
 
 	/* initialize resources */
 	if(c0appz_init(0)!=0){
@@ -133,6 +139,8 @@ int main(int argc, char **argv)
 
 	/* resize */
 	truncate64(fname,fs.st_size);
+	stat64(fname,&fs);
+	assert(fsz==fs.st_size);
 
 	/* time out/in */
 	if(perf){

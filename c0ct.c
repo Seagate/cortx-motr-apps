@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <inttypes.h>
+#include <assert.h>
 #include "c0appz.h"
 
 /*
@@ -90,6 +91,9 @@ int main(int argc, char **argv)
 	bsz = atoll(argv[optind+3]);
 	fsz = atoll(argv[optind+4]);
 	cnt = (fsz+bsz-1)/bsz;
+	assert(bsz>0);
+	assert(!(bsz%1024));
+	assert(!(fsz>cnt*bsz));
 
 	/* initialize resources */
 	if(c0appz_init(0)!=0){
