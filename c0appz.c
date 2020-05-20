@@ -325,13 +325,6 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t block_size
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-	/* Create the object */
-//	rc = create_object(id);
-//	if (rc != 0) {
-//		fclose(fp);
-//		return rc;
-//	}
-
 	last_index = 0;
 	while (block_count > 0) {
 		bcnt_per_op = block_count > max_bcnt_per_op * op_cnt?
