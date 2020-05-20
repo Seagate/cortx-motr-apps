@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 	if(argc-optind!=5){
 		fprintf(stderr,"Usage:\n");
 		fprintf(stderr,"%s [options] idh idl filename bsz fsz\n",basename(argv[0]));
-		return -1;
+		return -11;
 	}
 
 	/* time in */
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 	/* initialize resources */
 	if(c0appz_init(0)!=0){
 		fprintf(stderr,"error! clovis initialization failed.\n");
-		return -2;
+		return -22;
 	}
 
 	/* time out/in */
@@ -116,8 +116,12 @@ int main(int argc, char **argv)
 	if(c0appz_ct(idh,idl,fname,bsz,cnt)!=0){
 		fprintf(stderr,"error! cat object failed.\n");
 		c0appz_free();
-		return -3;
+		return -33;
 	};
+
+	if(perf){
+		pthread_cancel(tid);
+	}
 
 	/* resize */
 	truncate64(fname,fsz);

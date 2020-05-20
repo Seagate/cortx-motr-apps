@@ -77,7 +77,7 @@ int main(int argc, char **argv)
 	if(argc-optind!=4){
 		fprintf(stderr,"Usage:\n");
 		fprintf(stderr,"%s [options] idh idl filename bsz\n", basename(argv[0]));
-		return -1;
+		return -11;
 	}
 
 	/* time in */
@@ -106,10 +106,13 @@ int main(int argc, char **argv)
 	truncate64(fname,fs.st_size + bsz - 1);
 	assert(!(fsz>cnt*bsz));
 
-	/* initialize resources */
+	/* initialise resources */
 	if(c0appz_init(0)!=0){
-		fprintf(stderr,"error! clovis initialization failed.\n");
-		return -2;
+		fprintf(stderr,"error! clovis initialisation failed.\n");
+		truncate64(fname,fs.st_size);
+		stat64(fname,&fs);
+		assert(fsz==fs.st_size);
+		return -22;
 	}
 
 	/* time out/in */
@@ -122,8 +125,11 @@ int main(int argc, char **argv)
 	/* create object */
 	if((c0appz_cr(idh,idl)!=0)&&(!force)){
 		fprintf(stderr,"error! create object failed.\n");
+		truncate64(fname,fs.st_size);
+		stat64(fname,&fs);
+		assert(fsz==fs.st_size);
 		c0appz_free();
-		return -3;
+		return -33;
 	}
 
 	if(perf){
@@ -133,9 +139,16 @@ int main(int argc, char **argv)
 	/* copy */
 	if (c0appz_cp(idh,idl,fname,bsz,cnt) != 0) {
 		fprintf(stderr,"error! copy object failed.\n");
+		truncate64(fname,fs.st_size);
+		stat64(fname,&fs);
+		assert(fsz==fs.st_size);
 		c0appz_free();
-		return -3;
+		return -44;
 	};
+
+	if(perf){
+		pthread_cancel(tid);
+	}
 
 	/* resize */
 	truncate64(fname,fs.st_size);
