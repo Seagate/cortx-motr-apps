@@ -36,25 +36,30 @@
  * EXTERN VARIABLES
  ******************************************************************************
  */
-extern int perf; /* performance */
+extern int perf; 	/* performance */
+int force=0; 		/* overwrite  	*/
 
 /* main */
 int main(int argc, char **argv)
 {
-	int64_t idh;	/* object id high 			*/
-	int64_t idl;	/* object is low  			*/
-	int bsz;        /* block size	  			*/
-	int cnt;        /* count	  				*/
-	int op_cnt;     /* number of parallel ops 	*/
-	char *fname;	/* input filename 			*/
-	struct stat fs;	/* file statistics			*/
-	int opt=0;		/* options					*/
+	uint64_t idh;		/* object id high 			*/
+	uint64_t idl;		/* object is low  			*/
+	uint64_t bsz; 		/* block size	  			*/
+	uint64_t cnt;  		/* count	  				*/
+	uint64_t op_cnt;	/* number of parallel ops 	*/
+	uint64_t fsz;		/* initial file size		*/
+	char *fname;		/* input filename 			*/
+	struct stat64 fs;	/* file statistics			*/
+	int opt=0;			/* options					*/
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":p"))!=-1){
+	while((opt = getopt(argc, argv, ":pf"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
+				break;
+			case 'f':
+				force = 1;
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
@@ -72,7 +77,7 @@ int main(int argc, char **argv)
 	if(argc-optind!=5){
 		fprintf(stderr,"Usage:\n");
 		fprintf(stderr,"%s [options] idh idl filename bsz opcnt\n", basename(argv[0]));
-		return -1;
+		return -11;
 	}
 
 	/* time in */
@@ -90,21 +95,24 @@ int main(int argc, char **argv)
 	idh = atoll(argv[optind+0]);
 	idl = atoll(argv[optind+1]);
 	fname = argv[optind+2];
-	bsz = atoi(argv[optind+3]);
-	op_cnt = atoi(argv[optind+4]);
+	bsz = atoll(argv[optind+3]);
+	op_cnt = atoll(argv[optind+4]);
+	assert(bsz>0);
 	assert(!(bsz%1024));
 
 	/* initialize resources */
 	if(c0appz_init(0)!=0){
 		fprintf(stderr,"error! clovis initialization failed.\n");
-		return -2;
+		return -22;
 	}
 
 	/* extend */
-	stat(fname, &fs);
+	stat64(fname, &fs);
 	cnt = (fs.st_size + bsz - 1)/bsz;
+	fsz = fs.st_size;
 	cnt = ((cnt + op_cnt -1)/op_cnt) * op_cnt;
-	truncate(fname,cnt*bsz);
+	truncate64(fname,cnt*bsz);
+	assert(!(fsz>cnt*bsz));
 
 	/* time out/in */
 	if(perf){
@@ -113,12 +121,24 @@ int main(int argc, char **argv)
 		c0appz_timein();
 	}
 
+	/* create object */
+	if((c0appz_cr(idh,idl)!=0)&&(!force)){
+		fprintf(stderr,"error! create object failed.\n");
+		truncate64(fname,fs.st_size);
+		stat64(fname,&fs);
+		assert(fsz==fs.st_size);
+		c0appz_free();
+		return -33;
+	}
+
 	/* copy */
 	if (c0appz_cp_async(idh,idl,fname,bsz,cnt,op_cnt)!=0){
 		fprintf(stderr,"error! copy object failed.\n");
-		truncate(fname,fs.st_size);
+		truncate64(fname,fs.st_size);
+		stat64(fname,&fs);
+		assert(fsz==fs.st_size);
 		c0appz_free();
-		return -3;
+		return -44;
 	};
 
 	/* time out/in */
@@ -129,8 +149,9 @@ int main(int argc, char **argv)
 	}
 
 	/* resize */
-	truncate(fname,fs.st_size);
-	printf("%s %d\n",fname, (int)fs.st_size);
+	truncate64(fname,fs.st_size);
+	stat64(fname,&fs);
+	assert(fsz==fs.st_size);
 
 	/* free resources*/
 	c0appz_free();
@@ -142,6 +163,7 @@ int main(int argc, char **argv)
 	}
 
 	/* success */
+	printf("%s %d\n",fname, (int)fs.st_size);
 	fprintf(stderr,"%s success\n", basename(argv[0]));
 	return 0;
 }
