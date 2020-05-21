@@ -27,7 +27,9 @@
 #include <string.h>
 #include <libgen.h>
 #include <sys/stat.h>
+#include <pthread.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <assert.h>
 #include "c0appz.h"
 
@@ -36,7 +38,7 @@
  * EXTERN VARIABLES
  ******************************************************************************
  */
-extern int perf; 	/* performance */
+extern int perf; 	/* performance 	*/
 int force=0; 		/* overwrite  	*/
 
 /* main */
@@ -51,6 +53,7 @@ int main(int argc, char **argv)
 	char *fname;		/* input filename 			*/
 	struct stat64 fs;	/* file statistics			*/
 	int opt=0;			/* options					*/
+	pthread_t tid;		/* real-time bw thread		*/
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pf"))!=-1){
@@ -131,6 +134,10 @@ int main(int argc, char **argv)
 		return -33;
 	}
 
+	if(perf){
+		pthread_create(&tid,NULL,&disp_realtime_bw,NULL);
+	}
+
 	/* copy */
 	if (c0appz_cp_async(idh,idl,fname,bsz,cnt,op_cnt)!=0){
 		fprintf(stderr,"error! copy object failed.\n");
@@ -140,6 +147,10 @@ int main(int argc, char **argv)
 		c0appz_free();
 		return -44;
 	};
+
+	if(perf){
+		pthread_cancel(tid);
+	}
 
 	/* time out/in */
 	if(perf){
@@ -163,7 +174,7 @@ int main(int argc, char **argv)
 	}
 
 	/* success */
-	printf("%s %d\n",fname, (int)fs.st_size);
+	printf("%s %" PRIu64 "\n",fname,fs.st_size);
 	fprintf(stderr,"%s success\n", basename(argv[0]));
 	return 0;
 }

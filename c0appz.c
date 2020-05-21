@@ -256,10 +256,11 @@ int c0appz_cp(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t c
 		write_time = m0_time_add(write_time,
 					 m0_time_sub(m0_time_now(), st));
 
-		/* update total weight */
+		/* QOS */
 		pthread_mutex_lock(&qos_lock);
 		qos_total_weight += block_count * bsz;
 		pthread_mutex_unlock(&qos_lock);
+		/* END */
 
 free_vecs:
 		/* Free bufvec's and indexvec's */
@@ -393,6 +394,12 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t block_size
 		if (rc != 0)
 			break;
 
+		/* QOS */
+		pthread_mutex_lock(&qos_lock);
+		qos_total_weight += op_cnt * bcnt_per_op * block_size;
+		pthread_mutex_unlock(&qos_lock);
+		/* END */
+
 		block_count -= op_cnt * bcnt_per_op;
 	}
 
@@ -487,10 +494,11 @@ int c0appz_ct(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t c
 		if (bcnt_written != block_count)
 			rc = -EIO;
 
-		/* update total weight */
+		/* QOS */
 		pthread_mutex_lock(&qos_lock);
 		qos_total_weight += block_count * bsz;
 		pthread_mutex_unlock(&qos_lock);
+		/* END */
 
 free_vecs:
 		/* Free bufvec's and indexvec's */
