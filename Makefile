@@ -79,7 +79,7 @@ all: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 .PHONY: all
 
 $(EXE1):
-	gcc qos.c c0appz.c c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE1)
+	gcc buffer.c qos.c c0appz.c c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE1)
 
 $(EXE2):
 	gcc qos.c c0appz.c c0ct.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE2)

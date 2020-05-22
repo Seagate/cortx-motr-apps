@@ -34,8 +34,9 @@
  * EXTERN VARIABLES
  ******************************************************************************
  */
-extern int perf; 	/* performance 	*/
-int force=0; 		/* overwrite  	*/
+extern int perf; 	/* performance 		*/
+int force=0; 		/* overwrite  		*/
+int cont=0; 		/* continuous mode 	*/
 
 
 /* main */
@@ -52,13 +53,16 @@ int main(int argc, char **argv)
 	pthread_t tid;		/* real-time bw thread	*/
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":pf"))!=-1){
+	while((opt = getopt(argc, argv, ":pfc"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
 				break;
 			case 'f':
 				force = 1;
+				break;
+			case 'c':
+				cont = 1;
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
@@ -106,6 +110,7 @@ int main(int argc, char **argv)
 	truncate64(fname,fs.st_size + bsz - 1);
 	assert(!(fsz>cnt*bsz));
 
+
 	/* initialise resources */
 	if(c0appz_init(0)!=0){
 		fprintf(stderr,"error! clovis initialisation failed.\n");
@@ -114,6 +119,7 @@ int main(int argc, char **argv)
 		assert(fsz==fs.st_size);
 		return -22;
 	}
+
 
 	/* time out/in */
 	if(perf){
@@ -136,6 +142,27 @@ int main(int argc, char **argv)
 		pthread_create(&tid,NULL,&disp_realtime_bw,NULL);
 	}
 
+	/* continuous write */
+	if(cont){
+		char *fbuf=NULL;
+		fbuf = malloc(fs.st_size + bsz - 1);
+		if(!fbuf){
+			fprintf(stderr,"error! Not enough memory!!\n");
+			truncate64(fname,fs.st_size);
+			stat64(fname,&fs);
+			assert(fsz==fs.st_size);
+			c0appz_free();
+			return -11;
+		}
+		file2buff(fname,fs.st_size + bsz - 1,fbuf);
+		printf("%" PRIu64 " %" PRIu64,cnt,bsz);
+		buff2mero(fbuf,cnt*bsz,idh,idl,bsz);
+		printf("%s %" PRIu64 "\n",fname,fs.st_size);
+		printf("sz = %" PRIu64 "\n",cnt*bsz);
+		free(fbuf);
+		goto success;
+	}
+
 	/* copy */
 	if (c0appz_cp(idh,idl,fname,bsz,cnt) != 0) {
 		fprintf(stderr,"error! copy object failed.\n");
@@ -145,6 +172,8 @@ int main(int argc, char **argv)
 		c0appz_free();
 		return -44;
 	};
+
+success:
 
 	if(perf){
 		pthread_cancel(tid);

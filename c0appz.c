@@ -37,6 +37,7 @@
 
 #include "clovis/clovis.h"
 #include "clovis/clovis_idx.h"
+#include "c0appz.h"
 
 #ifndef DEBUG
 #define DEBUG 0
@@ -95,12 +96,6 @@ static int create_object(struct m0_uint128 id);
 static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz);
 static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz);
 
-static int read_data_from_object(struct m0_uint128 id,
-				 struct m0_indexvec *ext,
-				 struct m0_bufvec *data,
-				 struct m0_bufvec *attr);
-static int write_data_to_object(struct m0_uint128 id, struct m0_indexvec *ext,
-                                struct m0_bufvec *data, struct m0_bufvec *attr);
 
 static int write_data_to_object_async(struct clovis_aio_op *aio);
 static int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
@@ -895,7 +890,7 @@ static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz)
  * write_data_to_object()
  * writes data to an object
  */
-static int write_data_to_object(struct m0_uint128 id,
+int write_data_to_object(struct m0_uint128 id,
                                 struct m0_indexvec *ext,
                                 struct m0_bufvec *data,
                                 struct m0_bufvec *attr)
@@ -968,7 +963,7 @@ static int write_data_to_object_async(struct clovis_aio_op *aio)
  * read_data_from_object()
  * read data from an object
  */
-static int read_data_from_object(struct m0_uint128 id,
+int read_data_from_object(struct m0_uint128 id,
 				 struct m0_indexvec *ext,
 				 struct m0_bufvec *data,
 				 struct m0_bufvec *attr)
