@@ -38,7 +38,6 @@ extern int perf; 	/* performance 		*/
 int force=0; 		/* overwrite  		*/
 int cont=0; 		/* continuous mode 	*/
 
-
 /* main */
 int main(int argc, char **argv)
 {
@@ -51,9 +50,12 @@ int main(int argc, char **argv)
 	struct stat64 fs;	/* file statistics		*/
 	int opt;			/* options				*/
 	pthread_t tid;		/* real-time bw thread	*/
+	int rc=0;			/* return code			*/
+	char *fbuf=NULL;	/* file buffer			*/
+	uint64_t laps=0;	/* number of reads		*/
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":pfc"))!=-1){
+	while((opt = getopt(argc, argv, ":pfc:"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
@@ -63,6 +65,8 @@ int main(int argc, char **argv)
 				break;
 			case 'c':
 				cont = 1;
+				cont = atoi(optarg);
+				if(cont<0) cont=0;
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
@@ -81,7 +85,7 @@ int main(int argc, char **argv)
 	if(argc-optind!=4){
 		fprintf(stderr,"Usage:\n");
 		fprintf(stderr,"%s [options] idh idl filename bsz\n", basename(argv[0]));
-		return -11;
+		return 111;
 	}
 
 	/* time in */
@@ -110,16 +114,15 @@ int main(int argc, char **argv)
 	truncate64(fname,fs.st_size + bsz - 1);
 	assert(!(fsz>cnt*bsz));
 
-
 	/* initialise resources */
 	if(c0appz_init(0)!=0){
-		fprintf(stderr,"error! clovis initialisation failed.\n");
+		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
+		fprintf(stderr,"%s(): clovis initialisation failed.\n",__FUNCTION__);
 		truncate64(fname,fs.st_size);
 		stat64(fname,&fs);
 		assert(fsz==fs.st_size);
-		return -22;
+		return 222;
 	}
-
 
 	/* time out/in */
 	if(perf){
@@ -130,12 +133,10 @@ int main(int argc, char **argv)
 
 	/* create object */
 	if((c0appz_cr(idh,idl)!=0)&&(!force)){
-		fprintf(stderr,"error! create object failed.\n");
-		truncate64(fname,fs.st_size);
-		stat64(fname,&fs);
-		assert(fsz==fs.st_size);
-		c0appz_free();
-		return -33;
+		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
+		fprintf(stderr,"%s(): create object failed!!\n",__FUNCTION__);
+		rc = 333;
+		goto end;
 	}
 
 	if(perf){
@@ -144,38 +145,46 @@ int main(int argc, char **argv)
 
 	/* continuous write */
 	if(cont){
-		char *fbuf=NULL;
 		fbuf = malloc(fs.st_size + bsz - 1);
 		if(!fbuf){
-			fprintf(stderr,"error! Not enough memory!!\n");
-			truncate64(fname,fs.st_size);
-			stat64(fname,&fs);
-			assert(fsz==fs.st_size);
-			c0appz_free();
-			return -11;
+			fprintf(stderr,"%s(): error!\n",__FUNCTION__);
+			fprintf(stderr,"%s(): not enough memory!!\n",__FUNCTION__);
+			rc = 111;
+			goto end;
 		}
-		file2buff(fname,fs.st_size + bsz - 1,fbuf);
-		printf("%" PRIu64 " %" PRIu64,cnt,bsz);
-		buff2mero(fbuf,cnt*bsz,idh,idl,bsz);
-		printf("%s %" PRIu64 "\n",fname,fs.st_size);
-		printf("sz = %" PRIu64 "\n",cnt*bsz);
-		free(fbuf);
-		goto success;
-	}
+		if(file2buff(fname,fs.st_size + bsz - 1,fbuf)!=0){
+			fprintf(stderr,"%s(): file2buff failed!!\n",__FUNCTION__);
+			rc = 555;
+			goto end;
+		}
 
-	/* copy */
-	if (c0appz_cp(idh,idl,fname,bsz,cnt) != 0) {
-		fprintf(stderr,"error! copy object failed.\n");
 		truncate64(fname,fs.st_size);
 		stat64(fname,&fs);
 		assert(fsz==fs.st_size);
-		c0appz_free();
-		return -44;
+		laps=cont;
+		while(cont>0){
+			printf("%d:\n",cont);
+			buff2mero(fbuf,cnt*bsz,idh,idl,bsz);
+			cont--;
+		}
+
+		printf("%" PRIu64 " x %" PRIu64 " = %" PRIu64 "\n",cnt,bsz,cnt*bsz);
+		free(fbuf);
+		goto end;
+	}
+
+	laps=1;
+	/* copy */
+	if (c0appz_cp(idh,idl,fname,bsz,cnt) != 0) {
+		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
+		fprintf(stderr,"%s(): copy object failed!!\n",__FUNCTION__);
+		rc = 222;
+		goto end;
 	};
 
-success:
+end:
 
-	if(perf){
+	if((perf)&&(!rc)){
 		pthread_cancel(tid);
 	}
 
@@ -185,9 +194,9 @@ success:
 	assert(fsz==fs.st_size);
 
 	/* time out/in */
-	if(perf){
+	if((perf)&&(!rc)){
 		fprintf(stderr,"%4s","i/o");
-		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt);
+		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt * (uint64_t)laps);
 		c0appz_timein();
 	}
 
@@ -195,9 +204,16 @@ success:
 	c0appz_free();
 
 	/* time out */
-	if(perf){
+	if((perf)&&(!rc)){
 		fprintf(stderr,"%4s","free");
 		c0appz_timeout(0);
+	}
+
+	/* failure */
+	if(rc){
+		printf("%s %" PRIu64 "\n",fname,fs.st_size);
+		fprintf(stderr,"%s failed!\n",basename(argv[0]));
+		return rc;
 	}
 
 	/* success */

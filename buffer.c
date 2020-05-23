@@ -40,6 +40,8 @@
  * GLOBAL VARIABLES
  ******************************************************************************
  */
+extern int qos_total_weight; 		/* total bytes read or written 	*/
+extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
 
 /*
  ******************************************************************************
@@ -181,6 +183,12 @@ int buff2mero(char *buf,uint64_t dsz,uint64_t idhi,uint64_t idlo,uint64_t bsz)
 			freevecs();
 			return 22;
 		}
+
+		/* QOS */
+		pthread_mutex_lock(&qos_lock);
+		qos_total_weight += block_count * bsz;
+		pthread_mutex_unlock(&qos_lock);
+		/* END */
 
 		freevecs();
 		buf += block_count*bsz;
