@@ -60,7 +60,7 @@ static	struct m0_bufvec   attr;
 
 static int freevecs(void);
 static int initvecs(uint64_t pos,uint64_t bsz,uint64_t cnt);
-static int copydata(char *buf,uint64_t dsz,uint64_t bsz,uint64_t cnt);
+static int copydata(const char *buf,uint64_t bsz,uint64_t cnt);
 
 /*
  ******************************************************************************
@@ -143,25 +143,19 @@ int mero2buff(uint64_t idhi,uint64_t idlo,char *buf,uint64_t bsz)
 
 /*
  * buff2mero()
- * writes bsz bytes from input memory buffer buf to
- * a a given mero object. Note, the buffer is block aligned.
+ * writes data from memory buffer to a mero object.
+ * writes cnt number of blocks, each of size bsz from
+ * pos (byte) position of the object
  */
-int buff2mero(char *buf,uint64_t dsz,uint64_t idhi,uint64_t idlo,uint64_t bsz)
+int buff2mero(const char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt)
 {
 	struct m0_uint128 id;
-	uint64_t pos;
 	uint64_t max_bcnt_per_op;
 	uint64_t block_count;
-	uint64_t cnt;
 
 	/* ids */
 	id.u_hi = idhi;
 	id.u_lo = idlo;
-
-	/* cnt */
-	assert(dsz>bsz);
-	assert(!(dsz%bsz));
-	cnt = dsz/bsz;
 
 	/* max_bcnt_per_op */
 	assert(CLOVIS_MAX_PER_WIO_SIZE>bsz);
@@ -170,14 +164,13 @@ int buff2mero(char *buf,uint64_t dsz,uint64_t idhi,uint64_t idlo,uint64_t bsz)
 			max_bcnt_per_op :
 			CLOVIS_MAX_BLOCK_COUNT;
 
-	pos = 0;
 	while(cnt>0){
 	    block_count = cnt > max_bcnt_per_op ? max_bcnt_per_op : cnt;
 	    if(initvecs(pos,bsz,block_count)!=0){
 	    	fprintf(stderr, "error! not enough memory!!\n");
 			return 11;
 	    }
-	    copydata(buf,dsz,bsz,block_count);
+	    copydata(buf,bsz,block_count);
 		if(write_data_to_object(id, &extn, &data, &attr)!=0){
 			fprintf(stderr, "writing to Mero object failed!\n");
 			freevecs();
@@ -198,7 +191,6 @@ int buff2mero(char *buf,uint64_t dsz,uint64_t idhi,uint64_t idlo,uint64_t bsz)
 
 	return 0;
 }
-
 
 /*
  ******************************************************************************
@@ -236,18 +228,15 @@ static int initvecs(uint64_t pos,uint64_t bsz,uint64_t cnt)
 }
 
 /* copydata() */
-static int copydata(char *buf,uint64_t dsz,uint64_t bsz,uint64_t cnt)
+static int copydata(const char *buf,uint64_t bsz,uint64_t cnt)
 {
 	int i=0;
-
 	/* copy block by block */
-	assert(dsz > cnt * bsz);
 	assert(data.ov_vec.v_nr == cnt);
 	for (i=0; i<cnt; i++){
 		memmove(data.ov_buf[i],buf,bsz);
 		buf += bsz;
 	}
-
 	/* success */
 	return 0;
 }

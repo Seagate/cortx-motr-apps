@@ -44,7 +44,8 @@ void *disp_realtime_bw(void *arg);
 int file2buff(char *inf,uint64_t fsz,char *buf);
 int buff2file(char *buf,uint64_t dsz,char *inf);
 int mero2buff(uint64_t idhi,uint64_t idlo,char *buf,uint64_t bsz);
-int buff2mero(char *buf,uint64_t dsz,uint64_t idhi,uint64_t idlo,uint64_t bsz);
+
+int buff2mero(const char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt);
 
 int write_data_to_object(struct m0_uint128 id, struct m0_indexvec *ext,
 							struct m0_bufvec *data, struct m0_bufvec *attr);

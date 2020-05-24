@@ -45,6 +45,7 @@ int main(int argc, char **argv)
 	uint64_t idl;		/* object is low		*/
 	uint64_t bsz;		/* block size 			*/
 	uint64_t cnt;		/* count				*/
+	uint64_t pos;		/* starting position	*/
 	uint64_t fsz;		/* initial file size	*/
 	char *fname;		/* input filename 		*/
 	struct stat64 fs;	/* file statistics		*/
@@ -163,8 +164,9 @@ int main(int argc, char **argv)
 		assert(fsz==fs.st_size);
 		laps=cont;
 		while(cont>0){
-			printf("%d:\n",cont);
-			buff2mero(fbuf,cnt*bsz,idh,idl,bsz);
+			printf("[%d/%d]:\n",(int)laps-cont+1,(int)laps);
+			pos = (laps-cont)*cnt*bsz;
+			buff2mero(fbuf,idh,idl,pos,bsz,cnt);
 			cont--;
 		}
 
