@@ -69,12 +69,13 @@ static int copydata(const char *buf,uint64_t bsz,uint64_t cnt);
  */
 
 /*
- * file2buff()
- * copy fsz bytes from input file inf to a memory
- * buffer buf. Assume buf is large enough to copy
- * fsz bytes.
+ * c0appz_fr()
+ * read from file.
+ * copy cnt number of bsz size of blocks from input
+ * file inf to a memory buffer buf. Assume buf is large
+ * enough to copy bsz*cnt bytes.
  */
-int file2buff(char *inf,uint64_t fsz,char *buf)
+int c0appz_fr(char *buf, char *inf, uint64_t bsz, uint64_t cnt)
 {
 	uint64_t n;
 	FILE *fp=NULL;
@@ -82,17 +83,18 @@ int file2buff(char *inf,uint64_t fsz,char *buf)
 	/* open input file */
 	fp=fopen(inf,"rb");
 	if(!fp){
-		fprintf(stderr,"error! could not open input file %s\n", inf);
+		fprintf(stderr,"%s(): error! - ",__FUNCTION__);
+		fprintf(stderr,"could not open input file %s\n", inf);
 		return 11;
 	}
 
 	/* read into buf */
-	n=fread(buf,1,fsz,fp);
-	if(n!=fsz){
-		fprintf(stderr,"error! reading from %s failed.\n", inf);
+	n=fread(buf,bsz,cnt,fp);
+	if(n!=cnt){
+		fprintf(stderr,"%s(): error! - ",__FUNCTION__);
+		fprintf(stderr,"reading from %s failed.\n",inf);
 		fclose(fp);
 		return 22;
-
 	}
 
 	/* success */
@@ -142,12 +144,13 @@ int mero2buff(uint64_t idhi,uint64_t idlo,char *buf,uint64_t bsz)
 }
 
 /*
- * buff2mero()
+ * c0appz_mw()
+ * write to mero object!
  * writes data from memory buffer to a mero object.
  * writes cnt number of blocks, each of size bsz from
  * pos (byte) position of the object
  */
-int buff2mero(const char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt)
+int c0appz_mw(const char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt)
 {
 	struct m0_uint128 id;
 	uint64_t max_bcnt_per_op;

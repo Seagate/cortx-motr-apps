@@ -153,8 +153,8 @@ int main(int argc, char **argv)
 			rc = 111;
 			goto end;
 		}
-		if(file2buff(fname,fs.st_size + bsz - 1,fbuf)!=0){
-			fprintf(stderr,"%s(): file2buff failed!!\n",__FUNCTION__);
+		if(c0appz_fr(fbuf,fname,bsz,cnt)!=0){
+			fprintf(stderr,"%s(): c0appz_fr failed!!\n",__FUNCTION__);
 			rc = 555;
 			goto end;
 		}
@@ -166,7 +166,7 @@ int main(int argc, char **argv)
 		while(cont>0){
 			printf("[%d/%d]:\n",(int)laps-cont+1,(int)laps);
 			pos = (laps-cont)*cnt*bsz;
-			buff2mero(fbuf,idh,idl,pos,bsz,cnt);
+			c0appz_mw(fbuf,idh,idl,pos,bsz,cnt);
 			cont--;
 		}
 
