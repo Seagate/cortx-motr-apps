@@ -53,7 +53,6 @@ int main(int argc, char **argv)
 	char *fname;		/* input filename 			*/
 	struct stat64 fs;	/* file statistics			*/
 	int opt=0;			/* options					*/
-	pthread_t tid;		/* real-time bw thread		*/
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pf"))!=-1){
@@ -134,9 +133,7 @@ int main(int argc, char **argv)
 		return -33;
 	}
 
-	if(perf){
-		pthread_create(&tid,NULL,&disp_realtime_bw,NULL);
-	}
+	qos_pthread_start();
 
 	/* copy */
 	if (c0appz_cp_async(idh,idl,fname,bsz,cnt,op_cnt)!=0){
@@ -148,9 +145,7 @@ int main(int argc, char **argv)
 		return -44;
 	};
 
-	if(perf){
-		pthread_cancel(tid);
-	}
+	qos_pthread_stop(0);
 
 	/* time out/in */
 	if(perf){

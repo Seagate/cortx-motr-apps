@@ -32,6 +32,8 @@
  */
 int qos_total_weight=0; 	/* total bytes read or written 	*/
 pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
+static pthread_t tid;		/* real-time bw thread			*/
+extern int perf; 			/* option performance 			*/
 
 /*
  ******************************************************************************
@@ -39,8 +41,7 @@ pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
  ******************************************************************************
  */
 static int qos_print_bw(void);
-
-
+static void *disp_realtime_bw(void *arg);
 
 /*
  ******************************************************************************
@@ -48,18 +49,21 @@ static int qos_print_bw(void);
  ******************************************************************************
  */
 
-/*
- * disp_realtime_bw()
- * thread function that displays real-time
- * bandwidth
- */
-void *disp_realtime_bw(void *arg)
+
+/* qos_pthread_start() */
+int qos_pthread_start(void)
 {
-    while(1)
-    {
-        qos_print_bw();
-        sleep(1);
-    }
+	if(!perf) return 0;
+	pthread_create(&tid,NULL,&disp_realtime_bw,NULL);
+    return 0;
+}
+
+/* qos_pthread_stop() */
+int qos_pthread_stop(int s)
+{
+	if(!s) return 0;
+	if(!perf) return 0;
+	pthread_join(tid,NULL);
     return 0;
 }
 
@@ -82,6 +86,21 @@ static int qos_print_bw(void)
 	pthread_mutex_unlock(&qos_lock);
 	printf("bw = %08.4f MB/s\n",bw);
 	return 0;
+}
+
+/*
+ * disp_realtime_bw()
+ * thread function that displays real-time
+ * bandwidth
+ */
+static void *disp_realtime_bw(void *arg)
+{
+    while(1)
+    {
+        qos_print_bw();
+        sleep(1);
+    }
+    return 0;
 }
 
 /*

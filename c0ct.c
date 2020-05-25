@@ -46,7 +46,6 @@ int main(int argc, char **argv)
 	uint64_t fsz;   /* file size			*/
 	char   	*fname;	/* input filename 		*/
 	int opt=0;		/* options				*/
-	pthread_t tid;	/* real-time bw thread	*/
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":p"))!=-1){
@@ -108,10 +107,7 @@ int main(int argc, char **argv)
 		c0appz_timein();
 	}
 
-	if(perf){
-		pthread_create(&tid,NULL,&disp_realtime_bw,NULL);
-	}
-
+	qos_pthread_start();
 	/* cat */
 	if(c0appz_ct(idh,idl,fname,bsz,cnt)!=0){
 		fprintf(stderr,"error! cat object failed.\n");
@@ -119,9 +115,7 @@ int main(int argc, char **argv)
 		return -33;
 	};
 
-	if(perf){
-		pthread_cancel(tid);
-	}
+	qos_pthread_stop(0);
 
 	/* resize */
 	truncate64(fname,fsz);

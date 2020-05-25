@@ -50,7 +50,6 @@ int main(int argc, char **argv)
 	char *fname;		/* input filename 		*/
 	struct stat64 fs;	/* file statistics		*/
 	int opt;			/* options				*/
-	pthread_t tid;		/* real-time bw thread	*/
 	int rc=0;			/* return code			*/
 	char *fbuf=NULL;	/* file buffer			*/
 	uint64_t laps=0;	/* number of reads		*/
@@ -140,10 +139,6 @@ int main(int argc, char **argv)
 		goto end;
 	}
 
-	if(perf){
-		pthread_create(&tid,NULL,&disp_realtime_bw,NULL);
-	}
-
 	/* continuous write */
 	if(cont){
 		fbuf = malloc(fs.st_size + bsz - 1);
@@ -163,6 +158,7 @@ int main(int argc, char **argv)
 		stat64(fname,&fs);
 		assert(fsz==fs.st_size);
 		laps=cont;
+		qos_pthread_start();
 		while(cont>0){
 			printf("[%d/%d]:\n",(int)laps-cont+1,(int)laps);
 			pos = (laps-cont)*cnt*bsz;
@@ -176,6 +172,7 @@ int main(int argc, char **argv)
 	}
 
 	laps=1;
+	qos_pthread_start();
 	/* copy */
 	if (c0appz_cp(idh,idl,fname,bsz,cnt) != 0) {
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
@@ -186,9 +183,7 @@ int main(int argc, char **argv)
 
 end:
 
-	if((perf)&&(!rc)){
-		pthread_cancel(tid);
-	}
+	qos_pthread_stop(rc);
 
 	/* resize */
 	truncate64(fname,fs.st_size);
