@@ -43,15 +43,25 @@ int main(int argc, char **argv)
 	uint64_t idl;   /* object id low  		*/
 	uint64_t bsz;   /* block size     		*/
 	uint64_t cnt;   /* count          		*/
+	uint64_t pos;	/* starting position	*/
 	uint64_t fsz;   /* file size			*/
-	char   	*fname;	/* input filename 		*/
+	char *fname;	/* output filename 		*/
+	char *fbuf=NULL;/* file buffer			*/
 	int opt=0;		/* options				*/
+	int cont=0; 	/* continuous mode 		*/
+	int laps=0;		/* number of reads		*/
+	int rc=0;		/* return code			*/
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":p"))!=-1){
+	while((opt = getopt(argc, argv, ":pc:"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
+				break;
+			case 'c':
+				cont = 1;
+				cont = atoi(optarg);
+				if(cont<0) cont=0;
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
@@ -69,7 +79,7 @@ int main(int argc, char **argv)
 	if(argc-optind!=5){
 		fprintf(stderr,"Usage:\n");
 		fprintf(stderr,"%s [options] idh idl filename bsz fsz\n",basename(argv[0]));
-		return -11;
+		return 111;
 	}
 
 	/* time in */
@@ -97,7 +107,7 @@ int main(int argc, char **argv)
 	/* initialize resources */
 	if(c0appz_init(0)!=0){
 		fprintf(stderr,"error! clovis initialization failed.\n");
-		return -22;
+		return 222;
 	}
 
 	/* time out/in */
@@ -107,15 +117,50 @@ int main(int argc, char **argv)
 		c0appz_timein();
 	}
 
-	qos_pthread_start();
-	/* cat */
-	if(c0appz_ct(idh,idl,fname,bsz,cnt)!=0){
-		fprintf(stderr,"error! cat object failed.\n");
-		c0appz_free();
-		return -33;
-	};
+	/* continuous read */
+	if(cont){
+		fbuf = malloc(cnt*bsz);
+		if(!fbuf){
+			fprintf(stderr,"%s(): error!\n",__FUNCTION__);
+			fprintf(stderr,"%s(): not enough memory!!\n",__FUNCTION__);
+			rc = 333;
+			goto end;
+		}
+		laps=cont;
+		qos_pthread_start();
+		while(cont>0){
+			printf("[%d/%d]:\n",(int)laps-cont+1,(int)laps);
+			pos = (laps-cont)*cnt*bsz;
+			c0appz_mr(fbuf,idh,idl,pos,bsz,cnt);
+			cont--;
+		}
+		qos_pthread_stop(0);
+		fprintf(stderr,"writing to file...\n");
+		if(c0appz_fw(fbuf,fname,bsz,cnt)!=0){
+			fprintf(stderr,"%s(): c0appz_fw failed!!\n",__FUNCTION__);
+			rc = 444;
+			goto end;
+		}
+		printf("%" PRIu64 " x %" PRIu64 " = %" PRIu64 "\n",cnt,bsz,cnt*bsz);
+		free(fbuf);
+		goto end;
+	}
 
+	/* cat */
+	laps=1;
+	qos_pthread_start();
+	if(c0appz_ct(idh,idl,fname,bsz,cnt)!=0){
+		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
+		fprintf(stderr,"%s(): cat object failed!!\n",__FUNCTION__);
+		rc = 555;
+		goto end;
+
+	};
 	qos_pthread_stop(0);
+
+end:
+
+	qos_pthread_stop(rc);
 
 	/* resize */
 	truncate64(fname,fsz);
@@ -123,7 +168,7 @@ int main(int argc, char **argv)
 	/* time out/in */
 	if(perf){
 		fprintf(stderr,"%4s","i/o");
-		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt);
+		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt * (uint64_t)laps);
 		c0appz_timein();
 	}
 
@@ -134,6 +179,13 @@ int main(int argc, char **argv)
 	if(perf){
 		fprintf(stderr,"%4s","free");
 		c0appz_timeout(0);
+	}
+
+	/* failure */
+	if(rc){
+		printf("%s %" PRIu64 "\n",fname,fsz);
+		fprintf(stderr,"%s failed!\n",basename(argv[0]));
+		return rc;
 	}
 
 	/* success */

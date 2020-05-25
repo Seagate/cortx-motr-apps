@@ -61,9 +61,10 @@ int qos_pthread_start(void)
 /* qos_pthread_stop() */
 int qos_pthread_stop(int s)
 {
-	if(!s) return 0;
+	if(s) return 0;
 	if(!perf) return 0;
-	pthread_join(tid,NULL);
+//	pthread_join(tid,NULL);
+	pthread_cancel(tid);
     return 0;
 }
 

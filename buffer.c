@@ -61,6 +61,7 @@ static	struct m0_bufvec   attr;
 static int freevecs(void);
 static int initvecs(uint64_t pos,uint64_t bsz,uint64_t cnt);
 static int copydata(const char *buf,uint64_t bsz,uint64_t cnt);
+static int bufvecr(char *buf,uint64_t bsz,uint64_t cnt);
 
 /*
  ******************************************************************************
@@ -103,27 +104,30 @@ int c0appz_fr(char *buf, char *inf, uint64_t bsz, uint64_t cnt)
 }
 
 /*
- * buff2file()
- * copy dsz bytes from input memory buffer buf to
- * file inf. Assume inf is large enough to copy all
- * dsz bytes.
+ * c0appz_fw()
+ * write to file.
+ * copy cnt number of bsz size of blocks from input
+ * memory buffer to output file ouf. Assume ouf is
+ * large enough to copy bsz*cnt bytes.
  */
-int buff2file(char *buf,uint64_t dsz,char *inf)
+int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt)
 {
 	uint64_t n;
 	FILE *fp=NULL;
 
-	/* open input file */
-	fp=fopen(inf,"wb");
+	/* open output file */
+	fp=fopen(ouf,"wb");
 	if(!fp){
-		fprintf(stderr,"error! could not open input file %s\n", inf);
+		fprintf(stderr,"%s(): error! - ",__FUNCTION__);
+		fprintf(stderr,"could not open input file %s\n", ouf);
 		return 11;
 	}
 
-	/* write to inf */
-	n=fwrite(buf,1,dsz,fp);
-	if(n!=dsz){
-		fprintf(stderr,"error! writing to %s failed.\n", inf);
+	/* write to ouf */
+	n=fwrite(buf,bsz,cnt,fp);
+	if(n!=cnt){
+		fprintf(stderr,"%s(): error! - ",__FUNCTION__);
+		fprintf(stderr,"writing to %s failed.\n",ouf);
 		fclose(fp);
 		return 22;
 	}
@@ -134,12 +138,57 @@ int buff2file(char *buf,uint64_t dsz,char *inf)
 }
 
 /*
- * mero2buff()
- * read bsz bytes from input memory buffer buf to
- * a a given mero object.
+ * c0appz_mr()
+ * read from mero object!
+ * reads data from a mero object to memory buffer.
+ * reads cnt number of blocks, each of size bsz from
+ * pos (byte) position of the object
  */
-int mero2buff(uint64_t idhi,uint64_t idlo,char *buf,uint64_t bsz)
+int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt)
 {
+	struct m0_uint128 id;
+	uint64_t max_bcnt_per_op;
+	uint64_t block_count;
+
+	/* ids */
+	id.u_hi = idhi;
+	id.u_lo = idlo;
+
+	/* max_bcnt_per_op */
+	assert(CLOVIS_MAX_PER_WIO_SIZE>bsz);
+	max_bcnt_per_op = CLOVIS_MAX_PER_WIO_SIZE / bsz;
+	max_bcnt_per_op = max_bcnt_per_op < CLOVIS_MAX_BLOCK_COUNT ?
+			max_bcnt_per_op :
+			CLOVIS_MAX_BLOCK_COUNT;
+
+	while(cnt>0){
+	    block_count = cnt > max_bcnt_per_op ? max_bcnt_per_op : cnt;
+	    if(initvecs(pos,bsz,block_count)!=0){
+	    	fprintf(stderr, "error! not enough memory!!\n");
+			return 11;
+	    }
+
+		if(read_data_from_object(id, &extn, &data, &attr)!=0){
+			fprintf(stderr, "reading from Mero object failed!\n");
+			freevecs();
+			return 22;
+		}
+
+		/* copy to memory */
+		bufvecr(buf,bsz,block_count);
+
+		/* QOS */
+		pthread_mutex_lock(&qos_lock);
+		qos_total_weight += block_count * bsz;
+		pthread_mutex_unlock(&qos_lock);
+		/* END */
+
+		freevecs();
+		buf += block_count*bsz;
+		pos += block_count*bsz;
+		cnt -= block_count;
+	}
+
 	return 0;
 }
 
@@ -238,6 +287,20 @@ static int copydata(const char *buf,uint64_t bsz,uint64_t cnt)
 	assert(data.ov_vec.v_nr == cnt);
 	for (i=0; i<cnt; i++){
 		memmove(data.ov_buf[i],buf,bsz);
+		buf += bsz;
+	}
+	/* success */
+	return 0;
+}
+
+/* bufvecr() */
+static int bufvecr(char *buf,uint64_t bsz,uint64_t cnt)
+{
+	int i=0;
+	/* copy block by block */
+	assert(data.ov_vec.v_nr == cnt);
+	for (i=0; i<cnt; i++){
+		memmove(buf,data.ov_buf[i],bsz);
 		buf += bsz;
 	}
 	/* success */

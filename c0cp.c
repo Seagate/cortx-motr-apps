@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 	int opt;			/* options				*/
 	int rc=0;			/* return code			*/
 	char *fbuf=NULL;	/* file buffer			*/
-	uint64_t laps=0;	/* number of reads		*/
+	int laps=0;			/* number of writes		*/
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pfc:"))!=-1){
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 			c0appz_mw(fbuf,idh,idl,pos,bsz,cnt);
 			cont--;
 		}
-
+		qos_pthread_stop(0);
 		printf("%" PRIu64 " x %" PRIu64 " = %" PRIu64 "\n",cnt,bsz,cnt*bsz);
 		free(fbuf);
 		goto end;
