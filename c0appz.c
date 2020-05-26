@@ -35,9 +35,10 @@
 #include <lib/memory.h>
 #include <lib/mutex.h>
 
+#include "c0appz.h"
+#include "c0params.h"
 #include "clovis/clovis.h"
 #include "clovis/clovis_idx.h"
-#include "c0appz.h"
 
 #ifndef DEBUG
 #define DEBUG 0
@@ -47,9 +48,6 @@
 #define SZC0RCSTR                256
 #define SZC0RCFILE               256
 #define C0RCFLE                 "./.cappzrc"
-#define CLOVIS_MAX_BLOCK_COUNT  (512)
-#define CLOVIS_MAX_PER_WIO_SIZE (4*1024*1024)
-#define CLOVIS_MAX_PER_RIO_SIZE (4*1024*1024)
 
 /* static variables */
 static struct m0_clovis          *clovis_instance = NULL;

@@ -28,12 +28,9 @@
 #include <assert.h>
 
 #include "c0appz.h"
+#include "c0params.h"
 #include "clovis/clovis.h"
 #include "clovis/clovis_idx.h"
-
-#define CLOVIS_MAX_BLOCK_COUNT  (512)
-#define CLOVIS_MAX_PER_WIO_SIZE (4*1024*1024)
-#define CLOVIS_MAX_PER_RIO_SIZE (4*1024*1024)
 
 /*
  ******************************************************************************
