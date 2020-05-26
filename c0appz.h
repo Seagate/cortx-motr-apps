@@ -30,6 +30,8 @@ int c0appz_init(int idx);
 int c0appz_free(void);
 int c0appz_cr(uint64_t idhi,uint64_t idlo);
 int c0appz_rm(uint64_t idhi,uint64_t idlo);
+int c0appz_ex(uint64_t idhi,uint64_t idlo);
+
 int c0appz_ct(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t cnt);
 int c0appz_cp(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t cnt);
 int c0appz_cp_async(uint64_t idhi,uint64_t idlo,char *src,uint64_t block_size,

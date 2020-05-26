@@ -117,6 +117,15 @@ int main(int argc, char **argv)
 		c0appz_timein();
 	}
 
+	/* check object */
+	if(!(c0appz_ex(idh,idl))){
+		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
+		fprintf(stderr,"%s(): object NOT found!!\n",__FUNCTION__);
+		rc = 777;
+		goto end;
+	}
+
+
 	/* continuous read */
 	if(cont){
 		fbuf = malloc(cnt*bsz);

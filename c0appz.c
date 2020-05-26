@@ -564,6 +564,33 @@ int c0appz_rm(uint64_t idhi,uint64_t idlo)
 }
 
 /*
+ * c0appz_ex()
+ * object exists test.
+ */
+int c0appz_ex(uint64_t idhi,uint64_t idlo)
+{
+	int                  rc;
+	struct m0_clovis_obj obj;
+	struct m0_uint128    id;
+
+	id.u_hi = idhi;
+	id.u_lo = idlo;
+
+	memset(&obj, 0, sizeof(struct m0_clovis_obj));
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
+			   m0_clovis_layout_id(clovis_instance));
+	rc = open_entity(&obj.ob_entity);
+	if (rc < 0) {
+//		fprintf(stderr,"error! [%d]\n", rc);
+//		fprintf(stderr,"object not found\n");
+		return 0;
+	}
+
+	/* success */
+	return 1;
+}
+
+/*
  * c0appz_init()
  * init clovis resources.
  */
