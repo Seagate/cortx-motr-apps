@@ -75,20 +75,22 @@ LFLAGS += -L$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs -Wl,-rpath,$(M0_SRC_D
 CFLAGS += -I$(M0_SRC_DIR)
 endif
 
+SRC = perf.c buffer.c qos.c c0appz.c
+
 all: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 .PHONY: all
 
 $(EXE1):
-	gcc buffer.c qos.c c0appz.c c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE1)
+	gcc $(SRC) c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE1)
 
 $(EXE2):
-	gcc buffer.c qos.c c0appz.c c0ct.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE2)
+	gcc $(SRC) c0ct.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE2)
 
 $(EXE3):
-	gcc qos.c c0appz.c c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE3)
+	gcc $(SRC) c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE3)
 
 $(EXE5):
-	gcc qos.c c0appz.c c0cp_async.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE5)
+	gcc $(SRC) c0cp_async.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE5)
 
 test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
