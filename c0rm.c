@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 	if(argc-optind!=2){
 		fprintf(stderr,"Usage:\n");
 		fprintf(stderr,"%s [options] idh idl\n", basename(argv[0]));
-		return -1;
+		return 111;
 	}
 
 	/* time in */
@@ -82,12 +82,12 @@ int main(int argc, char **argv)
 	/* initialize resources */
 	if(c0appz_init(0) != 0){
 		fprintf(stderr,"error! clovis initialization failed.\n");
-		return -2;
+		return 222;
 	}
 
 	/* time out/in */
 	if(perf){
-		fprintf(stderr,"%4s","init");
+		ppf("%4s","init");
 		c0appz_timeout(0);
 		c0appz_timein();
 	}
@@ -96,12 +96,12 @@ int main(int argc, char **argv)
 	if(c0appz_rm(idh,idl) != 0){
 		fprintf(stderr,"error! delete object failed.\n");
 		c0appz_free();
-		return -3;
+		return 333;
 	};
 
 	/* time out/in */
 	if(perf){
-		fprintf(stderr,"%4s","i/o");
+		ppf("%4s","i/o");
 		c0appz_timeout(0);
 		c0appz_timein();
 	}
@@ -111,11 +111,12 @@ int main(int argc, char **argv)
 
 	/* time out */
 	if(perf){
-		fprintf(stderr,"%4s","free");
+		ppf("%4s","free");
 		c0appz_timeout(0);
 	}
 
 	/* success */
+	c0appz_dump_perf();
 	fprintf(stderr,"%s success\n",basename(argv[0]));
 	return 0;
 }

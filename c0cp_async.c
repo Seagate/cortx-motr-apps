@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 	if(argc-optind!=5){
 		fprintf(stderr,"Usage:\n");
 		fprintf(stderr,"%s [options] idh idl filename bsz opcnt\n", basename(argv[0]));
-		return -11;
+		return 111;
 	}
 
 	/* time in */
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 	/* initialize resources */
 	if(c0appz_init(0)!=0){
 		fprintf(stderr,"error! clovis initialization failed.\n");
-		return -22;
+		return 222;
 	}
 
 	/* extend */
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 
 	/* time out/in */
 	if(perf){
-		fprintf(stderr,"%4s","init");
+		ppf("%4s","init");
 		c0appz_timeout(0);
 		c0appz_timein();
 	}
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 		stat64(fname,&fs);
 		assert(fsz==fs.st_size);
 		c0appz_free();
-		return -33;
+		return 333;
 	}
 
 	qos_pthread_start();
@@ -142,14 +142,14 @@ int main(int argc, char **argv)
 		stat64(fname,&fs);
 		assert(fsz==fs.st_size);
 		c0appz_free();
-		return -44;
+		return 444;
 	};
 
 	qos_pthread_stop(0);
 
 	/* time out/in */
 	if(perf){
-		fprintf(stderr,"%4s","i/o");
+		ppf("%4s","i/o");
 		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt);
 		c0appz_timein();
 	}
@@ -164,11 +164,12 @@ int main(int argc, char **argv)
 
 	/* time out */
 	if(perf){
-		fprintf(stderr,"%4s","free");
+		ppf("%4s","free");
 		c0appz_timeout(0);
 	}
 
 	/* success */
+	c0appz_dump_perf();
 	printf("%s %" PRIu64 "\n",fname,fs.st_size);
 	fprintf(stderr,"%s success\n", basename(argv[0]));
 	return 0;

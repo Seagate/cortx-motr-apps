@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 
 	/* time out/in */
 	if(perf){
-		fprintf(stderr,"%4s","init");
+		ppf("%4s","init");
 		c0appz_timeout(0);
 		c0appz_timein();
 	}
@@ -192,7 +192,7 @@ end:
 
 	/* time out/in */
 	if((perf)&&(!rc)){
-		fprintf(stderr,"%4s","i/o");
+		ppf("%4s","i/o");
 		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt * (uint64_t)laps);
 		c0appz_timein();
 	}
@@ -202,7 +202,7 @@ end:
 
 	/* time out */
 	if((perf)&&(!rc)){
-		fprintf(stderr,"%4s","free");
+		ppf("%4s","free");
 		c0appz_timeout(0);
 	}
 
@@ -214,6 +214,7 @@ end:
 	}
 
 	/* success */
+	c0appz_dump_perf();
 	printf("%s %" PRIu64 "\n",fname,fs.st_size);
 	fprintf(stderr,"%s success\n",basename(argv[0]));
 	return 0;

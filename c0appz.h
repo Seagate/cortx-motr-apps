@@ -41,6 +41,7 @@ int c0appz_setrc(char *rcfile);
 int c0appz_putrc(void);
 int c0appz_timeout(uint64_t sz);
 int c0appz_timein();
+int c0appz_dump_perf(void);
 
 int qos_pthread_start(void);
 int qos_pthread_stop(int s);
@@ -54,6 +55,8 @@ int write_data_to_object(struct m0_uint128 id, struct m0_indexvec *ext,
 							struct m0_bufvec *data, struct m0_bufvec *attr);
 int read_data_from_object(struct m0_uint128 id, struct m0_indexvec *ext,
 							struct m0_bufvec *data,struct m0_bufvec *attr);
+
+int ppf(const char *fmt, ...);
 
 
 /*

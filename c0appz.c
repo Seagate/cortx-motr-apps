@@ -25,9 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/time.h>
 #include <assert.h>
-#include <time.h>
 #include <unistd.h>
 #include <errno.h>
 #include <lib/semaphore.h>
@@ -44,9 +42,9 @@
 #define DEBUG 0
 #endif
 
-#define MAXC0RC                  4
-#define SZC0RCSTR                256
-#define SZC0RCFILE               256
+#define MAXC0RC                	4
+#define SZC0RCSTR              	256
+#define SZC0RCFILE             	256
 #define C0RCFLE                 "./.cappzrc"
 
 /* static variables */
@@ -58,8 +56,6 @@ static struct m0_idx_dix_config   dix_conf;
 
 static char    c0rc[8][SZC0RCSTR];
 static char    c0rcfile[SZC0RCFILE] = C0RCFLE;
-static struct  timeval wclk_t = {0, 0};
-static clock_t cput_t = 0;
 
 struct clovis_aio_op;
 struct clovis_aio_opgrp {
@@ -120,46 +116,6 @@ extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
  * EXTERN FUNCTIONS
  ******************************************************************************
  */
-
-/*
- * c0appz_timeout()
- * time out execution.
- */
-int c0appz_timeout(uint64_t sz)
-{
-	double ct;        /* cpu time in seconds  */
-	double wt;        /* wall time in seconds */
-	double bw_ctime;  /* bandwidth in MBs     */
-	double bw_wtime;  /* bandwidth in MBs     */
-	struct timeval tv;
-
-	/* cpu time */
-	ct = (double)(clock() - cput_t) / CLOCKS_PER_SEC;
-	bw_ctime = (double)(sz) / 1000000.0 / ct;
-
-	/* wall time */
-	gettimeofday(&tv, 0);
-	wt  = (double)(tv.tv_sec - wclk_t.tv_sec);
-	wt += (double)(tv.tv_usec - wclk_t.tv_usec)/1000000;
-	bw_wtime  = (double)(sz) / 1000000.0 / wt;
-
-
-	fprintf(stderr,"[ cput: %10.4lf s %10.4lf MB/s ]", ct, bw_ctime);
-	fprintf(stderr,"[ wclk: %10.4lf s %10.4lf MB/s ]", wt, bw_wtime);
-	fprintf(stderr,"\n");
-	return 0;
-}
-
-/*
- * c0appz_timein()
- * time in execution.
- */
-int c0appz_timein()
-{
-	cput_t = clock();
-	gettimeofday(&wclk_t, 0);
-	return 0;
-}
 
 /*
  * c0appz_cp()
@@ -268,17 +224,14 @@ free_vecs:
 	fclose(fp);
 
 	if(perf){
-	if (rc == 0) {
-		time = (double) read_time / M0_TIME_ONE_SECOND;
-		fs_bw = last_index / 1000000.0 / time;
-		fprintf(stderr," i/o[ OSFS: %10.4lf s %10.4lf MB/s ]",
-			time, fs_bw);
-
-		time = (double) write_time / M0_TIME_ONE_SECOND;
-		clovis_bw = last_index / 1000000.0 / time;
-		fprintf(stderr,"[ MERO: %10.4lf s %10.4lf MB/s ]\n",
-			time, clovis_bw);
-	}
+		if (rc == 0) {
+			time = (double) read_time / M0_TIME_ONE_SECOND;
+			fs_bw = last_index / 1000000.0 / time;
+			ppf(" i/o[ OSFS: %10.4lf s %10.4lf MB/s ]",time, fs_bw);
+			time = (double) write_time / M0_TIME_ONE_SECOND;
+			clovis_bw = last_index / 1000000.0 / time;
+			ppf("[ MERO: %10.4lf s %10.4lf MB/s ]\n",time, clovis_bw);
+		}
 	}
 
 	return rc;
@@ -511,17 +464,14 @@ free_vecs:
 				 m0_time_sub(m0_time_now(), st));
 
 	if(perf){
-	if (rc == 0) {
-		time = (double) read_time / M0_TIME_ONE_SECOND;
-		clovis_bw = last_index / 1000000.0 / time;
-		fprintf(stderr," i/o[ MERO: %10.4lf s %10.4lf MB/s ]",
-			time, clovis_bw);
-
-		time = (double) write_time / M0_TIME_ONE_SECOND;
-		fs_bw = last_index / 1000000.0 / time;
-		fprintf(stderr,"[ OSFS: %10.4lf s %10.4lf MB/s ]\n",
-			time, fs_bw);
-	}
+		if (rc == 0) {
+			time = (double) read_time / M0_TIME_ONE_SECOND;
+			clovis_bw = last_index / 1000000.0 / time;
+			ppf(" i/o[ MERO: %10.4lf s %10.4lf MB/s ]",time, clovis_bw);
+			time = (double) write_time / M0_TIME_ONE_SECOND;
+			fs_bw = last_index / 1000000.0 / time;
+			ppf("[ OSFS: %10.4lf s %10.4lf MB/s ]\n",time, fs_bw);
+		}
 	}
 	return rc;
 }
