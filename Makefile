@@ -112,9 +112,9 @@ test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 	@echo "#####"
 	cmp $(FILE1) $(FILE3) || echo "ERROR: Async Test Failed !!"
 	@echo "#####"
-	$(SUDO) ./$(EXE3) 0 1048577
+	$(SUDO) ./$(EXE3) 0 1048577 -y
 	#sleep 5
-	$(SUDO) ./$(EXE3) 0 1048599
+	$(SUDO) ./$(EXE3) 0 1048599 -y
 
 #yaml
 #bundle trace files for shipment

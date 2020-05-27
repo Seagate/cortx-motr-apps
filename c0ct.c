@@ -104,27 +104,25 @@ int main(int argc, char **argv)
 	assert(!(bsz%1024));
 	assert(!(fsz>cnt*bsz));
 
-	/* initialize resources */
+	/* init */
+	c0appz_timein();
 	if(c0appz_init(0)!=0){
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return 222;
 	}
+	ppf("%8s","init");
+	c0appz_timeout(0);
 
-	/* time out/in */
-	if(perf){
-		ppf("%4s","init");
-		c0appz_timeout(0);
-		c0appz_timein();
-	}
-
-	/* check object */
+	/* check */
+	c0appz_timein();
 	if(!(c0appz_ex(idh,idl))){
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
 		fprintf(stderr,"%s(): object NOT found!!\n",__FUNCTION__);
 		rc = 777;
 		goto end;
 	}
-
+	ppf("%8s","check");
+	c0appz_timeout(0);
 
 	/* continuous read */
 	if(cont){
@@ -137,27 +135,33 @@ int main(int argc, char **argv)
 		}
 		laps=cont;
 		qos_pthread_start();
+		c0appz_timein();
 		while(cont>0){
 			printf("[%d/%d]:\n",(int)laps-cont+1,(int)laps);
 			pos = (laps-cont)*cnt*bsz;
 			c0appz_mr(fbuf,idh,idl,pos,bsz,cnt);
 			cont--;
 		}
+		ppf("%8s","read");
+		c0appz_timeout(bsz*cnt*laps);
 		qos_pthread_stop(0);
 		fprintf(stderr,"writing to file...\n");
+		c0appz_timein();
 		if(c0appz_fw(fbuf,fname,bsz,cnt)!=0){
 			fprintf(stderr,"%s(): c0appz_fw failed!!\n",__FUNCTION__);
 			rc = 444;
 			goto end;
 		}
+		ppf("%8s","fwrite");
+		c0appz_timeout(bsz*cnt);
 		printf("%" PRIu64 " x %" PRIu64 " = %" PRIu64 "\n",cnt,bsz,cnt*bsz);
 		free(fbuf);
 		goto end;
 	}
 
 	/* cat */
-	laps=1;
 	qos_pthread_start();
+	c0appz_timein();
 	if(c0appz_ct(idh,idl,fname,bsz,cnt)!=0){
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
 		fprintf(stderr,"%s(): cat object failed!!\n",__FUNCTION__);
@@ -165,6 +169,8 @@ int main(int argc, char **argv)
 		goto end;
 
 	};
+	ppf("%8s","cat");
+	c0appz_timeout(bsz*cnt);
 	qos_pthread_stop(0);
 
 end:
@@ -174,21 +180,11 @@ end:
 	/* resize */
 	truncate64(fname,fsz);
 
-	/* time out/in */
-	if(perf){
-		ppf("%4s","i/o");
-		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt * (uint64_t)laps);
-		c0appz_timein();
-	}
-
-	/* free resources*/
+	/* free */
+	c0appz_timein();
 	c0appz_free();
-
-	/* time out */
-	if(perf){
-		ppf("%4s","free");
-		c0appz_timeout(0);
-	}
+	ppf("%8s","free");
+	c0appz_timeout(0);
 
 	/* failure */
 	if(rc){

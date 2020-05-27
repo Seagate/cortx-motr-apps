@@ -34,6 +34,7 @@
  * GLOBAL VARIABLES
  ******************************************************************************
  */
+extern int perf; 	/* performance 		*/
 
 /*
  ******************************************************************************
@@ -63,13 +64,15 @@ int c0appz_dump_perf(void)
 
 /*
  * ppf()
- * performance printf.
+ * Append formatted string to
+ * the performance buffer
  */
 int ppf(const char *fmt, ...)
 {
 	int n=0;
 	int s=0;
 	char buffer[128];
+	if(!perf) return 0;
 	va_list args;
 	va_start(args, fmt);
 	s = vsnprintf(buffer, sizeof(buffer), fmt, args);
@@ -91,6 +94,8 @@ int c0appz_timeout(uint64_t sz)
 	double bw_wtime;  /* bandwidth in MBs     */
 	struct timeval tv;
 
+	if(!perf) return 0;
+
 	/* cpu time */
 	ct = (double)(clock() - cput_t) / CLOCKS_PER_SEC;
 	bw_ctime = (double)(sz) / 1000000.0 / ct;
@@ -106,16 +111,6 @@ int c0appz_timeout(uint64_t sz)
 	fprintf(stderr,"[ wclk: %10.4lf s %10.4lf MB/s ]", wt, bw_wtime);
 	fprintf(stderr,"\n");
 */
-/*
-	int n = 0;
-	n = strlen(pbuf);
-	snprintf(pbuf+n,PBUFSZ-n,"[ cput:%10.4lf s %10.4lf MB/s ]",ct,bw_ctime);
-	n = strlen(pbuf);
-	snprintf(pbuf+n,PBUFSZ-n,"[ wclk:%10.4lf s %10.4lf MB/s ]",wt,bw_wtime);
-	n = strlen(pbuf);
-	snprintf(pbuf+n,PBUFSZ-n,"\n");
-*/
-
 	ppf("[ cput: %10.4lf s %10.4lf MB/s ]", ct, bw_ctime);
 	ppf("[ wclk: %10.4lf s %10.4lf MB/s ]", wt, bw_wtime);
 	ppf("\n");

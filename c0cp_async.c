@@ -82,9 +82,6 @@ int main(int argc, char **argv)
 		return 111;
 	}
 
-	/* time in */
-	c0appz_timein();
-
 	/* c0rcfile
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
@@ -102,11 +99,14 @@ int main(int argc, char **argv)
 	assert(bsz>0);
 	assert(!(bsz%1024));
 
-	/* initialize resources */
+	/* init */
+	c0appz_timein();
 	if(c0appz_init(0)!=0){
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return 222;
 	}
+	ppf("%6s","init");
+	c0appz_timeout(0);
 
 	/* extend */
 	stat64(fname, &fs);
@@ -116,14 +116,8 @@ int main(int argc, char **argv)
 	truncate64(fname,cnt*bsz);
 	assert(!(fsz>cnt*bsz));
 
-	/* time out/in */
-	if(perf){
-		ppf("%4s","init");
-		c0appz_timeout(0);
-		c0appz_timein();
-	}
-
 	/* create object */
+	c0appz_timein();
 	if((c0appz_cr(idh,idl)!=0)&&(!force)){
 		fprintf(stderr,"error! create object failed.\n");
 		truncate64(fname,fs.st_size);
@@ -132,41 +126,35 @@ int main(int argc, char **argv)
 		c0appz_free();
 		return 333;
 	}
-
-	qos_pthread_start();
+	ppf("%6s","create");
+	c0appz_timeout(0);
 
 	/* copy */
+	qos_pthread_start();
+	c0appz_timein();
 	if (c0appz_cp_async(idh,idl,fname,bsz,cnt,op_cnt)!=0){
 		fprintf(stderr,"error! copy object failed.\n");
 		truncate64(fname,fs.st_size);
 		stat64(fname,&fs);
 		assert(fsz==fs.st_size);
+		qos_pthread_stop(0);
 		c0appz_free();
 		return 444;
 	};
-
+	ppf("%6s","copy");
+	c0appz_timeout(bsz*cnt);
 	qos_pthread_stop(0);
-
-	/* time out/in */
-	if(perf){
-		ppf("%4s","i/o");
-		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt);
-		c0appz_timein();
-	}
 
 	/* resize */
 	truncate64(fname,fs.st_size);
 	stat64(fname,&fs);
 	assert(fsz==fs.st_size);
 
-	/* free resources*/
+	/* free */
+	c0appz_timein();
 	c0appz_free();
-
-	/* time out */
-	if(perf){
-		ppf("%4s","free");
-		c0appz_timeout(0);
-	}
+	ppf("%6s","free");
+	c0appz_timeout(0);
 
 	/* success */
 	c0appz_dump_perf();

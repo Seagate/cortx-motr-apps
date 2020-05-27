@@ -122,7 +122,7 @@ test()
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
 	  	#remove fid if possible
-	  	$c0rm $fid 2>> $log 
+	  	$c0rm $fid -y 2>> $log 
 	  	#bundle trace
 	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
 	  	tar -rvf $tar $(ls m0trace.*.yml)
@@ -135,7 +135,7 @@ test()
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
 	  	#remove fid if possible
-	  	$c0rm $fid 2>> $log 	  		
+	  	$c0rm $fid -y 2>> $log 	  		
 	  	return 21
 	fi
 
@@ -152,11 +152,11 @@ test()
 	
 	#c0rm
 	rm -f m0trace.* # clean up  		
-	cmd="$c0rm $fid"
+	cmd="$c0rm $fid -y"
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
 	  	#remove fid if possible
-	  	$c0rm $fid 2>> $log 	  		
+	  	$c0rm $fid -y 2>> $log 	  		
 	  	#bundle trace
 	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
 	  	tar -rvf $tar $(ls m0trace.*.yml)
@@ -173,7 +173,7 @@ test()
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
 		#remove fid if possible
-	  	$c0rm $fid 2>> $log 
+	  	$c0rm $fid -y 2>> $log 
 	  	#bundle trace
 	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
 	  	tar -rvf $tar $(ls m0trace.*.yml)
@@ -186,7 +186,7 @@ test()
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
 	  	#remove fid if possible
-	  	$c0rm $fid 2>> $log 	  		
+	  	$c0rm $fid -y 2>> $log 	  		
 	  	return 21
 	fi
 
@@ -203,11 +203,11 @@ test()
 	
 	#c0rm
 	rm -f m0trace.* # clean up  		
-	cmd="$c0rm $fid"
+	cmd="$c0rm $fid -y"
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
 	  	#remove fid if possible
-	  	$c0rm $fid 2>> $log 	  		
+	  	$c0rm $fid -y 2>> $log 	  		
 	  	#bundle trace
 	  	m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
 	  	tar -rvf $tar $(ls m0trace.*.yml)
@@ -237,6 +237,8 @@ fi
 
 #test
 test $1 $2
+echo $(stat -c%s "$2")	#filesize in bytes	
+
 
 #success	
 if [[ $? -eq 0 ]]; then

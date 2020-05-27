@@ -227,7 +227,7 @@ free_vecs:
 		if (rc == 0) {
 			time = (double) read_time / M0_TIME_ONE_SECOND;
 			fs_bw = last_index / 1000000.0 / time;
-			ppf(" i/o[ OSFS: %10.4lf s %10.4lf MB/s ]",time, fs_bw);
+			ppf("Mero I/O[ OSFS: %10.4lf s %10.4lf MB/s ]",time, fs_bw);
 			time = (double) write_time / M0_TIME_ONE_SECOND;
 			clovis_bw = last_index / 1000000.0 / time;
 			ppf("[ MERO: %10.4lf s %10.4lf MB/s ]\n",time, clovis_bw);
@@ -467,7 +467,7 @@ free_vecs:
 		if (rc == 0) {
 			time = (double) read_time / M0_TIME_ONE_SECOND;
 			clovis_bw = last_index / 1000000.0 / time;
-			ppf(" i/o[ MERO: %10.4lf s %10.4lf MB/s ]",time, clovis_bw);
+			ppf("Mero I/O[ MERO: %10.4lf s %10.4lf MB/s ]",time, clovis_bw);
 			time = (double) write_time / M0_TIME_ONE_SECOND;
 			fs_bw = last_index / 1000000.0 / time;
 			ppf("[ OSFS: %10.4lf s %10.4lf MB/s ]\n",time, fs_bw);
@@ -756,7 +756,7 @@ int c0appz_cr(uint64_t idhi,uint64_t idlo)
 		return rc;
 	}
 
-	fprintf(stderr, "success! create objected!!\n");
+	fprintf(stderr, "success! created object!!\n");
 	return 0;
 }
 

@@ -80,16 +80,12 @@ int main(int argc, char **argv)
 		}
 	}
 
-
 	/* check input */
 	if(argc-optind!=4){
 		fprintf(stderr,"Usage:\n");
 		fprintf(stderr,"%s [options] idh idl filename bsz\n", basename(argv[0]));
 		return 111;
 	}
-
-	/* time in */
-	c0appz_timein();
 
 	/* c0rcfile
 	 * overwrite .cappzrc to a .[app]rc file.
@@ -114,7 +110,8 @@ int main(int argc, char **argv)
 	truncate64(fname,fs.st_size + bsz - 1);
 	assert(!(fsz>cnt*bsz));
 
-	/* initialise resources */
+	/* init */
+	c0appz_timein();
 	if(c0appz_init(0)!=0){
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
 		fprintf(stderr,"%s(): clovis initialisation failed.\n",__FUNCTION__);
@@ -123,21 +120,23 @@ int main(int argc, char **argv)
 		assert(fsz==fs.st_size);
 		return 222;
 	}
+	ppf("%8s","init");
+	c0appz_timeout(0);
 
 	/* time out/in */
 	if(perf){
-		ppf("%4s","init");
-		c0appz_timeout(0);
-		c0appz_timein();
 	}
 
 	/* create object */
+	c0appz_timein();
 	if((c0appz_cr(idh,idl)!=0)&&(!force)){
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
 		fprintf(stderr,"%s(): create object failed!!\n",__FUNCTION__);
 		rc = 333;
 		goto end;
 	}
+	ppf("%8s","create");
+	c0appz_timeout(0);
 
 	/* continuous write */
 	if(cont){
@@ -159,20 +158,23 @@ int main(int argc, char **argv)
 		assert(fsz==fs.st_size);
 		laps=cont;
 		qos_pthread_start();
+		c0appz_timein();
 		while(cont>0){
 			printf("[%d/%d]:\n",(int)laps-cont+1,(int)laps);
 			pos = (laps-cont)*cnt*bsz;
 			c0appz_mw(fbuf,idh,idl,pos,bsz,cnt);
 			cont--;
 		}
+		ppf("%8s","write");
+		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt * (uint64_t)laps);
 		qos_pthread_stop(0);
 		printf("%" PRIu64 " x %" PRIu64 " = %" PRIu64 "\n",cnt,bsz,cnt*bsz);
 		free(fbuf);
 		goto end;
 	}
 
-	laps=1;
 	qos_pthread_start();
+	c0appz_timein();
 	/* copy */
 	if (c0appz_cp(idh,idl,fname,bsz,cnt) != 0) {
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
@@ -180,6 +182,9 @@ int main(int argc, char **argv)
 		rc = 222;
 		goto end;
 	};
+	ppf("%8s","copy");
+	c0appz_timeout((uint64_t)bsz * (uint64_t)cnt);
+	qos_pthread_stop(0);
 
 end:
 
@@ -190,21 +195,11 @@ end:
 	stat64(fname,&fs);
 	assert(fsz==fs.st_size);
 
-	/* time out/in */
-	if((perf)&&(!rc)){
-		ppf("%4s","i/o");
-		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt * (uint64_t)laps);
-		c0appz_timein();
-	}
-
-	/* free resources*/
+	/* free */
+	c0appz_timein();
 	c0appz_free();
-
-	/* time out */
-	if((perf)&&(!rc)){
-		ppf("%4s","free");
-		c0appz_timeout(0);
-	}
+	ppf("%8s","free");
+	c0appz_timeout(0);
 
 	/* failure */
 	if(rc){

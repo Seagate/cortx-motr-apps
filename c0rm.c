@@ -38,12 +38,17 @@ int main(int argc, char **argv)
 	uint64_t idh;	/* object id high 	*/
 	uint64_t idl;	/* object id low 	*/
 	int opt=0;		/* options			*/
+	int rc=0;
+	int yes=0;
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":p"))!=-1){
+	while((opt = getopt(argc, argv, ":py"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
+				break;
+			case 'y':
+				yes = 1;
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
@@ -64,9 +69,6 @@ int main(int argc, char **argv)
 		return 111;
 	}
 
-	/* time in */
-	c0appz_timein();
-
 	/* c0rcfile
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
@@ -79,40 +81,60 @@ int main(int argc, char **argv)
 	idh = atoll(argv[optind+0]);
 	idl = atoll(argv[optind+1]);
 
-	/* initialize resources */
+	/* init */
+	c0appz_timein();
 	if(c0appz_init(0) != 0){
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return 222;
 	}
+	ppf("init");
+	c0appz_timeout(0);
 
-	/* time out/in */
-	if(perf){
-		ppf("%4s","init");
-		c0appz_timeout(0);
-		c0appz_timein();
+	/* check */
+	c0appz_timein();
+	if(!(c0appz_ex(idh,idl))){
+		fprintf(stderr,"error!\n");
+		fprintf(stderr,"object NOT found!!\n");
+		rc = 1;
+	}
+	ppf("chck");
+	c0appz_timeout(0);
+
+	if(rc == 1) goto end;
+
+	if(!yes){
+		int c=0;
+		printf("delete object(y/n):");
+		c = getchar();
+		if(c!='y'){
+			fprintf(stderr,"object NOT deleted.\n");
+			goto end;
+		}
 	}
 
 	/* delete */
+	c0appz_timein();
 	if(c0appz_rm(idh,idl) != 0){
 		fprintf(stderr,"error! delete object failed.\n");
-		c0appz_free();
-		return 333;
+		rc = 333;
+		goto end;
 	};
+	ppf("%4s","rm");
+	c0appz_timeout(0);
+	fprintf(stderr,"success! object deleted!!\n");
 
-	/* time out/in */
-	if(perf){
-		ppf("%4s","i/o");
-		c0appz_timeout(0);
-		c0appz_timein();
-	}
+end:
 
-	/* free resources*/
+	/* c0appz_free */
+	c0appz_timein();
 	c0appz_free();
+	ppf("free");
+	c0appz_timeout(0);
 
-	/* time out */
-	if(perf){
-		ppf("%4s","free");
-		c0appz_timeout(0);
+	/* failure */
+	if(rc>1){
+		fprintf(stderr,"%s failed!\n",basename(argv[0]));
+		return rc;
 	}
 
 	/* success */
