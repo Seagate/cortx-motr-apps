@@ -112,7 +112,7 @@ int c0appz_timeout(uint64_t sz)
 	fprintf(stderr,"\n");
 */
 	ppf("[ cput: %10.4lf s %10.4lf MB/s ]", ct, bw_ctime);
-	ppf("[ wclk: %10.4lf s \033[1;34m%10.4lf MB/s\033[0m ]", wt, bw_wtime);
+	ppf("[ wclk: %10.4lf s \033[0;31m%10.4lf MB/s\033[0m ]", wt, bw_wtime);
 	ppf("\n");
 	return 0;
 }
