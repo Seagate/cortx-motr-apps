@@ -227,10 +227,10 @@ free_vecs:
 		if (rc == 0) {
 			time = (double) read_time / M0_TIME_ONE_SECOND;
 			fs_bw = last_index / 1000000.0 / time;
-			ppf("Mero I/O[ OSFS: %10.4lf s %10.4lf MB/s ]",time, fs_bw);
+			ppf("Mero I/O\033[0;35m[ OSFS: %10.4lf s %10.4lf MB/s ]\033[0m",time, fs_bw);
 			time = (double) write_time / M0_TIME_ONE_SECOND;
 			clovis_bw = last_index / 1000000.0 / time;
-			ppf("[ MERO: %10.4lf s %10.4lf MB/s ]\n",time, clovis_bw);
+			ppf("\033[0;35m[ MERO: %10.4lf s %10.4lf MB/s ]\033[0m\n",time, clovis_bw);
 		}
 	}
 
