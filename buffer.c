@@ -57,7 +57,7 @@ static	struct m0_bufvec   attr;
 
 static int freevecs(void);
 static int initvecs(uint64_t pos,uint64_t bsz,uint64_t cnt);
-static int copydata(const char *buf,uint64_t bsz,uint64_t cnt);
+static int bufvecw(const char *buf,uint64_t bsz,uint64_t cnt);
 static int bufvecr(char *buf,uint64_t bsz,uint64_t cnt);
 
 /*
@@ -219,7 +219,7 @@ int c0appz_mw(const char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t 
 	    	fprintf(stderr, "error! not enough memory!!\n");
 			return 11;
 	    }
-	    copydata(buf,bsz,block_count);
+	    bufvecw(buf,bsz,block_count);
 		if(write_data_to_object(id, &extn, &data, &attr)!=0){
 			fprintf(stderr, "writing to Mero object failed!\n");
 			freevecs();
@@ -276,8 +276,8 @@ static int initvecs(uint64_t pos,uint64_t bsz,uint64_t cnt)
 	return 0;
 }
 
-/* copydata() */
-static int copydata(const char *buf,uint64_t bsz,uint64_t cnt)
+/* bufvecw() */
+static int bufvecw(const char *buf,uint64_t bsz,uint64_t cnt)
 {
 	int i=0;
 	/* copy block by block */
