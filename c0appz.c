@@ -110,6 +110,8 @@ static void clovis_aio_failed_cb(struct m0_clovis_op *op);
 int perf=0;							/* performance option 			*/
 extern int qos_total_weight; 		/* total bytes read or written 	*/
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
+extern struct m0_fid *pool_fid;		/* pool fid						*/
+extern uint64_t pool_bsz;			/* pool bsz						*/
 
 /*
  ******************************************************************************
@@ -739,6 +741,9 @@ static int open_entity(struct m0_clovis_entity *entity)
 /*
  * c0appz_cr()
  * create a clovis object.
+ * 0  - success, a new object is created.
+ * 1  - object already exists.
+ * -1 - failed, due to errors.
  */
 int c0appz_cr(uint64_t idhi,uint64_t idlo)
 {
@@ -751,11 +756,17 @@ int c0appz_cr(uint64_t idhi,uint64_t idlo)
 
 	/* create object */
 	rc = create_object(id);
-	if(rc!=0){
+	if(rc>0)
+	{
 		fprintf(stderr,"object already exists!\n");
 		return rc;
 	}
-
+	if(rc<0)
+	{
+		fprintf(stderr,"failed due to errors!\n");
+		fprintf(stderr,"check pool parameters!!\n");
+		return rc;
+	}
 	fprintf(stderr, "success! created object!!\n");
 	return 0;
 }
@@ -763,6 +774,9 @@ int c0appz_cr(uint64_t idhi,uint64_t idlo)
 /*
  * create_object()
  * create clovis object.
+ * 0  - success, a new object is created.
+ * 1  - object already exists.
+ * -1 - failed, due to errors.
  */
 static int create_object(struct m0_uint128 id)
 {
@@ -777,8 +791,7 @@ static int create_object(struct m0_uint128 id)
 
 	rc = open_entity(&obj.ob_entity);
 	if (!(rc < 0)) {
-		// fprintf(stderr,"error! [%d]\n", rc);
-		// fprintf(stderr,"object already exists.\n");
+		/* object exists, return 1 */
 		return 1;
 	}
 
@@ -787,7 +800,15 @@ static int create_object(struct m0_uint128 id)
 	 * use default pool by default:
 	 * struct m0_fid *pool = NULL
 	 */
-	m0_clovis_entity_create(NULL, &obj.ob_entity, &ops[0]);
+//	m0_clovis_entity_create(NULL, &obj.ob_entity, &ops[0]);
+
+	if(m0_clovis_entity_create(pool_fid, &obj.ob_entity, &ops[0])!=0)
+	{
+		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
+		fprintf(stderr,"%s(): create object failed!!\n",__FUNCTION__);
+		/* failed due to errors, return a negative error code */
+		return -1;
+	}
 
 	/*
 	 * use a Tier 2 SSD pool
@@ -819,6 +840,7 @@ static int create_object(struct m0_uint128 id)
 	m0_clovis_op_free(ops[0]);
 	m0_clovis_entity_fini(&obj.ob_entity);
 
+	/* success */
 	return 0;
 }
 

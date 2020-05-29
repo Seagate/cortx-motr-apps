@@ -53,9 +53,10 @@ int main(int argc, char **argv)
 	int rc=0;			/* return code			*/
 	char *fbuf=NULL;	/* file buffer			*/
 	int laps=0;			/* number of writes		*/
+	int pool=-111;		/* pool id - default 	*/
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":pfc:"))!=-1){
+	while((opt = getopt(argc, argv, ":pfc:x:"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
@@ -67,6 +68,11 @@ int main(int argc, char **argv)
 				cont = 1;
 				cont = atoi(optarg);
 				if(cont<0) cont=0;
+				break;
+			case 'x':
+				pool = 1;
+				pool = atoi(optarg);
+				if(pool<0) pool=0;
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
@@ -123,15 +129,23 @@ int main(int argc, char **argv)
 	ppf("%8s","init");
 	c0appz_timeout(0);
 
-	/* time out/in */
-	if(perf){
+	/* pool */
+	if(pool>=0){
+		c0appz_pool_ini();
+		c0appz_pool_set(pool);
 	}
 
 	/* create object */
 	c0appz_timein();
-	if((c0appz_cr(idh,idl)!=0)&&(!force)){
+	if((!force)&&(c0appz_cr(idh,idl)!=0)){
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
 		fprintf(stderr,"%s(): create object failed!!\n",__FUNCTION__);
+		rc = 333;
+		goto end;
+	}
+	if((force)&&(c0appz_cr(idh,idl)<0)){
+		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
+		fprintf(stderr,"%s(): object NOT found!!\n",__FUNCTION__);
 		rc = 333;
 		goto end;
 	}
