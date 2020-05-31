@@ -31,15 +31,20 @@
  * GLOBAL VARIABLES
  ******************************************************************************
  */
-int qos_total_weight=0; 	/* total bytes read or written 	*/
-pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
-static pthread_t tid;		/* real-time bw thread			*/
-extern int perf; 			/* option performance 			*/
-
+int qos_total_weight=0; 	/* total bytes read or written in a second 	*/
+pthread_mutex_t qos_lock=PTHREAD_MUTEX_INITIALIZER;
 uint64_t qos_whgt_served=0;
 uint64_t qos_whgt_remain=0;
 uint64_t qos_laps_served=0;
 uint64_t qos_laps_remain=0;
+extern int perf; 			/* option performance 			*/
+
+/*
+ ******************************************************************************
+ * STATIC VARIABLES
+ ******************************************************************************
+ */
+static pthread_t tid;		/* real-time bw thread			*/
 
 /*
  ******************************************************************************
@@ -56,7 +61,6 @@ static int progress_rb(char *s);
  * EXTERN FUNCTIONS
  ******************************************************************************
  */
-
 
 /* qos_pthread_start() */
 int qos_pthread_start(void)
@@ -97,20 +101,15 @@ static int qos_print_bw(void)
 	double bw=0;
 	double pr=0;
 	char s[16];
-	uint64_t tot1=0;
-	uint64_t tot2=0;
 
+	/* bandwidth */
 	bw=(double)qos_total_weight/1000000;
-	tot1 = qos_laps_served+qos_laps_remain;
-	tot2 = qos_whgt_served+qos_whgt_remain;
 
 	/* reset total weight */
 	pthread_mutex_lock(&qos_lock);
 	qos_whgt_served += qos_total_weight;
 	qos_whgt_remain -= qos_total_weight;
 	qos_total_weight=0;
-//	qos_laps_served = (tot1*qos_whgt_served)/tot2;
-//	qos_laps_remain = tot1- qos_laps_served;
 	pthread_mutex_unlock(&qos_lock);
 
 	/* print */

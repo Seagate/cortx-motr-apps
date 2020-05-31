@@ -40,6 +40,11 @@
  */
 extern int perf; 	/* performance 	*/
 int force=0; 		/* overwrite  	*/
+extern uint64_t qos_whgt_served;
+extern uint64_t qos_whgt_remain;
+extern uint64_t qos_laps_served;
+extern uint64_t qos_laps_remain;
+extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
 
 /* main */
 int main(int argc, char **argv)
@@ -130,6 +135,10 @@ int main(int argc, char **argv)
 	c0appz_timeout(0);
 
 	/* copy */
+	qos_whgt_served=0;
+	qos_whgt_remain=bsz*cnt;
+	qos_laps_served=0;
+	qos_laps_remain=1;
 	qos_pthread_start();
 	c0appz_timein();
 	if (c0appz_cp_async(idh,idl,fname,bsz,cnt,op_cnt)!=0){
@@ -141,9 +150,13 @@ int main(int argc, char **argv)
 		c0appz_free();
 		return 444;
 	};
+	pthread_mutex_lock(&qos_lock);
+	qos_laps_served++;
+	qos_laps_remain--;
+	pthread_mutex_unlock(&qos_lock);
 	ppf("%6s","copy");
 	c0appz_timeout(bsz*cnt);
-	qos_pthread_stop(0);
+	qos_pthread_wait();
 
 	/* resize */
 	truncate64(fname,fs.st_size);
