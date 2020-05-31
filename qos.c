@@ -36,8 +36,8 @@ pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
 static pthread_t tid;		/* real-time bw thread			*/
 extern int perf; 			/* option performance 			*/
 
-uint64_t qos_served=0;
-uint64_t qos_remain=0;
+uint64_t qos_whgt_served=0;
+uint64_t qos_whgt_remain=0;
 uint64_t qos_laps_served=0;
 uint64_t qos_laps_remain=0;
 
@@ -71,7 +71,7 @@ int qos_pthread_stop(int s)
 {
 	if(s) return 0;
 	if(!perf) return 0;
-	if(qos_remain>0) return 0;
+	if(qos_whgt_remain>0) return 0;
 	pthread_cancel(tid);
     return 0;
 }
@@ -102,19 +102,19 @@ static int qos_print_bw(void)
 
 	bw=(double)qos_total_weight/1000000;
 	tot1 = qos_laps_served+qos_laps_remain;
-	tot2 = qos_served+qos_remain;
+	tot2 = qos_whgt_served+qos_whgt_remain;
 
 	/* reset total weight */
 	pthread_mutex_lock(&qos_lock);
-	qos_served += qos_total_weight;
-	qos_remain -= qos_total_weight;
+	qos_whgt_served += qos_total_weight;
+	qos_whgt_remain -= qos_total_weight;
 	qos_total_weight=0;
-	qos_laps_served = (tot1*qos_served)/tot2;
-	qos_laps_remain = tot1- qos_laps_served;
+//	qos_laps_served = (tot1*qos_whgt_served)/tot2;
+//	qos_laps_remain = tot1- qos_laps_served;
 	pthread_mutex_unlock(&qos_lock);
 
 	/* print */
-	pr=100*qos_served/(qos_served+qos_remain);
+	pr=100*qos_whgt_served/(qos_whgt_served+qos_whgt_remain);
 	printf("bw = %08.4f MB/s\n",bw);
 	sprintf(s,"%02d/%02d",(int)qos_laps_served,(int)(qos_laps_served+qos_laps_remain));
 	progress_rt(s);
@@ -133,7 +133,7 @@ static void *disp_realtime_bw(void *arg)
     while(1)
     {
         qos_print_bw();
-        if(qos_remain<=0) pthread_cancel(tid);
+        if(qos_whgt_remain<=0) pthread_cancel(tid);
         sleep(1);
     }
     return 0;
