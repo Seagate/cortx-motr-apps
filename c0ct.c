@@ -35,6 +35,11 @@
  ******************************************************************************
  */
 extern int perf; /* performance */
+extern uint64_t qos_whgt_served;
+extern uint64_t qos_whgt_remain;
+extern uint64_t qos_laps_served;
+extern uint64_t qos_laps_remain;
+extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
 
 /* main */
 int main(int argc, char **argv)
@@ -134,18 +139,25 @@ int main(int argc, char **argv)
 			goto end;
 		}
 		laps=cont;
+		qos_whgt_served=0;
+		qos_whgt_remain=bsz*cnt*laps;
+		qos_laps_served=0;
+		qos_laps_remain=laps;
 		qos_pthread_start();
 		c0appz_timein();
 		while(cont>0){
-			printf("[%d/%d]:\n",(int)laps-cont+1,(int)laps);
 			pos = (laps-cont)*cnt*bsz;
 			c0appz_mr(fbuf,idh,idl,pos,bsz,cnt);
 			cont--;
+			pthread_mutex_lock(&qos_lock);
+			qos_laps_served++;
+			qos_laps_remain--;
+			pthread_mutex_unlock(&qos_lock);
 		}
 		ppf("%8s","read");
 		c0appz_timeout(bsz*cnt*laps);
-		qos_pthread_stop(0);
-		fprintf(stderr,"writing to file...\n");
+		qos_pthread_wait();
+//		fprintf(stderr,"writing to file...\n");
 		c0appz_timein();
 		if(c0appz_fw(fbuf,fname,bsz,cnt)!=0){
 			fprintf(stderr,"%s(): c0appz_fw failed!!\n",__FUNCTION__);
@@ -160,6 +172,10 @@ int main(int argc, char **argv)
 	}
 
 	/* cat */
+	qos_whgt_served=0;
+	qos_whgt_remain=bsz*cnt;
+	qos_laps_served=0;
+	qos_laps_remain=1;
 	qos_pthread_start();
 	c0appz_timein();
 	if(c0appz_ct(idh,idl,fname,bsz,cnt)!=0){
@@ -169,13 +185,17 @@ int main(int argc, char **argv)
 		goto end;
 
 	};
+	pthread_mutex_lock(&qos_lock);
+	qos_laps_served++;
+	qos_laps_remain--;
+	pthread_mutex_unlock(&qos_lock);
 	ppf("%8s","cat");
 	c0appz_timeout(bsz*cnt);
-	qos_pthread_stop(0);
+	qos_pthread_wait();
 
 end:
 
-	qos_pthread_stop(rc);
+//	qos_pthread_stop(rc);
 
 	/* resize */
 	truncate64(fname,fsz);
