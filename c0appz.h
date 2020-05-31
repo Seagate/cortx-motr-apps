@@ -43,8 +43,10 @@ int c0appz_timeout(uint64_t sz);
 int c0appz_timein();
 int c0appz_dump_perf(void);
 /* qos */
+int qos_pthread_wait();
 int qos_pthread_start(void);
 int qos_pthread_stop(int s);
+
 /* pool */
 int c0appz_pool_ini(void);
 int c0appz_pool_set(int pid);

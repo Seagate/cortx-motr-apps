@@ -37,6 +37,10 @@
 extern int perf; 	/* performance 		*/
 int force=0; 		/* overwrite  		*/
 int cont=0; 		/* continuous mode 	*/
+extern uint64_t qos_served;
+extern uint64_t qos_remain;
+extern uint64_t qos_laps_served;
+extern uint64_t qos_laps_remain;
 
 /* main */
 int main(int argc, char **argv)
@@ -171,22 +175,29 @@ int main(int argc, char **argv)
 		stat64(fname,&fs);
 		assert(fsz==fs.st_size);
 		laps=cont;
+		qos_served=0;
+		qos_remain=bsz*cnt*laps;
+		qos_laps_served=0;
+		qos_laps_remain=laps;
 		qos_pthread_start();
 		c0appz_timein();
 		while(cont>0){
-			printf("[%d/%d]:\n",(int)laps-cont+1,(int)laps);
 			pos = (laps-cont)*cnt*bsz;
 			c0appz_mw(fbuf,idh,idl,pos,bsz,cnt);
 			cont--;
 		}
 		ppf("%8s","write");
 		c0appz_timeout((uint64_t)bsz * (uint64_t)cnt * (uint64_t)laps);
-		qos_pthread_stop(0);
+		qos_pthread_wait();
 		printf("%" PRIu64 " x %" PRIu64 " = %" PRIu64 "\n",cnt,bsz,cnt*bsz);
 		free(fbuf);
 		goto end;
 	}
 
+	qos_served=0;
+	qos_remain=bsz*cnt;
+	qos_laps_served=0;
+	qos_laps_remain=1;
 	qos_pthread_start();
 	c0appz_timein();
 	/* copy */
@@ -198,11 +209,13 @@ int main(int argc, char **argv)
 	};
 	ppf("%8s","copy");
 	c0appz_timeout((uint64_t)bsz * (uint64_t)cnt);
-	qos_pthread_stop(0);
+	qos_pthread_wait();
 
 end:
 
-	qos_pthread_stop(rc);
+//	qos_pthread_stop(rc);
+//	qos_pthread_wait();
+
 
 	/* resize */
 	truncate64(fname,fs.st_size);
