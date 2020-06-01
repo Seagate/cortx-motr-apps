@@ -151,7 +151,9 @@ static int progress_rb(char *s)
 	printf("\033[99999;99999H");
 	printf("\033[8D");
 //	printf("\033[1A\033[K\033[1B");
+	printf("\033[0;31m");
 	printf("[ %5s ]",s);
+	printf("\033[0m");
 	printf("\033[u");
 	return 0;
 }
@@ -169,7 +171,9 @@ static int progress_rt(char *s)
 	printf("\033[8D");
 	printf("\033[1A");
 	printf("\033[1A\033[K\033[1B");
+	printf("\033[0;31m");
 	printf("[ %5s ]",s);
+	printf("\033[0m");
 	printf("\033[u");
 	return 0;
 }
