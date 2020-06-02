@@ -40,7 +40,7 @@ int help()
 {
 	fprintf(stderr,"%s",(const char*)help_c0rm_txt);
 	fprintf(stderr,"\n");
-	return 0;
+	exit(1);
 }
 
 /* main */
@@ -66,11 +66,11 @@ int main(int argc, char **argv)
 				break;
 			case '?':
 				fprintf(stderr,"unknown option: %c\n", optopt);
-				help(); return 222;
+				help();
 				break;
 			default:
-				fprintf(stderr,"unknown default option: %c\n", optopt);
-				help(); return 222;
+				fprintf(stderr,"unknown option: %c\n", optopt);
+				help();
 				break;
 		}
 	}
@@ -78,7 +78,6 @@ int main(int argc, char **argv)
 	/* check input */
 	if(argc-optind!=2){
 		help();
-		return 111;
 	}
 
 	/* c0rcfile

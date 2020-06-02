@@ -52,7 +52,7 @@ int help()
 {
 	fprintf(stderr,"%s",(const char*)help_c0cp_txt);
 	fprintf(stderr,"\n");
-	return 0;
+	exit(1);
 }
 
 /* main */
@@ -85,34 +85,32 @@ int main(int argc, char **argv)
 				cont = 1;
 				cont = atoi(optarg);
 				if(cont<0) cont=0;
-				if(!cont){ help(); return 222; }
+				if(!cont) help();
 				break;
 			case 'x':
 				pool = 1;
 				pool = atoi(optarg);
 				if(!isdigit(optarg[0])) pool = -1;
-				if(pool<0){ help(); return 222; }
+				if(pool<0) help();
 				break;
 			case ':':
 				fprintf(stderr,"option %c needs a value\n",optopt);
-				help(); return 222;
+				help();
 				break;
 			case '?':
 				fprintf(stderr,"unknown option: %c\n", optopt);
-				help(); return 222;
+				help();
 				break;
 			default:
-				fprintf(stderr,"unknown default option: %c\n", optopt);
-				help(); return 222;
+				fprintf(stderr,"unknown option: %c\n", optopt);
+				help();
 				break;
 		}
 	}
 
 	/* check input */
 	if(argc-optind!=4){
-		fprintf(stderr,"Usage:\n");
-		fprintf(stderr,"%s [options] idh idl filename bsz\n", basename(argv[0]));
-		return 111;
+		help();
 	}
 
 	/* c0rcfile
