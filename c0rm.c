@@ -24,6 +24,7 @@
 #include <libgen.h>
 #include <unistd.h>
 #include "c0appz.h"
+#include "help.h"
 
 /*
  ******************************************************************************
@@ -31,6 +32,16 @@
  ******************************************************************************
  */
 extern int perf; /* performance */
+
+/*
+ * help()
+ */
+int help()
+{
+	fprintf(stderr,"%s",(const char*)help_c0rm_txt);
+	fprintf(stderr,"\n");
+	return 0;
+}
 
 /* main */
 int main(int argc, char **argv)
@@ -55,17 +66,18 @@ int main(int argc, char **argv)
 				break;
 			case '?':
 				fprintf(stderr,"unknown option: %c\n", optopt);
+				help(); return 222;
 				break;
 			default:
 				fprintf(stderr,"unknown default option: %c\n", optopt);
+				help(); return 222;
 				break;
 		}
 	}
 
 	/* check input */
 	if(argc-optind!=2){
-		fprintf(stderr,"Usage:\n");
-		fprintf(stderr,"%s [options] idh idl\n", basename(argv[0]));
+		help();
 		return 111;
 	}
 

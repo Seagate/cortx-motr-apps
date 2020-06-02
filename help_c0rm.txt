@@ -1,0 +1,13 @@
+usage:
+	
+c0rm [option] idh idl
+c0rm 1234 56789
+c0rm -y 1234 56789
+
+idh - Mero fid high
+idl - Mero fid low
+
+option is:
+	-y | yes
+	
+ The -y option forces deleting an object if that object already exists.

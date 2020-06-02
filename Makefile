@@ -81,12 +81,15 @@ all: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 .PHONY: all
 
 $(EXE1):
+	xxd -i help_c0cp.txt > help.h
 	gcc $(SRC) c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE1)
 
 $(EXE2):
+	xxd -i help_c0ct.txt > help.h
 	gcc $(SRC) c0ct.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE2)
 
 $(EXE3):
+	xxd -i help_c0rm.txt > help.h
 	gcc $(SRC) c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE3)
 
 $(EXE5):

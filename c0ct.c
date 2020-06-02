@@ -28,6 +28,7 @@
 #include <inttypes.h>
 #include <assert.h>
 #include "c0appz.h"
+#include "help.h"
 
 /*
  ******************************************************************************
@@ -40,6 +41,16 @@ extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
+
+/*
+ * help()
+ */
+int help()
+{
+	fprintf(stderr,"%s",(const char*)help_c0ct_txt);
+	fprintf(stderr,"\n");
+	return 0;
+}
 
 /* main */
 int main(int argc, char **argv)
@@ -67,15 +78,19 @@ int main(int argc, char **argv)
 				cont = 1;
 				cont = atoi(optarg);
 				if(cont<0) cont=0;
+				if(!cont){ help(); return 222; }
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
+				help(); return 222;
 				break;
 			case '?':
 				fprintf(stderr,"unknown option: %c\n", optopt);
+				help(); return 222;
 				break;
 			default:
 				fprintf(stderr,"unknown default option: %c\n", optopt);
+				help(); return 222;
 				break;
 		}
 	}
