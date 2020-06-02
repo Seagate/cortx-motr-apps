@@ -27,6 +27,7 @@
 #include <pthread.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <ctype.h>
 #include "c0appz.h"
 #include "help.h"
 
@@ -89,7 +90,8 @@ int main(int argc, char **argv)
 			case 'x':
 				pool = 1;
 				pool = atoi(optarg);
-				if(pool<0) pool=0;
+				if(!isdigit(optarg[0])) pool = -1;
+				if(pool<0){ help(); return 222; }
 				break;
 			case ':':
 				fprintf(stderr,"option %c needs a value\n",optopt);
@@ -150,7 +152,7 @@ int main(int argc, char **argv)
 	c0appz_timeout(0);
 
 	/* pool */
-	if(pool>=0){
+	if(pool>0){
 		c0appz_pool_ini();
 		c0appz_pool_set(pool);
 	}

@@ -9,5 +9,11 @@ idl - Mero fid low
 
 option is:
 	-y | yes
-	
+	-p | performance
+		
  The -y option forces deleting an object if that object already exists.
+ The -p option enables performance monitoring. It collects performance parameters
+ such as cpu time, wall clock time, bandwidth, etc., and displays them at the 
+ end of the execution.
+ c0rm -p 1234 56789
+ 

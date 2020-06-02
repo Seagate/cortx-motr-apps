@@ -11,7 +11,9 @@ options are:
 	-f | force
 	-p | performance
 	-c | contiguous mode. 
-	     -c <n> write <n> contiguous copies of the file. 
+	   | -c <n> write <n> contiguous copies of the file. 
+	-x | pool ID. 
+	   | -x <n> creates the object in pool with ID <n>. 
 	
  The -f option forces rewriting on an object if that object already exists. 
  It creates a new object if the object does not exist.
@@ -25,6 +27,11 @@ options are:
  The -c <n> option takes <n> a positive number as an argument and creates an 
  object with <n> contiguous copies of the same file.
  c0cp -c 10 1234 56789 ./256MB 4096
+
+ The -x option takes <n> a positive number as an argument and selects the pool
+ with ID <n> for creating the object. Without this option objects are created
+ in the default pool.
+ c0cp 1234 56789 ./256MB 4096 -x 3 
 
  The options can also be combined.
  c0cp 1234 56789 ./256MB 4096 -f -p -c 10
