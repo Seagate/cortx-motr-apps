@@ -33,6 +33,7 @@
  */
 int qos_total_weight=0; 	/* total bytes read or written in a second 	*/
 pthread_mutex_t qos_lock=PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t qos_cond;
 uint64_t qos_whgt_served=0;
 uint64_t qos_whgt_remain=0;
 uint64_t qos_laps_served=0;
@@ -67,16 +68,25 @@ int qos_pthread_start(void)
 {
 	if(!perf) return 0;
 	pthread_create(&tid,NULL,&disp_realtime_bw,NULL);
+	if(pthread_cond_init(&qos_cond,NULL)!=0){
+		fprintf(stderr, "error!");
+		fprintf(stderr, "mutex cond init failed!!");
+	}
+	if(pthread_mutex_init(&qos_lock,NULL)!=0){
+		fprintf(stderr, "error!");
+		fprintf(stderr, "mutex init failed!!");
+	}
     return 0;
 }
 
 /* qos_pthread_stop() */
-int qos_pthread_stop(int s)
+int qos_pthread_stop()
 {
-	if(s) return 0;
 	if(!perf) return 0;
 	if(qos_whgt_remain>0) return 0;
 	pthread_cancel(tid);
+	pthread_mutex_destroy(&qos_lock);
+	pthread_cond_destroy(&qos_cond);
     return 0;
 }
 
@@ -85,6 +95,26 @@ int qos_pthread_wait()
 {
 	if(!perf) return 0;
 	pthread_join(tid,NULL);
+    return 0;
+}
+
+/* qos_pthread_cond_wait() */
+int qos_pthread_cond_wait()
+{
+	if(!perf) return 0;
+	pthread_mutex_lock(&qos_lock);
+	while(qos_whgt_remain>0) pthread_cond_wait(&qos_cond, &qos_lock);
+	pthread_mutex_unlock(&qos_lock);
+    return 0;
+}
+
+/* qos_pthread_cond_signal() */
+int qos_pthread_cond_signal()
+{
+	if(!perf) return 0;
+	pthread_mutex_lock(&qos_lock);
+	pthread_cond_signal(&qos_cond);
+	pthread_mutex_unlock(&qos_lock);
     return 0;
 }
 
@@ -120,6 +150,13 @@ static int qos_print_bw(void)
 	progress_rt(s);
 	sprintf(s,"%3d%%",(int)pr);
 	progress_rb(s);
+
+	/*
+	 * stdout is buffered by default.
+	 * Another option is disable it using
+	 * setbuf(stdout,NULL) somewhere.
+	 */
+	fflush(stdout);
 	return 0;
 }
 
@@ -133,7 +170,10 @@ static void *disp_realtime_bw(void *arg)
     while(1)
     {
         qos_print_bw();
-        if(qos_whgt_remain<=0) pthread_cancel(tid);
+        if(qos_whgt_remain<=0){
+        	qos_pthread_cond_signal(); 	/* signal first	*/
+        	qos_pthread_stop();			/* stop later	*/
+        }
         sleep(1);
     }
     return 0;

@@ -459,6 +459,10 @@ free_vecs:
 		cnt -= block_count;
 	}
 
+	/* block */
+	qos_pthread_cond_wait();
+	fprintf(stderr,"writing to file...\n");
+
 	/* Fs will flush data back to device when closing a file. */
 	st = m0_time_now();
 	fclose(fp);

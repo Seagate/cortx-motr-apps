@@ -170,7 +170,7 @@ int main(int argc, char **argv)
 		ppf("%8s","read");
 		c0appz_timeout(bsz*cnt*laps);
 		qos_pthread_wait();
-//		fprintf(stderr,"writing to file...\n");
+		fprintf(stderr,"writing to file...\n");
 		c0appz_timein();
 		if(c0appz_fw(fbuf,fname,bsz,cnt)!=0){
 			fprintf(stderr,"%s(): c0appz_fw failed!!\n",__FUNCTION__);
