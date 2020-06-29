@@ -806,6 +806,14 @@ static int create_object(struct m0_uint128 id)
 	 */
 //	m0_clovis_entity_create(NULL, &obj.ob_entity, &ops[0]);
 
+	/* print pool ID */
+	if(pool_fid)
+	{
+		fprintf(stderr,"%12s: 0x%" PRIx64 "\n","f_container",pool_fid->f_container);
+		fprintf(stderr,"%12s: 0x%" PRIx64 "\n","f_key",pool_fid->f_key);
+	}
+
+	/* create object */
 	if(m0_clovis_entity_create(pool_fid, &obj.ob_entity, &ops[0])!=0)
 	{
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);

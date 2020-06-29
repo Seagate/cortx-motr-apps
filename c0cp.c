@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 	int rc=0;			/* return code			*/
 	char *fbuf=NULL;	/* file buffer			*/
 	int laps=0;			/* number of writes		*/
-	int pool=-111;		/* pool id - default 	*/
+	int pool=0;			/* default pool ID 		*/
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pfc:x:"))!=-1){
@@ -88,10 +88,9 @@ int main(int argc, char **argv)
 				if(!cont) help();
 				break;
 			case 'x':
-				pool = 1;
 				pool = atoi(optarg);
 				if(!isdigit(optarg[0])) pool = -1;
-				if(pool<0) help();
+				if((pool<0)||(pool>3)) help();
 				break;
 			case ':':
 				fprintf(stderr,"option %c needs a value\n",optopt);
@@ -150,9 +149,9 @@ int main(int argc, char **argv)
 	c0appz_timeout(0);
 
 	/* pool */
-	if(pool>0){
+	if(pool!=0){
 		c0appz_pool_ini();
-		c0appz_pool_set(pool);
+		c0appz_pool_set(pool-1);
 	}
 
 	/* create object */

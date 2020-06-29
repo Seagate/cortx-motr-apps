@@ -52,7 +52,7 @@ uint64_t pool_bsz = 0;
 int c0appz_pool_set(int pid)
 {
 	assert(pid>=0);
-	assert(pid<=1);
+	assert(pid<=2);
 	pool_bsz = c0p[pid].pool_bsz;
 	pool_fid = &c0p[pid].pool_fid;
 	return 0;
@@ -63,22 +63,32 @@ int c0appz_pool_ini(void)
 {
 
 	/*
-	 * use a Tier 2 SSD pool
+	 * use a Tier 1 NVM pool
 	 */
 
 	/* pool 0 */
 	c0p[0].pool_fid.f_container = 0x6f00000000000001;
-	c0p[0].pool_fid.f_key = 0x3f8;
-	c0p[0].pool_bsz = 4096;
+	c0p[0].pool_fid.f_key = 0x6bf;
+	c0p[0].pool_bsz = 4096*2;
+
+	/*
+	 * use a Tier 2 SSD pool
+	 */
+
+	/* pool 1 */
+	c0p[1].pool_fid.f_container = 0x6f00000000000001;
+	c0p[1].pool_fid.f_key = 0x6d5;
+	c0p[1].pool_bsz = 4096*8;
 
 	/*
 	 * use a Tier 3 HDD pool
 	 */
 
-	/* pool 1 */
-	c0p[0].pool_fid.f_container = 0x6f00000000000001;
-	c0p[0].pool_fid.f_key = 0x426;
-	c0p[0].pool_bsz = 4096;
+	/* pool 2 */
+	c0p[2].pool_fid.f_container = 0x6f00000000000001;
+	c0p[2].pool_fid.f_key = 0x6f4;
+	c0p[2].pool_bsz = 4096*8;
+
 
     return 0;
 }
