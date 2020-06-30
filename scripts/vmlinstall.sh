@@ -6,6 +6,7 @@ echo "Press Ctl-C to exit, anykey to continue!!"
 read -rn1 key
 
 set -x
+sudo m0singlenode stop
 sudo lctl list_nids
 sudo systemctl stop lnet
 sudo cp /etc/lnet.conf /etc/lnet.conf.bak
