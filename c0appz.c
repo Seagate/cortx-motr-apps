@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <lib/semaphore.h>
 #include <lib/trace.h>
 #include <lib/memory.h>
@@ -265,10 +266,12 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t block_size
 			  CLOVIS_MAX_BLOCK_COUNT :
 			  CLOVIS_MAX_PER_WIO_SIZE / block_size;
 
-	/* Open source file */
+	/* open file */
 	fp = fopen(src, "rb");
-	if (fp == NULL)
-		return -1;
+	if (fp == NULL) {
+		fprintf(stderr,"error! could not open output file %s\n", src);
+		return 1;
+	}
 
 	/* ids */
 	id.u_hi = idhi;
