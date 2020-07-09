@@ -165,6 +165,8 @@ sagercf:
 	sage-user-application-assignment ganesan $(EXE2) 172.18.1.${c} > .$(EXE2)rc/client-${c}
 	sage-user-application-assignment ganesan $(EXE3) 172.18.1.${c} > .$(EXE3)rc/client-${c}
 	sage-user-application-assignment ganesan $(EXE5) 172.18.1.${c} > .$(EXE5)rc/client-${c}
+	sage-user-application-assignment ganesan $(EXE1) 172.18.1.${c} > .$(ISC_REG)rc/client-${c}
+	sage-user-application-assignment ganesan $(EXE2) 172.18.1.${c} > .$(ISC_INVK)rc/client-${c}
 
 clean:
 	rm -f $(EXE1) $(EXE2) $(EXE3) $(EXE5) m0trace.*
@@ -212,12 +214,17 @@ mpi-sagercf:
 	mkdir -p .${EXE6}rc
 	sage-user-application-assignment ganesan $(EXE6) 172.18.1.${c} > .$(EXE6)rc/client-${c}
 
+#
+#ISC Demo
+#Sage Function Shipping
+#
+
 $(ISC_REG):
-	gcc c0appz.c c0isc_register.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_REG)
+	gcc $(SRC) c0isc_register.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_REG)
 $(LIBISC):
 	gcc isc_libdemo.c -I/usr/include/mero $(CFLAGS) -fpic -shared -o $(LIBISC)
 $(ISC_INVK):
-	gcc c0appz.c c0isc_demo.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_INVK)
+	gcc $(SRC) c0isc_demo.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_INVK)
 isc-all: $(ISC_REG) $(ISC_INVK) $(LIBISC)
 isc-clean:
 	rm -f $(ISC_REG) $(ISC_INVK)
