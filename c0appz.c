@@ -577,9 +577,9 @@ static void c0appz_spiel_destroy(struct m0_spiel *spiel)
 	m0_spiel_fini(spiel);
 }
 
-static bool conf_obj_is_proc(const struct m0_conf_obj *obj)
+static bool conf_obj_is_svc(const struct m0_conf_obj *obj)
 {
-	return m0_conf_obj_type(obj) == &M0_CONF_PROCESS_TYPE;
+	return m0_conf_obj_type(obj) == &M0_CONF_SERVICE_TYPE;
 }
 
 struct m0_rpc_link * c0appz_isc_rpc_link_get(struct m0_fid *svc_fid)
@@ -605,7 +605,7 @@ int c0appz_isc_api_register(const char *libpath)
 	struct m0_confc        *confc;
 	struct m0_conf_root    *root;
 	struct m0_conf_process *proc;
-	struct m0_conf_obj     *obj;
+	struct m0_conf_service *svc;
 	struct m0_conf_diter    it;
 
 	rc = c0appz_spiel_prepare(&spiel_inst);
@@ -624,25 +624,28 @@ int c0appz_isc_api_register(const char *libpath)
 	rc = m0_conf_diter_init(&it, confc,
 				&root->rt_obj,
 				M0_CONF_ROOT_NODES_FID,
-				M0_CONF_NODE_PROCESSES_FID);
+				M0_CONF_NODE_PROCESSES_FID,
+				M0_CONF_PROCESS_SERVICES_FID);
 	if (rc != 0) {
 		m0_confc_close(&root->rt_obj);
 		c0appz_spiel_destroy(&spiel_inst);
 		return rc;
 	}
-	while ((rc = m0_conf_diter_next_sync(&it, conf_obj_is_proc)) !=
-		M0_CONF_DIRNEXT)
-		; /* Skip over non-proc objects. */
-	for (obj = m0_conf_diter_result(&it); rc == M0_CONF_DIRNEXT;
-	     rc = m0_conf_diter_next_sync(&it, conf_obj_is_proc)) {
-		obj = m0_conf_diter_result(&it);
-		proc = M0_CONF_CAST(obj, m0_conf_process);
-		rc = m0_spiel_process_lib_load(&spiel_inst,
-					       &proc->pc_obj.co_id,
+
+	while (M0_CONF_DIRNEXT ==
+	       (rc = m0_conf_diter_next_sync(&it, conf_obj_is_svc))) {
+
+		svc = M0_CONF_CAST(m0_conf_diter_result(&it), m0_conf_service);
+		if (svc->cs_type != M0_CST_ISCS)
+			continue;
+		proc = M0_CONF_CAST(m0_conf_obj_grandparent(&svc->cs_obj),
+				    m0_conf_process);
+		rc = m0_spiel_process_lib_load(&spiel_inst, &proc->pc_obj.co_id,
 					       libpath);
 		if (rc != 0) {
-			fprintf(stderr, "error! loading the library %s"
-					"failed for process\n", libpath);
+			fprintf(stderr, "error! loading the library %s failed "
+				        "for process "FID_F": rc=%d\n", libpath,
+					FID_P(&proc->pc_obj.co_id), rc);
 			m0_conf_diter_fini(&it);
 			m0_confc_close(&root->rt_obj);
 			c0appz_spiel_destroy(&spiel_inst);

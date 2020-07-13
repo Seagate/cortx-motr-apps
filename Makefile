@@ -82,7 +82,7 @@ endif
 
 SRC = perf.c buffer.c qos.c c0appz.c pool.c
 
-all: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
+all: $(EXE1) $(EXE2) $(EXE3) $(EXE5) $(ISC_REG)
 .PHONY: all
 
 $(EXE1):
@@ -219,7 +219,7 @@ mpi-sagercf:
 #Sage Function Shipping
 #
 
-$(ISC_REG):
+$(ISC_REG): $(SRC) c0isc_register.c
 	gcc $(SRC) c0isc_register.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_REG)
 $(LIBISC):
 	gcc isc_libdemo.c -I/usr/include/mero $(CFLAGS) -fpic -shared -o $(LIBISC)
