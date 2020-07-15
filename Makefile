@@ -149,6 +149,8 @@ vmrcf:
 	mkdir -p .$(EXE5)rc
 	mkdir -p .$(ISC_REG)rc
 	mkdir -p .$(ISC_INVK)rc
+	mkdir -p .$(ISC_REG)rc
+	mkdir -p .$(ISC_INVK)rc
 	./scripts/c0appzrcgen > ./.$(EXE1)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(EXE2)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(EXE3)rc/$(NODE)
