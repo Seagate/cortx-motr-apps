@@ -58,22 +58,22 @@ int help()
 /* main */
 int main(int argc, char **argv)
 {
-	uint64_t idh;		/* object id high 		*/
-	uint64_t idl;		/* object is low		*/
-	uint64_t bsz;		/* block size 			*/
-	uint64_t cnt;		/* count				*/
-	uint64_t pos;		/* starting position	*/
-	uint64_t fsz;		/* initial file size	*/
-	char *fname;		/* input filename 		*/
-	struct stat64 fs;	/* file statistics		*/
-	int opt;			/* options				*/
-	int rc=0;			/* return code			*/
-	char *fbuf=NULL;	/* file buffer			*/
-	int laps=0;			/* number of writes		*/
-	int pool=0;			/* default pool ID 		*/
+	uint64_t idh;        /* object id high    */
+	uint64_t idl;        /* object is low     */
+	uint64_t bsz;        /* block size        */
+	uint64_t cnt;        /* count             */
+	uint64_t pos;        /* starting position */
+	uint64_t fsz;        /* initial file size */
+	char *fname;         /* input filename    */
+	struct stat64 fs;    /* file statistics   */
+	int opt;             /* options           */
+	int rc=0;            /* return code       */
+	char *fbuf=NULL;     /* file buffer       */
+	int laps=0;          /* number of writes  */
+	int pool=0;          /* default pool ID   */
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":pfc:x:"))!=-1){
+	while((opt = getopt(argc, argv, ":pfc:x:u:"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
@@ -82,10 +82,13 @@ int main(int argc, char **argv)
 				force = 1;
 				break;
 			case 'c':
-				cont = 1;
 				cont = atoi(optarg);
 				if(cont<0) cont=0;
 				if(!cont) help();
+				break;
+			case 'u':
+				if (sscanf(optarg, "%i", &unit_size) != 1)
+					help();
 				break;
 			case 'x':
 				pool = atoi(optarg);
@@ -124,9 +127,8 @@ int main(int argc, char **argv)
 	idh = atoll(argv[optind+0]);
 	idl = atoll(argv[optind+1]);
 	fname = argv[optind+2];
-	bsz = atoll(argv[optind+3]);
+	bsz = atoll(argv[optind+3]) * 1024;
 	assert(bsz>0);
-	assert(!(bsz%1024));
 
 	/* extend */
 	stat64(fname, &fs);

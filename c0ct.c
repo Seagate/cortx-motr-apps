@@ -115,11 +115,10 @@ int main(int argc, char **argv)
 	idh	= atoll(argv[optind+0]);
 	idl = atoll(argv[optind+1]);
 	fname = argv[optind+2];
-	bsz = atoll(argv[optind+3]);
+	bsz = atoll(argv[optind+3]) * 1024;
 	fsz = atoll(argv[optind+4]);
 	cnt = (fsz+bsz-1)/bsz;
 	assert(bsz>0);
-	assert(!(bsz%1024));
 	assert(!(fsz>cnt*bsz));
 
 	/* init */

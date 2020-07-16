@@ -27,6 +27,8 @@
 #include "clovis/clovis.h"
 #include "lib/types.h" /* uint32_t */
 
+extern unsigned unit_size; /* in KiBs, default 4 */
+
 int c0appz_init(int idx);
 int c0appz_free(void);
 int c0appz_cr(uint64_t idhi,uint64_t idlo);

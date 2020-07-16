@@ -123,6 +123,7 @@ static void clovis_aio_failed_cb(struct m0_clovis_op *op);
  * GLOBAL VARIABLES
  ******************************************************************************
  */
+unsigned unit_size = 4;
 int perf=0;							/* performance option 			*/
 extern int qos_total_weight; 		/* total bytes read or written 	*/
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
@@ -448,7 +449,7 @@ int c0appz_ct(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t c
 		read_time = m0_time_add(read_time,
 					m0_time_sub(m0_time_now(), st));
 		if (rc != 0) {
-			fprintf(stderr, "writing to object failed!\n");
+			fprintf(stderr, "reading from object failed!\n");
 			goto free_vecs;
 		}
 
@@ -790,10 +791,11 @@ int c0appz_init(int idx)
 {
 	int   i;
 	int   rc;
+	int   lid;
 	FILE *fp;
 	char *str = NULL;
-	char  buf[SZC0RCSTR];
 	char* filename = C0RCFLE;
+	char  buf[SZC0RCSTR];
 
 	/* read c0rc file */
 	filename = c0rcfile;
@@ -858,7 +860,13 @@ int c0appz_init(int idx)
 	/* set to Sage cluster specific values */
 	clovis_conf.cc_tm_recv_queue_min_len = 64;
 	clovis_conf.cc_max_rpc_msg_size      = 65536;
-	clovis_conf.cc_layout_id             = 9;
+	lid = m0_clovis_obj_unit_size_to_layout_id(unit_size * 1024);
+	if (lid == 0) {
+		fprintf(stderr, "invalid unit size %u, it should be: "
+			"power of 2, >= 4 and <= 4096\n", unit_size);
+		return -EINVAL;
+	}
+	clovis_conf.cc_layout_id = lid;
 
 	/* IDX_MERO */
 	clovis_conf.cc_idx_service_id   = M0_CLOVIS_IDX_DIX;

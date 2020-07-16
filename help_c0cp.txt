@@ -1,13 +1,15 @@
 usage:
 	
 c0cp [options] idh idl filename bsz
-c0cp 1234 56789 ./256MB 4096
+c0cp 1234 56789 256KB-file 64
 
 idh - Mero fid high
 idl - Mero fid low
-bsz - Clovis block size
+bsz - Clovis block size (in KiBs)
 
 options are:
+	-u | unit size (in KiBs, default 4),
+	   | must be power of 2, >= 4 and <= 4096
 	-f | force
 	-p | performance
 	-c | contiguous mode. 
@@ -17,21 +19,23 @@ options are:
 	
  The -f option forces rewriting on an object if that object already exists. 
  It creates a new object if the object does not exist.
- c0cp -f 1234 56789 ./256MB 4096
+ c0cp -f 1234 56789 256MB-file 8096 -u 1024
 	
  The -p option enables performance monitoring. It collects performance parameters
  such as bandwidth and displays them at the end of the execution.It also outputs 
  realtime storage bandwith consumption.
- c0cp -p 1234 56789 ./256MB 4096
+ c0cp -p 1234 56789 256MB-file 8096 -u 1024
 	
  The -c <n> option takes <n> a positive number as an argument and creates an 
  object with <n> contiguous copies of the same file.
- c0cp -c 10 1234 56789 ./256MB 4096
+ c0cp -c 10 1234 56789 256MB-file 8096 -u 1024
 
  The -x option takes <n> a positive number as an argument and selects the pool
  with ID <n> for creating the object. Without this option objects are created
  in the default pool.
- c0cp 1234 56789 ./256MB 4096 -x 3 
+ c0cp -x 3 1234 56789 256MB-file 8096 -u 1024
 
- The options can also be combined.
- c0cp 1234 56789 ./256MB 4096 -f -p -c 10
+ Note: to get maximum performance block_size should be unit_size * units_number
+ in the parity group configuration of the pool. For example, in 8+2 parity
+ configuration (8 data + 2 parity units in the group) and 1MiB unit size -
+ block_size should be 8MiB.

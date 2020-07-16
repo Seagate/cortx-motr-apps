@@ -85,19 +85,19 @@ SRC = perf.c buffer.c qos.c c0appz.c pool.c
 all: $(EXE1) $(EXE2) $(EXE3) $(EXE5) $(ISC_REG)
 .PHONY: all
 
-$(EXE1):
+$(EXE1): $(SRC) c0cp.c help_c0cp.txt
 	xxd -i help_c0cp.txt > help.h
 	gcc $(SRC) c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE1)
 
-$(EXE2):
+$(EXE2): $(SRC) c0ct.c help_c0ct.txt
 	xxd -i help_c0ct.txt > help.h
 	gcc $(SRC) c0ct.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE2)
 
-$(EXE3):
+$(EXE3): $(SRC) c0rm.c help_c0rm.txt
 	xxd -i help_c0rm.txt > help.h
 	gcc $(SRC) c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE3)
 
-$(EXE5):
+$(EXE5): $(SRC) c0cp_async.c
 	gcc $(SRC) c0cp_async.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE5)
 
 test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
