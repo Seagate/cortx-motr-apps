@@ -28,7 +28,6 @@
 #include <assert.h>
 
 #include "c0appz.h"
-#include "c0params.h"
 #include "clovis/clovis.h"
 #include "clovis/clovis_idx.h"
 
@@ -144,23 +143,13 @@ int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt)
 int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt)
 {
 	struct m0_uint128 id;
-	uint64_t max_bcnt_per_op;
-	uint64_t block_count;
 
 	/* ids */
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-	/* max_bcnt_per_op */
-	assert(CLOVIS_MAX_PER_WIO_SIZE>bsz);
-	max_bcnt_per_op = CLOVIS_MAX_PER_WIO_SIZE / bsz;
-	max_bcnt_per_op = max_bcnt_per_op < CLOVIS_MAX_BLOCK_COUNT ?
-			max_bcnt_per_op :
-			CLOVIS_MAX_BLOCK_COUNT;
-
 	while(cnt>0){
-	    block_count = cnt > max_bcnt_per_op ? max_bcnt_per_op : cnt;
-	    if(initvecs(pos,bsz,block_count)!=0){
+	    if (initvecs(pos, bsz, 1)!=0){
 	    	fprintf(stderr, "error! not enough memory!!\n");
 			return 11;
 	    }
@@ -172,18 +161,18 @@ int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,ui
 		}
 
 		/* copy to memory */
-		bufvecr(buf,bsz,block_count);
+		bufvecr(buf, bsz, 1);
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += block_count * bsz;
+		qos_total_weight += bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
 		freevecs();
-		buf += block_count*bsz;
-		pos += block_count*bsz;
-		cnt -= block_count;
+		buf += bsz;
+		pos += bsz;
+		cnt--;
 	}
 
 	return 0;
@@ -199,27 +188,17 @@ int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,ui
 int c0appz_mw(const char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt)
 {
 	struct m0_uint128 id;
-	uint64_t max_bcnt_per_op;
-	uint64_t block_count;
 
 	/* ids */
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-	/* max_bcnt_per_op */
-	assert(CLOVIS_MAX_PER_WIO_SIZE>bsz);
-	max_bcnt_per_op = CLOVIS_MAX_PER_WIO_SIZE / bsz;
-	max_bcnt_per_op = max_bcnt_per_op < CLOVIS_MAX_BLOCK_COUNT ?
-			max_bcnt_per_op :
-			CLOVIS_MAX_BLOCK_COUNT;
-
 	while(cnt>0){
-	    block_count = cnt > max_bcnt_per_op ? max_bcnt_per_op : cnt;
-	    if(initvecs(pos,bsz,block_count)!=0){
+	    if(initvecs(pos,bsz,1)!=0){
 	    	fprintf(stderr, "error! not enough memory!!\n");
 			return 11;
 	    }
-	    bufvecw(buf,bsz,block_count);
+	    bufvecw(buf,bsz,1);
 		if(write_data_to_object(id, &extn, &data, &attr)!=0){
 			fprintf(stderr, "writing to Mero object failed!\n");
 			freevecs();
@@ -228,14 +207,14 @@ int c0appz_mw(const char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t 
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += block_count * bsz;
+		qos_total_weight += bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
 		freevecs();
-		buf += block_count*bsz;
-		pos += block_count*bsz;
-		cnt -= block_count;
+		buf += bsz;
+		pos += bsz;
+		cnt--;
 	}
 
 	return 0;

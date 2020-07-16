@@ -35,7 +35,6 @@
 #include <lib/mutex.h>
 
 #include "c0appz.h"
-#include "c0params.h"
 #include "clovis/clovis.h"
 #include "clovis/clovis_internal.h"
 #include "clovis/clovis_idx.h"
@@ -140,12 +139,10 @@ extern uint64_t pool_bsz;			/* pool bsz						*/
  * c0appz_cp()
  * copy to an object.
  */
-int c0appz_cp(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t cnt)
+int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
+	      uint64_t bsz, uint64_t cnt)
 {
-	int                i;
 	int                rc=0;
-	int                max_bcnt_per_op;
-	int                block_count;
 	int                bcnt_read;
 	uint64_t           last_index;
 	struct m0_uint128  id;
@@ -171,44 +168,33 @@ int c0appz_cp(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t c
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-	/* max_bcnt_per_op */
-	assert(CLOVIS_MAX_PER_WIO_SIZE>bsz);
-	max_bcnt_per_op = CLOVIS_MAX_PER_WIO_SIZE / bsz;
-	assert(max_bcnt_per_op != 0);
-	max_bcnt_per_op = max_bcnt_per_op < CLOVIS_MAX_BLOCK_COUNT ?
-			  max_bcnt_per_op :
-			  CLOVIS_MAX_BLOCK_COUNT;
-
 	last_index = 0;
 	M0_SET0(&read_time);
 	M0_SET0(&write_time);
-	while (cnt > 0) {
-	    block_count = cnt > max_bcnt_per_op?
-	                  max_bcnt_per_op : cnt;
 
-	    /* Allocate data buffers, bufvec and indexvec for write. */
-	    rc = m0_bufvec_alloc(&data, block_count, bsz) ?:
-	    m0_bufvec_alloc(&attr, block_count, 1) ?:
-	    m0_indexvec_alloc(&ext, block_count);
-	    if (rc != 0)
-	        goto free_vecs;
+	/* Allocate data buffers, bufvec and indexvec for write. */
+	rc = m0_bufvec_alloc(&data, 1, bsz) ?:
+		m0_bufvec_alloc(&attr, 1, 1) ?:
+		m0_indexvec_alloc(&ext, 1);
+	if (rc != 0)
+		goto free_vecs;
+
+	/* we don't want any attributes */
+	attr.ov_vec.v_count[0] = 0;
+
+	while (cnt > 0) {
 		/*
 		 * Prepare indexvec for write: <clovis_block_count> from the
 		 * beginning of the object.
 		 */
-		for (i = 0; i < block_count; i++) {
-			ext.iv_index[i] = last_index ;
-			ext.iv_vec.v_count[i] = bsz;
-			last_index += bsz;
-
-			/* we don't want any attributes */
-			attr.ov_vec.v_count[i] = 0;
-		}
+		ext.iv_index[0] = last_index;
+		ext.iv_vec.v_count[0] = bsz;
+		last_index += bsz;
 
 		/* Read data from source file. */
 		st = m0_time_now();
 		bcnt_read = read_data_from_file(fp, &data, bsz);
-		if (bcnt_read != block_count) {
+		if (bcnt_read != 1) {
 			fprintf(stderr, "reading from file failed!\n");
 			rc = -EIO;
 			goto free_vecs;
@@ -226,31 +212,31 @@ int c0appz_cp(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t c
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += block_count * bsz;
+		qos_total_weight += bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
-free_vecs:
-		/* Free bufvec's and indexvec's */
-		m0_indexvec_free(&ext);
-		m0_bufvec_free(&data);
-		m0_bufvec_free(&attr);
 		if (rc != 0)
 			break;
 
-		cnt -= block_count;
+		cnt--;
 	}
+
+free_vecs:
+	/* Free bufvec's and indexvec's */
+	m0_indexvec_free(&ext);
+	m0_bufvec_free(&data);
+	m0_bufvec_free(&attr);
+
 	fclose(fp);
 
-	if(perf){
-		if (rc == 0) {
-			time = (double) read_time / M0_TIME_ONE_SECOND;
-			fs_bw = last_index / 1000000.0 / time;
-			ppf("Mero I/O[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]",time, fs_bw);
-			time = (double) write_time / M0_TIME_ONE_SECOND;
-			clovis_bw = last_index / 1000000.0 / time;
-			ppf("[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, clovis_bw);
-		}
+	if (perf && rc == 0) {
+		time = (double) read_time / M0_TIME_ONE_SECOND;
+		fs_bw = last_index / 1000000.0 / time;
+		ppf("Mero I/O[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]",time, fs_bw);
+		time = (double) write_time / M0_TIME_ONE_SECOND;
+		clovis_bw = last_index / 1000000.0 / time;
+		ppf("[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, clovis_bw);
 	}
 
 	return rc;
@@ -260,14 +246,11 @@ free_vecs:
  * c0appz_cp_async()
  * copy to and object in an async manner
  */
-int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t block_size,
-		uint64_t block_count, uint64_t op_cnt)
+int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
+		    uint64_t cnt, uint64_t op_cnt)
 {
 	int                       i;
-	int                       j;
 	int                       rc = 0;
-	int                       bcnt_per_op;
-	int                       max_bcnt_per_op;
 	int                       nr_ops_sent;
 	uint64_t                  last_index;
 	struct m0_uint128         id;
@@ -275,12 +258,7 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t block_size
 	struct clovis_aio_opgrp   aio_grp;
 	FILE                      *fp;
 
-	assert(block_count % op_cnt == 0);
-	assert(CLOVIS_MAX_PER_WIO_SIZE > block_size);
-	max_bcnt_per_op = CLOVIS_MAX_PER_WIO_SIZE / block_size >
-			  CLOVIS_MAX_BLOCK_COUNT ?
-			  CLOVIS_MAX_BLOCK_COUNT :
-			  CLOVIS_MAX_PER_WIO_SIZE / block_size;
+	assert(cnt % op_cnt == 0);
 
 	/* open file */
 	fp = fopen(src, "rb");
@@ -294,13 +272,9 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t block_size
 	id.u_lo = idlo;
 
 	last_index = 0;
-	while (block_count > 0) {
-		bcnt_per_op = block_count > max_bcnt_per_op * op_cnt?
-			      max_bcnt_per_op : block_count / op_cnt;
-
+	while (cnt > 0) {
 		/* Initialise operation group. */
-		rc = clovis_aio_opgrp_init(
-			&aio_grp, bcnt_per_op * op_cnt, op_cnt);
+		rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
 		if (rc != 0) {
 			fclose(fp);
 			return rc;
@@ -316,22 +290,19 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t block_size
 		nr_ops_sent = 0;
 		for (i = 0; i < op_cnt; i++) {
 			aio = &aio_grp.cag_aio_ops[i];
-			rc = clovis_aio_vec_alloc(aio, bcnt_per_op, block_size);
+			rc = clovis_aio_vec_alloc(aio, 1, bsz);
 			if (rc != 0)
 				break;
 
-			for (j = 0; j < bcnt_per_op; j++) {
-				aio->cao_ext.iv_index[j] = last_index;
-				aio->cao_ext.iv_vec.v_count[j] = block_size;
-				last_index += block_size;
+			aio->cao_ext.iv_index[0] = last_index;
+			aio->cao_ext.iv_vec.v_count[0] = bsz;
+			last_index += bsz;
 
-				aio->cao_attr.ov_vec.v_count[j] = 0;
-			}
+			aio->cao_attr.ov_vec.v_count[0] = 0;
 
 			/* Read data from source file. */
-			rc = read_data_from_file(
-				fp, &aio->cao_data, block_size);
-			M0_ASSERT(rc == bcnt_per_op);
+			rc = read_data_from_file(fp, &aio->cao_data, bsz);
+			M0_ASSERT(rc == 1);
 
 			/* Launch IO op. */
 			rc = write_data_to_object_async(aio);
@@ -363,11 +334,11 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t block_size
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += op_cnt * bcnt_per_op * block_size;
+		qos_total_weight += op_cnt * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
-		block_count -= op_cnt * bcnt_per_op;
+		cnt -= op_cnt;
 	}
 
 	fclose(fp);
@@ -378,12 +349,10 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t block_size
  * c0appz_cat()
  * cat object.
  */
-int c0appz_ct(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t cnt)
+int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
+	      uint64_t bsz, uint64_t cnt)
 {
-	int                i;
 	int                rc=0;
-	int                max_bcnt_per_op;
-	int                block_count;
 	int                bcnt_written;
 	uint64_t           last_index;
 	struct m0_uint128  id;
@@ -409,39 +378,29 @@ int c0appz_ct(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t c
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-	/* Compute maximum number of block per op. */
-	max_bcnt_per_op = CLOVIS_MAX_PER_RIO_SIZE / bsz;
-	assert(max_bcnt_per_op != 0);
-	max_bcnt_per_op = max_bcnt_per_op < CLOVIS_MAX_BLOCK_COUNT ?
-			  max_bcnt_per_op :
-			  CLOVIS_MAX_BLOCK_COUNT;
-
 	/* Loop for READ ops */
 	last_index = 0;
 	M0_SET0(&read_time);
 	M0_SET0(&write_time);
+
+	/* Allocate data buffers, bufvec and indexvec for write. */
+	rc = m0_bufvec_alloc(&data, 1, bsz) ?:
+	     m0_bufvec_alloc(&attr, 1, 1) ?:
+	     m0_indexvec_alloc(&ext, 1);
+	if (rc != 0)
+		goto free_vecs;
+
 	while (cnt > 0) {
-		block_count = cnt > max_bcnt_per_op? max_bcnt_per_op : cnt;
-
-		/* Allocate data buffers, bufvec and indexvec for write. */
-		rc = m0_bufvec_alloc(&data, block_count, bsz) ?:
-		     m0_bufvec_alloc(&attr, block_count, 1) ?:
-		     m0_indexvec_alloc(&ext, block_count);
-		if (rc != 0)
-			goto free_vecs;
-
 		/*
 		 * Prepare indexvec for write: <clovis_block_count> from the
 		 * beginning of the object.
 		 */
-		for (i = 0; i < block_count; i++) {
-			ext.iv_index[i] = last_index ;
-			ext.iv_vec.v_count[i] = bsz;
-			last_index += bsz;
+		ext.iv_index[0] = last_index ;
+		ext.iv_vec.v_count[0] = bsz;
+		last_index += bsz;
 
-			/* we don't want any attributes */
-			attr.ov_vec.v_count[i] = 0;
-		}
+		/* we don't want any attributes */
+		attr.ov_vec.v_count[0] = 0;
 
 		/* Copy data from the object*/
 		st = m0_time_now();
@@ -458,25 +417,23 @@ int c0appz_ct(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t c
 		bcnt_written = write_data_to_file(fp, &data, bsz);
 		write_time = m0_time_add(write_time,
 					 m0_time_sub(m0_time_now(), st));
-		if (bcnt_written != block_count)
+		if (bcnt_written != 1)
 			rc = -EIO;
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += block_count * bsz;
+		qos_total_weight += bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
-free_vecs:
-		/* Free bufvec's and indexvec's */
-		m0_indexvec_free(&ext);
-		m0_bufvec_free(&data);
-		m0_bufvec_free(&attr);
-		if (rc != 0)
-			break;
-
-		cnt -= block_count;
+		cnt--;
 	}
+
+free_vecs:
+	/* Free bufvec's and indexvec's */
+	m0_indexvec_free(&ext);
+	m0_bufvec_free(&data);
+	m0_bufvec_free(&attr);
 
 	/* block */
 	qos_pthread_cond_wait();
@@ -487,17 +444,15 @@ free_vecs:
 	fclose(fp);
 	write_time = m0_time_add(write_time,
 				 m0_time_sub(m0_time_now(), st));
-
-	if(perf){
-		if (rc == 0) {
-			time = (double) read_time / M0_TIME_ONE_SECOND;
-			clovis_bw = last_index / 1000000.0 / time;
-			ppf("Mero I/O[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]",time, clovis_bw);
-			time = (double) write_time / M0_TIME_ONE_SECOND;
-			fs_bw = last_index / 1000000.0 / time;
-			ppf("[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, fs_bw);
-		}
+	if (perf && rc == 0) {
+		time = (double) read_time / M0_TIME_ONE_SECOND;
+		clovis_bw = last_index / 1000000.0 / time;
+		ppf("Mero I/O[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]",time, clovis_bw);
+		time = (double) write_time / M0_TIME_ONE_SECOND;
+		fs_bw = last_index / 1000000.0 / time;
+		ppf("[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, fs_bw);
 	}
+
 	return rc;
 }
 
