@@ -149,8 +149,6 @@ vmrcf:
 	mkdir -p .$(EXE5)rc
 	mkdir -p .$(ISC_REG)rc
 	mkdir -p .$(ISC_INVK)rc
-	mkdir -p .$(ISC_REG)rc
-	mkdir -p .$(ISC_INVK)rc
 	./scripts/c0appzrcgen > ./.$(EXE1)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(EXE2)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(EXE3)rc/$(NODE)
@@ -163,6 +161,8 @@ sagercf:
 	mkdir -p .${EXE2}rc
 	mkdir -p .${EXE3}rc
 	mkdir -p .${EXE5}rc
+	mkdir -p .$(ISC_REG)rc
+	mkdir -p .$(ISC_INVK)rc
 	sage-user-application-assignment ganesan $(EXE1) 172.18.1.${c} > .$(EXE1)rc/client-${c}
 	sage-user-application-assignment ganesan $(EXE2) 172.18.1.${c} > .$(EXE2)rc/client-${c}
 	sage-user-application-assignment ganesan $(EXE3) 172.18.1.${c} > .$(EXE3)rc/client-${c}
