@@ -60,13 +60,19 @@ int main(int argc, char **argv)
 	int opt=0;			/* options					*/
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":pf"))!=-1){
+	while((opt = getopt(argc, argv, ":pfu:"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
 				break;
 			case 'f':
 				force = 1;
+				break;
+			case 'u':
+				if (sscanf(optarg, "%i", &unit_size) != 1) {
+					fprintf(stderr, "invalid unit size\n");
+					exit(1);
+				}
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
@@ -99,10 +105,9 @@ int main(int argc, char **argv)
 	idh = atoll(argv[optind+0]);
 	idl = atoll(argv[optind+1]);
 	fname = argv[optind+2];
-	bsz = atoll(argv[optind+3]);
+	bsz = atoll(argv[optind+3]) * 1024;
 	op_cnt = atoll(argv[optind+4]);
 	assert(bsz>0);
-	assert(!(bsz%1024));
 
 	/* init */
 	c0appz_timein();

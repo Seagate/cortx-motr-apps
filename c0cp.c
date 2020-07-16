@@ -87,8 +87,10 @@ int main(int argc, char **argv)
 				if(!cont) help();
 				break;
 			case 'u':
-				if (sscanf(optarg, "%i", &unit_size) != 1)
+				if (sscanf(optarg, "%i", &unit_size) != 1) {
+					fprintf(stderr, "invalid unit size\n");
 					help();
+				}
 				break;
 			case 'x':
 				pool = atoi(optarg);
