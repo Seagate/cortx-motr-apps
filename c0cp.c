@@ -141,9 +141,9 @@ int main(int argc, char **argv)
 
 	/* init */
 	c0appz_timein();
-	if(c0appz_init(0)!=0){
-		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
-		fprintf(stderr,"%s(): clovis initialisation failed.\n",__FUNCTION__);
+	if (c0appz_init(0) != 0) {
+		fprintf(stderr,"%s(): error: clovis initialisation failed.\n",
+			__func__);
 		truncate64(fname,fs.st_size);
 		stat64(fname,&fs);
 		assert(fsz==fs.st_size);
@@ -153,22 +153,18 @@ int main(int argc, char **argv)
 	c0appz_timeout(0);
 
 	/* pool */
-	if(pool!=0){
+	if (pool != 0) {
 		c0appz_pool_ini();
 		c0appz_pool_set(pool-1);
 	}
 
 	/* create object */
 	c0appz_timein();
-	if((!force)&&(c0appz_cr(idh,idl)!=0)){
-		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
-		fprintf(stderr,"%s(): create object failed!!\n",__FUNCTION__);
-		rc = 333;
-		goto end;
-	}
-	if((force)&&(c0appz_cr(idh,idl)<0)){
-		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
-		fprintf(stderr,"%s(): object NOT found!!\n",__FUNCTION__);
+	rc = c0appz_cr(idh, idl);
+	if (rc < 0 || (rc != 0 && !force)) {
+		if (rc < 0)
+			fprintf(stderr,"%s(): object create failed: rc=%d\n",
+				__func__, rc);
 		rc = 333;
 		goto end;
 	}
@@ -176,16 +172,18 @@ int main(int argc, char **argv)
 	c0appz_timeout(0);
 
 	/* continuous write */
-	if(cont){
+	if (cont) {
 		fbuf = malloc(fs.st_size + bsz - 1);
-		if(!fbuf){
-			fprintf(stderr,"%s(): error!\n",__FUNCTION__);
-			fprintf(stderr,"%s(): not enough memory!!\n",__FUNCTION__);
+		if (!fbuf) {
+			fprintf(stderr,"%s(): error: not enough memory.\n",
+				__func__);
 			rc = 111;
 			goto end;
 		}
-		if(c0appz_fr(fbuf,fname,bsz,cnt)!=0){
-			fprintf(stderr,"%s(): c0appz_fr failed!!\n",__FUNCTION__);
+		rc = c0appz_fr(fbuf, fname, bsz, cnt);
+		if (rc != 0) {
+			fprintf(stderr,"%s(): c0appz_fr failed: rc=%d\n",
+				__func__, rc);
 			rc = 555;
 			goto end;
 		}
@@ -200,7 +198,7 @@ int main(int argc, char **argv)
 		qos_laps_remain=laps;
 		qos_pthread_start();
 		c0appz_timein();
-		while(cont>0){
+		while (cont > 0) {
 			pos = (laps-cont)*cnt*bsz;
 			c0appz_mw(fbuf,idh,idl,pos,bsz,cnt);
 			cont--;
@@ -224,9 +222,10 @@ int main(int argc, char **argv)
 	qos_pthread_start();
 	c0appz_timein();
 	/* copy */
-	if (c0appz_cp(idh,idl,fname,bsz,cnt) != 0) {
-		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
-		fprintf(stderr,"%s(): copy object failed!!\n",__FUNCTION__);
+	rc = c0appz_cp(idh, idl, fname, bsz, cnt);
+	if (rc != 0) {
+		fprintf(stderr,"%s(): object copying failed: rc=%d\n",
+			__func__, rc);
 		rc = 222;
 		goto end;
 	};
