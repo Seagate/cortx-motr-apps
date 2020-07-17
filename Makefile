@@ -66,7 +66,7 @@ FSZ := $(shell expr $(DDZ) \* $(CNT) )
 #valid block sizes are: 4KB ~ 32MB
 #4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
 #1048576, 2097152, 4194304, 8388608, 16777216, 33554432
-BSZ := 4096
+BSZ := 4
 
 #compiler/linker options
 LFLAGS += -lm -lpthread -lrt -lgf_complete -lyaml -luuid -lmero
