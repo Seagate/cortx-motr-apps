@@ -281,9 +281,8 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		}
 
 		/* Open the object. */
-		m0_clovis_obj_init(&aio_grp.cag_obj,
-			&clovis_uber_realm, &id,
-			 m0_clovis_layout_id(clovis_instance));
+		m0_clovis_obj_init(&aio_grp.cag_obj, &clovis_uber_realm,
+				   &id, M0_DEFAULT_LAYOUT_ID);
 		open_entity(&aio_grp.cag_obj.ob_entity);
 
 		/* Set each op. */
@@ -471,8 +470,7 @@ int c0appz_rm(uint64_t idhi,uint64_t idlo)
 	id.u_lo = idlo;
 
 	memset(&obj, 0, sizeof(struct m0_clovis_obj));
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
-			   m0_clovis_layout_id(clovis_instance));
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);
 	if (rc < 0) {
 		fprintf(stderr,"error! [%d]\n", rc);
@@ -725,14 +723,10 @@ int c0appz_ex(uint64_t idhi,uint64_t idlo)
 	id.u_lo = idlo;
 
 	memset(&obj, 0, sizeof(struct m0_clovis_obj));
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
-			   m0_clovis_layout_id(clovis_instance));
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);
-	if (rc < 0) {
-//		fprintf(stderr,"error! [%d]\n", rc);
-//		fprintf(stderr,"object not found\n");
+	if (rc != 0)
 		return 0;
-	}
 
 	/* success */
 	return 1;
@@ -948,7 +942,7 @@ static int open_entity(struct m0_clovis_entity *entity)
  * 1  - object already exists.
  * -1 - failed, due to errors.
  */
-int c0appz_cr(uint64_t idhi,uint64_t idlo)
+int c0appz_cr(uint64_t idhi, uint64_t idlo)
 {
 	int rc=0;
 	struct m0_uint128 id={0};
@@ -959,18 +953,16 @@ int c0appz_cr(uint64_t idhi,uint64_t idlo)
 
 	/* create object */
 	rc = create_object(id);
-	if(rc>0)
-	{
-		fprintf(stderr,"object already exists!\n");
+	if (rc > 0) {
+		fprintf(stderr,"%s: object already exists!\n", __func__);
 		return rc;
 	}
-	if(rc<0)
-	{
-		fprintf(stderr,"failed due to errors!\n");
-		fprintf(stderr,"check pool parameters!!\n");
+	if (rc < 0) {
+		fprintf(stderr,"%s: create_object() failed: rc=%d, "
+			"check pool parameters.\n", __func__, rc);
 		return rc;
 	}
-	fprintf(stderr, "success! created object!!\n");
+	printf("success! object created.\n");
 	return 0;
 }
 
@@ -984,62 +976,29 @@ int c0appz_cr(uint64_t idhi,uint64_t idlo)
 static int create_object(struct m0_uint128 id)
 {
 	int                  rc;
-	struct m0_clovis_obj obj;
+	struct m0_clovis_obj obj = {};
 	struct m0_clovis_op *ops[1] = {NULL};
-
-	memset(&obj, 0, sizeof(struct m0_clovis_obj));
 
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
 			   m0_clovis_layout_id(clovis_instance));
 
 	rc = open_entity(&obj.ob_entity);
-	if (!(rc < 0)) {
+	if (rc == 0) {
 		/* object exists, return 1 */
 		return 1;
 	}
 
-
-	/*
-	 * use default pool by default:
-	 * struct m0_fid *pool = NULL
-	 */
-//	m0_clovis_entity_create(NULL, &obj.ob_entity, &ops[0]);
-
 	/* print pool ID */
-	if(pool_fid)
-	{
-		fprintf(stderr,"%12s: 0x%" PRIx64 "\n","f_container",pool_fid->f_container);
-		fprintf(stderr,"%12s: 0x%" PRIx64 "\n","f_key",pool_fid->f_key);
-	}
+	if (pool_fid)
+		printf("pool: "FID_F"\n", FID_P(pool_fid));
 
 	/* create object */
-	if(m0_clovis_entity_create(pool_fid, &obj.ob_entity, &ops[0])!=0)
-	{
-		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
-		fprintf(stderr,"%s(): create object failed!!\n",__FUNCTION__);
-		/* failed due to errors, return a negative error code */
-		return -1;
+	rc = m0_clovis_entity_create(pool_fid, &obj.ob_entity, &ops[0]);
+	if (rc != 0) {
+		fprintf(stderr,"%s(): m0_clovis_entity_create() failed: rc=%d\n",
+			__func__, rc);
+		goto err;
 	}
-
-	/*
-	 * use a Tier 2 SSD pool
-	 */
-/*
-	struct m0_fid pool_fid;
-	pool_fid.f_container = 0x6f00000000000001;
-	pool_fid.f_key       = 0x3f8;
-	m0_clovis_entity_create(&pool_fid, &obj.ob_entity, &ops[0]);
-*/
-
-	/*
-	 * use a Tier 3 HDD pool
-	 */
-/*
-	struct m0_fid pool_fid;
-	pool_fid.f_container = 0x6f00000000000001;
-	pool_fid.f_key       = 0x426;
-	m0_clovis_entity_create(&pool_fid, &obj.ob_entity, &ops[0]);
-*/
 
 	m0_clovis_op_launch(ops, ARRAY_SIZE(ops));
 
@@ -1049,10 +1008,14 @@ static int create_object(struct m0_uint128 id)
 
 	m0_clovis_op_fini(ops[0]);
 	m0_clovis_op_free(ops[0]);
+err:
 	m0_clovis_entity_fini(&obj.ob_entity);
 
-	/* success */
-	return 0;
+	if (rc != 0)
+		fprintf(stderr,"%s(): m0_clovis_op_wait() failed: rc=%d\n",
+			__func__, rc);
+
+	return rc == 0 ? 0 : -1;
 }
 
 /*
@@ -1099,9 +1062,9 @@ static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz)
  * writes data to an object
  */
 int write_data_to_object(struct m0_uint128 id,
-                                struct m0_indexvec *ext,
-                                struct m0_bufvec *data,
-                                struct m0_bufvec *attr)
+			 struct m0_indexvec *ext,
+			 struct m0_bufvec *data,
+			 struct m0_bufvec *attr)
 {
 	int                  rc;
 	struct m0_clovis_obj obj;
@@ -1110,8 +1073,7 @@ int write_data_to_object(struct m0_uint128 id,
 	memset(&obj, 0, sizeof(struct m0_clovis_obj));
 
 	/* Set the object entity we want to write */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
-			   m0_clovis_layout_id(clovis_instance));
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 
 	open_entity(&obj.ob_entity);
 
@@ -1183,8 +1145,7 @@ int read_data_from_object(struct m0_uint128 id,
 	memset(&obj, 0, sizeof(struct m0_clovis_obj));
 
 	/* Open object. */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
-			   m0_clovis_layout_id(clovis_instance));
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 	open_entity(&obj.ob_entity);
 
 	/* Creat, launch and wait on an READ op. */
