@@ -39,6 +39,8 @@ int c0appz_ct(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t c
 int c0appz_cp(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t cnt);
 int c0appz_cp_async(uint64_t idhi,uint64_t idlo,char *src,uint64_t block_size,
 					uint64_t block_count,uint64_t op_cnt);
+int c0appz_mw_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
+		    		uint64_t cnt, uint64_t op_cnt);
 
 int c0appz_setrc(char *rcfile);
 int c0appz_putrc(void);
