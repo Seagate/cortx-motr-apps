@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 
 	/* create object */
 	c0appz_timein();
-	if((c0appz_cr(idh,idl)!=0)&&(!force)){
+	if (c0appz_cr(idh, idl, bsz) != 0 && !force) {
 		fprintf(stderr,"error! create object failed.\n");
 		truncate64(fname,fs.st_size);
 		stat64(fname,&fs);

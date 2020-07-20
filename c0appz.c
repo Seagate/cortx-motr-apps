@@ -101,7 +101,7 @@ struct clovis_aio_op {
  */
 static char *trim(char *str);
 static int open_entity(struct m0_clovis_entity *entity);
-static int create_object(struct m0_uint128 id);
+static int create_object(struct m0_uint128 id, uint64_t bsz);
 static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz);
 static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz);
 
@@ -122,7 +122,7 @@ static void clovis_aio_failed_cb(struct m0_clovis_op *op);
  * GLOBAL VARIABLES
  ******************************************************************************
  */
-unsigned unit_size = 4;
+unsigned unit_size = 0;
 int perf=0;							/* performance option 			*/
 extern int qos_total_weight; 		/* total bytes read or written 	*/
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
@@ -604,10 +604,9 @@ int c0appz_rmach_bulk_cutoff(struct m0_rpc_link *link, uint32_t *bulk_cutoff)
 
 static int c0appz_spiel_prepare(struct m0_spiel *spiel)
 {
-	struct m0_reqh *reqh;
+	struct m0_reqh *reqh = &clovis_instance->m0c_reqh;
 	int             rc;
 
-	reqh = &clovis_instance->m0c_reqh;
 	rc = m0_spiel_init(spiel, reqh);
 	if (rc != 0) {
 		fprintf(stderr, "error! spiel initialisation failed.\n");
@@ -658,7 +657,7 @@ struct m0_rpc_link * c0appz_isc_rpc_link_get(struct m0_fid *svc_fid)
 int c0appz_isc_api_register(const char *libpath)
 {
 	int                     rc;
-	struct m0_reqh         *reqh;
+	struct m0_reqh         *reqh = &clovis_instance->m0c_reqh;
 	struct m0_confc        *confc;
 	struct m0_conf_root    *root;
 	struct m0_conf_process *proc;
@@ -670,7 +669,7 @@ int c0appz_isc_api_register(const char *libpath)
 		fprintf(stderr, "error! spiel initialization failed");
 		return rc;
 	}
-	reqh = &clovis_instance->m0c_reqh;
+
 	confc = m0_reqh2confc(reqh);
 	rc = m0_confc_root_open(confc, &root);
 	if (rc != 0) {
@@ -912,13 +911,16 @@ int c0appz_init(int idx)
 	/* set to Sage cluster specific values */
 	clovis_conf.cc_tm_recv_queue_min_len = 64;
 	clovis_conf.cc_max_rpc_msg_size      = 65536;
-	lid = m0_clovis_obj_unit_size_to_layout_id(unit_size * 1024);
-	if (lid == 0) {
-		fprintf(stderr, "invalid unit size %u, it should be: "
-			"power of 2, >= 4 and <= 4096\n", unit_size);
-		return -EINVAL;
+	clovis_conf.cc_layout_id             = 0;
+	if (unit_size) {
+		lid = m0_clovis_obj_unit_size_to_layout_id(unit_size * 1024);
+		if (lid == 0) {
+			fprintf(stderr, "invalid unit size %u, it should be: "
+				"power of 2, >= 4 and <= 4096\n", unit_size);
+			return -EINVAL;
+		}
+		clovis_conf.cc_layout_id = lid;
 	}
-	clovis_conf.cc_layout_id = lid;
 
 	/* IDX_MERO */
 	clovis_conf.cc_idx_service_id   = M0_CLOVIS_IDX_DIX;
@@ -1045,7 +1047,7 @@ static int open_entity(struct m0_clovis_entity *entity)
  * 1  - object already exists.
  * -1 - failed, due to errors.
  */
-int c0appz_cr(uint64_t idhi, uint64_t idlo)
+int c0appz_cr(uint64_t idhi, uint64_t idlo, uint64_t bsz)
 {
 	int rc=0;
 	struct m0_uint128 id={0};
@@ -1055,7 +1057,7 @@ int c0appz_cr(uint64_t idhi, uint64_t idlo)
 	id.u_lo = idlo;
 
 	/* create object */
-	rc = create_object(id);
+	rc = create_object(id, bsz);
 	if (rc > 0) {
 		fprintf(stderr,"%s: object already exists!\n", __func__);
 		return rc;
@@ -1076,24 +1078,38 @@ int c0appz_cr(uint64_t idhi, uint64_t idlo)
  * 1  - object already exists.
  * -1 - failed, due to errors.
  */
-static int create_object(struct m0_uint128 id)
+static int create_object(struct m0_uint128 id, uint64_t bsz)
 {
-	int                  rc;
-	struct m0_clovis_obj obj = {};
-	struct m0_clovis_op *ops[1] = {NULL};
+	int                     rc;
+	unsigned                lid;
+	struct m0_reqh         *reqh = &clovis_instance->m0c_reqh;
+	struct m0_pool_version *pver;
+	struct m0_clovis_op    *ops[1] = {NULL};
+	struct m0_clovis_obj    obj = {};
 
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
-			   m0_clovis_layout_id(clovis_instance));
+	rc = m0_pool_version_get(reqh->rh_pools, pool_fid, &pver);
+	if (rc != 0) {
+		fprintf(stderr, "%s: m0_pool_version_get() failed: rc=%d\n",
+			__func__, rc);
+		return -1;
+	}
+
+	if (unit_size)
+		lid = m0_clovis_layout_id(clovis_instance);
+	else
+		lid = m0_layout_find_by_buffsize(&reqh->rh_ldom, &pver->pv_id,
+						 bsz);
+
+	printf("pool="FID_F" unit_size=%dKB\n", FID_P(&pver->pv_pool->po_id),
+	       m0_clovis_obj_layout_id_to_unit_size(lid) / 1024);
+
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, lid);
 
 	rc = open_entity(&obj.ob_entity);
 	if (rc == 0) {
 		/* object exists, return 1 */
 		return 1;
 	}
-
-	/* print pool ID */
-	if (pool_fid)
-		printf("pool: "FID_F"\n", FID_P(pool_fid));
 
 	/* create object */
 	rc = m0_clovis_entity_create(pool_fid, &obj.ob_entity, &ops[0]);

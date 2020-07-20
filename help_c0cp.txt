@@ -8,14 +8,15 @@ idl - Mero fid low
 bsz - Clovis block size (in KiBs)
 
 options are:
-	-u | unit size (in KiBs, default 4),
-	   | must be power of 2, >= 4 and <= 4096
 	-f | force
 	-p | performance
 	-c | contiguous mode. 
 	   | -c <n> write <n> contiguous copies of the file. 
 	-x | pool ID. 
 	   | -x <n> creates the object in pool with ID <n>. 
+	-u | unit size (in KiBs), must be power of 2, >= 4 and <= 4096.
+           | By default, determined automatically based on the bsz and
+           | parity configuration of the pool.
 	
  The -f option forces rewriting on an object if that object already exists. 
  It creates a new object if the object does not exist.

@@ -160,7 +160,7 @@ int main(int argc, char **argv)
 
 	/* create object */
 	c0appz_timein();
-	rc = c0appz_cr(idh, idl);
+	rc = c0appz_cr(idh, idl, bsz);
 	if (rc < 0 || (rc != 0 && !force)) {
 		if (rc < 0)
 			fprintf(stderr,"%s(): object create failed: rc=%d\n",
