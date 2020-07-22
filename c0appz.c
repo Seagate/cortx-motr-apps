@@ -1084,7 +1084,7 @@ static int create_object(struct m0_uint128 id, uint64_t bsz)
 	unsigned                lid;
 	struct m0_reqh         *reqh = &clovis_instance->m0c_reqh;
 	struct m0_pool_version *pver;
-	struct m0_clovis_op    *ops[1] = {NULL};
+	struct m0_clovis_op    *op = NULL;
 	struct m0_clovis_obj    obj = {};
 
 	rc = m0_pool_version_get(reqh->rh_pools, pool_fid, &pver);
@@ -1112,27 +1112,26 @@ static int create_object(struct m0_uint128 id, uint64_t bsz)
 	}
 
 	/* create object */
-	rc = m0_clovis_entity_create(pool_fid, &obj.ob_entity, &ops[0]);
+	rc = m0_clovis_entity_create(pool_fid, &obj.ob_entity, &op);
 	if (rc != 0) {
 		fprintf(stderr,"%s(): m0_clovis_entity_create() failed: rc=%d\n",
 			__func__, rc);
 		goto err;
 	}
 
-	m0_clovis_op_launch(ops, ARRAY_SIZE(ops));
+	m0_clovis_op_launch(&op, 1);
 
-	rc = m0_clovis_op_wait(ops[0], M0_BITS(M0_CLOVIS_OS_FAILED,
-					       M0_CLOVIS_OS_STABLE),
-			       m0_time_from_now(3,0));
+	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_FAILED,
+					   M0_CLOVIS_OS_STABLE),
+			       m0_time_from_now(3,0)) ?: m0_clovis_rc(op);
 
-	m0_clovis_op_fini(ops[0]);
-	m0_clovis_op_free(ops[0]);
+	m0_clovis_op_fini(op);
+	m0_clovis_op_free(op);
 err:
 	m0_clovis_entity_fini(&obj.ob_entity);
 
 	if (rc != 0)
-		fprintf(stderr,"%s(): m0_clovis_op_wait() failed: rc=%d\n",
-			__func__, rc);
+		fprintf(stderr,"%s() failed: rc=%d\n", __func__, rc);
 
 	return rc == 0 ? 0 : -1;
 }
@@ -1187,7 +1186,7 @@ int write_data_to_object(struct m0_uint128 id,
 {
 	int                  rc;
 	struct m0_clovis_obj obj;
-	struct m0_clovis_op *ops[1] = {NULL};
+	struct m0_clovis_op *op = NULL;
 
 	memset(&obj, 0, sizeof(struct m0_clovis_obj));
 
@@ -1198,21 +1197,23 @@ int write_data_to_object(struct m0_uint128 id,
 
 	/* Create the write request */
 	m0_clovis_obj_op(&obj, M0_CLOVIS_OC_WRITE,
-			 ext, data, attr, 0, &ops[0]);
+			 ext, data, attr, 0, &op);
 
 	/* Launch the write request*/
-	m0_clovis_op_launch(ops, 1);
+	m0_clovis_op_launch(&op, 1);
 
 	/* wait */
-	rc = m0_clovis_op_wait(ops[0],
-				M0_BITS(M0_CLOVIS_OS_FAILED,
-				M0_CLOVIS_OS_STABLE),
-				M0_TIME_NEVER);
+	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_FAILED,
+					   M0_CLOVIS_OS_STABLE),
+			       M0_TIME_NEVER) ?: m0_clovis_rc(op);
 
 	/* fini and release */
-	m0_clovis_op_fini(ops[0]);
-	m0_clovis_op_free(ops[0]);
+	m0_clovis_op_fini(op);
+	m0_clovis_op_free(op);
 	m0_clovis_entity_fini(&obj.ob_entity);
+
+	if (rc != 0)
+		fprintf(stderr,"%s() failed: rc=%d\n", __func__, rc);
 
 	return rc;
 }
@@ -1223,31 +1224,34 @@ int write_data_to_object(struct m0_uint128 id,
  */
 static int write_data_to_object_async(struct clovis_aio_op *aio)
 {
-    struct m0_clovis_obj    *obj;
-    struct m0_clovis_op_ops *op_ops;
-    struct clovis_aio_opgrp *grp;
+	struct m0_clovis_obj    *obj;
+	struct m0_clovis_op_ops *op_ops;
+	struct clovis_aio_opgrp *grp;
 
-    grp = aio->cao_grp;
-    obj = &grp->cag_obj;
-    M0_ALLOC_PTR(op_ops);
-        if (op_ops != NULL) {
-        /* Create an WRITE op. */
-        m0_clovis_obj_op(obj, M0_CLOVIS_OC_WRITE,
-                 &aio->cao_ext, &aio->cao_data,
-                 &aio->cao_attr, 0, &aio->cao_op);
-        aio->cao_op->op_datum = aio;
+	grp = aio->cao_grp;
+	obj = &grp->cag_obj;
+	M0_ALLOC_PTR(op_ops);
+	if (op_ops == NULL) {
+		fprintf(stderr,"%s() failed to allocate memory\n", __func__);
+		return -ENOMEM;
+	}
 
-        /* Set op's Callbacks */
-        op_ops->oop_executed = clovis_aio_executed_cb;
-        op_ops->oop_stable = clovis_aio_stable_cb;
-        op_ops->oop_failed = clovis_aio_failed_cb;
-        m0_clovis_op_setup(aio->cao_op, op_ops, 0);
+	/* Create an WRITE op. */
+	m0_clovis_obj_op(obj, M0_CLOVIS_OC_WRITE,
+			 &aio->cao_ext, &aio->cao_data,
+			 &aio->cao_attr, 0, &aio->cao_op);
+	aio->cao_op->op_datum = aio;
 
-        /* Launch the write request */
-        m0_clovis_op_launch(&aio->cao_op, 1);
-    }
+	/* Set op's Callbacks */
+	op_ops->oop_executed = clovis_aio_executed_cb;
+	op_ops->oop_stable = clovis_aio_stable_cb;
+	op_ops->oop_failed = clovis_aio_failed_cb;
+	m0_clovis_op_setup(aio->cao_op, op_ops, 0);
 
-    return 0;
+	/* Launch the write request */
+	m0_clovis_op_launch(&aio->cao_op, 1);
+
+	return 0;
 }
 
 /*
@@ -1261,7 +1265,7 @@ int read_data_from_object(struct m0_uint128 id,
 {
 	int                  rc;
 	struct m0_clovis_obj obj;
-	struct m0_clovis_op *ops[1] = {NULL};
+	struct m0_clovis_op *op = NULL;
 
 	memset(&obj, 0, sizeof(struct m0_clovis_obj));
 
@@ -1271,18 +1275,21 @@ int read_data_from_object(struct m0_uint128 id,
 
 	/* Creat, launch and wait on an READ op. */
 	m0_clovis_obj_op(&obj, M0_CLOVIS_OC_READ,
-			 ext, data, attr, 0, &ops[0]);
-	m0_clovis_op_launch(ops, 1);
-	rc = m0_clovis_op_wait(ops[0],
-				M0_BITS(M0_CLOVIS_OS_FAILED,
-				M0_CLOVIS_OS_STABLE),
-				M0_TIME_NEVER);
-	rc = rc ?: m0_clovis_rc(ops[0]);
+			 ext, data, attr, 0, &op);
+
+	m0_clovis_op_launch(&op, 1);
+
+	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_FAILED,
+					   M0_CLOVIS_OS_STABLE),
+			       M0_TIME_NEVER) ?: m0_clovis_rc(op);
 
 	/* Finalise and release op. */
-	m0_clovis_op_fini(ops[0]);
-	m0_clovis_op_free(ops[0]);
+	m0_clovis_op_fini(op);
+	m0_clovis_op_free(op);
 	m0_clovis_entity_fini(&obj.ob_entity);
+
+	if (rc != 0)
+		fprintf(stderr,"%s() failed: rc=%d\n", __func__, rc);
 
 	return rc;
 }
