@@ -64,7 +64,6 @@
 /* static variables */
 static struct m0_clovis          *clovis_instance = NULL;
 static struct m0_clovis_container clovis_container;
-static struct m0_clovis_realm     clovis_uber_realm;
 static struct m0_clovis_config    clovis_conf;
 static struct m0_idx_dix_config   dix_conf;
 static struct m0_spiel            spiel_inst;
@@ -100,7 +99,6 @@ struct clovis_aio_op {
  ******************************************************************************
  */
 static char *trim(char *str);
-static int open_entity(struct m0_clovis_entity *entity);
 static int create_object(struct m0_uint128 id, uint64_t bsz);
 static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz);
 static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz);
@@ -122,12 +120,13 @@ static void clovis_aio_failed_cb(struct m0_clovis_op *op);
  * GLOBAL VARIABLES
  ******************************************************************************
  */
+struct m0_clovis_realm clovis_uber_realm;
 unsigned unit_size = 0;
-int perf=0;							/* performance option 			*/
+int perf=0;				/* performance option 		*/
 extern int qos_total_weight; 		/* total bytes read or written 	*/
-extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
-extern struct m0_fid *pool_fid;		/* pool fid						*/
-extern uint64_t pool_bsz;			/* pool bsz						*/
+extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 	*/
+extern struct m0_fid *pool_fid;		/* pool fid			*/
+extern uint64_t pool_bsz;		/* pool bsz			*/
 
 /*
  ******************************************************************************
@@ -156,6 +155,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	double             time;
 	double             fs_bw;
 	double             clovis_bw;
+	struct m0_clovis_obj obj = {};
 
 	/* open src file */
 	fp = fopen(filename, "rb");
@@ -182,6 +182,16 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	/* we don't want any attributes */
 	attr.ov_vec.v_count[0] = 0;
 
+	/* Set the object entity we want to write */
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
+
+	rc = open_entity(&obj.ob_entity);
+	if (rc != 0) {
+		fprintf(stderr, "%s(): open_entity() failed: rc=%d\n",
+			__func__, rc);
+		goto free_vecs;
+	}
+
 	while (cnt > 0) {
 		/*
 		 * Prepare indexvec for write: <clovis_block_count> from the
@@ -197,14 +207,14 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		if (bcnt_read != 1) {
 			fprintf(stderr, "reading from file failed!\n");
 			rc = -EIO;
-			goto free_vecs;
+			break;
 		}
 		read_time = m0_time_add(read_time,
 					m0_time_sub(m0_time_now(), st));
 
 		/* Copy data to the object*/
 		st = m0_time_now();
-		rc = write_data_to_object(id, &ext, &data, &attr);
+		rc = write_data_to_object(&obj, &ext, &data, &attr);
 		if (rc != 0)
 			fprintf(stderr, "writing to object failed!\n");
 		write_time = m0_time_add(write_time,
@@ -222,6 +232,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		cnt--;
 	}
 
+	m0_clovis_entity_fini(&obj.ob_entity);
 free_vecs:
 	/* Free bufvec's and indexvec's */
 	m0_indexvec_free(&ext);
@@ -468,6 +479,7 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	double             time;
 	double             fs_bw;
 	double             clovis_bw;
+	struct m0_clovis_obj obj = {};
 
 	/* open output file */
 	fp = fopen(filename, "w");
@@ -492,6 +504,10 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	if (rc != 0)
 		goto free_vecs;
 
+	/* Open object. */
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
+	open_entity(&obj.ob_entity);
+
 	while (cnt > 0) {
 		/*
 		 * Prepare indexvec for write: <clovis_block_count> from the
@@ -506,12 +522,13 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 
 		/* Copy data from the object*/
 		st = m0_time_now();
-		rc = read_data_from_object(id, &ext, &data, &attr);
+		rc = read_data_from_object(&obj, &ext, &data, &attr);
 		read_time = m0_time_add(read_time,
 					m0_time_sub(m0_time_now(), st));
 		if (rc != 0) {
-			fprintf(stderr, "reading from object failed!\n");
-			goto free_vecs;
+			fprintf(stderr, "%s(): reading from object failed: rc=%d\n",
+				__func__, rc);
+			break;
 		}
 
 		/* Output data to file. */
@@ -519,8 +536,10 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 		bcnt_written = write_data_to_file(fp, &data, bsz);
 		write_time = m0_time_add(write_time,
 					 m0_time_sub(m0_time_now(), st));
-		if (bcnt_written != 1)
+		if (bcnt_written != 1) {
 			rc = -EIO;
+			break;
+		}
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
@@ -531,6 +550,7 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 		cnt--;
 	}
 
+	m0_clovis_entity_fini(&obj.ob_entity);
 free_vecs:
 	/* Free bufvec's and indexvec's */
 	m0_indexvec_free(&ext);
@@ -565,14 +585,13 @@ free_vecs:
 int c0appz_rm(uint64_t idhi,uint64_t idlo)
 {
 	int                  rc;
-	struct m0_clovis_obj obj;
+	struct m0_clovis_obj obj = {};
 	struct m0_clovis_op *ops[1] = {NULL};
 	struct m0_uint128    id;
 
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-	memset(&obj, 0, sizeof(struct m0_clovis_obj));
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);
 	if (rc < 0) {
@@ -818,13 +837,12 @@ void c0appz_isc_req_fini(struct c0appz_isc_req *req)
 int c0appz_ex(uint64_t idhi,uint64_t idlo)
 {
 	int                  rc;
-	struct m0_clovis_obj obj;
+	struct m0_clovis_obj obj = {};
 	struct m0_uint128    id;
 
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-	memset(&obj, 0, sizeof(struct m0_clovis_obj));
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);
 	if (rc != 0)
@@ -1013,29 +1031,21 @@ int c0appz_putrc(void)
 }
 
 /*
- ******************************************************************************
- * STATIC FUNCTIONS
- ******************************************************************************
- */
-
-/*
  * open_entity()
  * open clovis entity.
  */
-static int open_entity(struct m0_clovis_entity *entity)
+int open_entity(struct m0_clovis_entity *entity)
 {
 	int                  rc;
-	struct m0_clovis_op *ops[1] = {NULL};
+	struct m0_clovis_op *op = NULL;
 
-	m0_clovis_entity_open(entity, &ops[0]);
-	m0_clovis_op_launch(ops, 1);
-	m0_clovis_op_wait(ops[0], M0_BITS(M0_CLOVIS_OS_FAILED,
-					  M0_CLOVIS_OS_STABLE),
-			  M0_TIME_NEVER);
-	rc = m0_clovis_rc(ops[0]);
-	m0_clovis_op_fini(ops[0]);
-	m0_clovis_op_free(ops[0]);
-	ops[0] = NULL;
+	m0_clovis_entity_open(entity, &op);
+	m0_clovis_op_launch(&op, 1);
+	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_FAILED,
+					       M0_CLOVIS_OS_STABLE),
+			       M0_TIME_NEVER) ?: m0_clovis_rc(op);
+	m0_clovis_op_fini(op);
+	m0_clovis_op_free(op);
 
 	return rc;
 }
@@ -1179,24 +1189,16 @@ static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz)
  * write_data_to_object()
  * writes data to an object
  */
-int write_data_to_object(struct m0_uint128 id,
+int write_data_to_object(struct m0_clovis_obj *obj,
 			 struct m0_indexvec *ext,
 			 struct m0_bufvec *data,
 			 struct m0_bufvec *attr)
 {
 	int                  rc;
-	struct m0_clovis_obj obj;
 	struct m0_clovis_op *op = NULL;
 
-	memset(&obj, 0, sizeof(struct m0_clovis_obj));
-
-	/* Set the object entity we want to write */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
-
-	open_entity(&obj.ob_entity);
-
 	/* Create the write request */
-	m0_clovis_obj_op(&obj, M0_CLOVIS_OC_WRITE,
+	m0_clovis_obj_op(obj, M0_CLOVIS_OC_WRITE,
 			 ext, data, attr, 0, &op);
 
 	/* Launch the write request*/
@@ -1207,10 +1209,8 @@ int write_data_to_object(struct m0_uint128 id,
 					   M0_CLOVIS_OS_STABLE),
 			       M0_TIME_NEVER) ?: m0_clovis_rc(op);
 
-	/* fini and release */
 	m0_clovis_op_fini(op);
 	m0_clovis_op_free(op);
-	m0_clovis_entity_fini(&obj.ob_entity);
 
 	if (rc != 0)
 		fprintf(stderr,"%s() failed: rc=%d\n", __func__, rc);
@@ -1258,23 +1258,16 @@ static int write_data_to_object_async(struct clovis_aio_op *aio)
  * read_data_from_object()
  * read data from an object
  */
-int read_data_from_object(struct m0_uint128 id,
-				 struct m0_indexvec *ext,
-				 struct m0_bufvec *data,
-				 struct m0_bufvec *attr)
+int read_data_from_object(struct m0_clovis_obj *obj,
+			  struct m0_indexvec *ext,
+			  struct m0_bufvec *data,
+			  struct m0_bufvec *attr)
 {
 	int                  rc;
-	struct m0_clovis_obj obj;
 	struct m0_clovis_op *op = NULL;
 
-	memset(&obj, 0, sizeof(struct m0_clovis_obj));
-
-	/* Open object. */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
-	open_entity(&obj.ob_entity);
-
 	/* Creat, launch and wait on an READ op. */
-	m0_clovis_obj_op(&obj, M0_CLOVIS_OC_READ,
+	m0_clovis_obj_op(obj, M0_CLOVIS_OC_READ,
 			 ext, data, attr, 0, &op);
 
 	m0_clovis_op_launch(&op, 1);
@@ -1286,7 +1279,6 @@ int read_data_from_object(struct m0_uint128 id,
 	/* Finalise and release op. */
 	m0_clovis_op_fini(op);
 	m0_clovis_op_free(op);
-	m0_clovis_entity_fini(&obj.ob_entity);
 
 	if (rc != 0)
 		fprintf(stderr,"%s() failed: rc=%d\n", __func__, rc);

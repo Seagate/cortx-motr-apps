@@ -28,19 +28,80 @@
 #include "lib/types.h" /* uint32_t */
 
 extern unsigned unit_size; /* in KiBs, default 4 */
+extern struct m0_clovis_realm clovis_uber_realm;
 
 int c0appz_init(int idx);
 int c0appz_free(void);
+
+/**
+ * Open Clovis entity (object)
+ *
+ * @retval 0 on success
+ */
+int open_entity(struct m0_clovis_entity *entity);
+
+/**
+ * Create object
+ *
+ * @param bsz block size for the object store I/O,
+ *            used to set the optimal unit size
+ *
+ * @retval 0 on success
+ */
 int c0appz_cr(uint64_t idhi, uint64_t idlo, uint64_t bsz);
+
+/**
+ * Remove object
+ */
 int c0appz_rm(uint64_t idhi, uint64_t idlo);
+
+/**
+ * Check whether the object exists
+ *
+ * @retval 1 yes, the object exists
+ * @retval 0 no such object
+ */
 int c0appz_ex(uint64_t idhi, uint64_t idlo);
 
-int c0appz_ct(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t cnt);
-int c0appz_cp(uint64_t idhi,uint64_t idlo,char *filename,uint64_t bsz,uint64_t cnt);
-int c0appz_cp_async(uint64_t idhi,uint64_t idlo,char *src,uint64_t block_size,
-					uint64_t block_count,uint64_t op_cnt);
-int c0appz_mw_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
-		    		uint64_t cnt, uint64_t op_cnt);
+/**
+ * Cat/read the object into file
+ *
+ * @param filename where to read the data to
+ * @param bsz block size for I/O on the file
+ * @param cnt number of blocks to do
+ *
+ * @retval 0 on success
+ */
+int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
+	      uint64_t bsz, uint64_t cnt);
+
+/**
+ * Copy file to the object
+ *
+ * @param filename where to copy the data from
+ * @param bsz block size for I/O on the file
+ * @param cnt number of blocks to do
+ *
+ * @retval 0 on success
+ */
+int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
+	      uint64_t bsz, uint64_t cnt);
+
+/**
+ * Copy file to the object asynchronously in batches
+ *
+ * @param filename where to copy the data from
+ * @param bsz block size for I/O on the file
+ * @param cnt total number of blocks to do
+ * @param op_cnt number of blocks in a batch
+ *
+ * @retval 0 on success
+ */
+int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *filename,
+		    uint64_t bsz, uint64_t cnt, uint64_t op_cnt);
+
+int c0appz_mw_async(uint64_t idhi, uint64_t idlo, char *src,
+		    uint64_t bsz, uint64_t cnt, uint64_t op_cnt);
 
 int c0appz_setrc(char *rcfile);
 int c0appz_putrc(void);
@@ -64,10 +125,10 @@ int c0appz_fr(char *buf, char *inf, uint64_t bsz, uint64_t cnt);
 int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt);
 int c0appz_mw(const char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt);
 
-int write_data_to_object(struct m0_uint128 id, struct m0_indexvec *ext,
-							struct m0_bufvec *data, struct m0_bufvec *attr);
-int read_data_from_object(struct m0_uint128 id, struct m0_indexvec *ext,
-							struct m0_bufvec *data,struct m0_bufvec *attr);
+int write_data_to_object(struct m0_clovis_obj *o, struct m0_indexvec *ext,
+			 struct m0_bufvec *data, struct m0_bufvec *attr);
+int read_data_from_object(struct m0_clovis_obj *o, struct m0_indexvec *ext,
+			  struct m0_bufvec *data,struct m0_bufvec *attr);
 
 int ppf(const char *fmt, ...);
 

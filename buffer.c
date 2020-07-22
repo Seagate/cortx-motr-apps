@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <inttypes.h>
@@ -30,6 +31,7 @@
 #include "c0appz.h"
 #include "clovis/clovis.h"
 #include "clovis/clovis_idx.h"
+#include "layout/layout.h"   /* M0_DEFAULT_LAYOUT_ID */
 
 /*
  ******************************************************************************
@@ -142,22 +144,34 @@ int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt)
  */
 int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt)
 {
-	struct m0_uint128 id;
+	int                  rc;
+	struct m0_uint128    id = {idhi, idlo};
+	struct m0_clovis_obj obj = {};
 
-	/* ids */
-	id.u_hi = idhi;
-	id.u_lo = idlo;
+	/* Set the object entity we want to write */
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 
-	while(cnt>0){
-	    if (initvecs(pos, bsz, 1)!=0){
-	    	fprintf(stderr, "error! not enough memory!!\n");
-			return 11;
-	    }
+	rc = open_entity(&obj.ob_entity);
+	if (rc != 0) {
+		fprintf(stderr, "%s(): open_entity() failed: rc=%d\n",
+			__func__, rc);
+		return rc;
+	}
 
-		if(read_data_from_object(id, &extn, &data, &attr)!=0){
-			fprintf(stderr, "reading from Mero object failed!\n");
+	while (cnt > 0) {
+		if (initvecs(pos, bsz, 1) != 0) {
+			fprintf(stderr, "%s(): error! not enough memory\n",
+				__func__);
+			rc = -ENOMEM;
+			break;
+		}
+
+		rc = read_data_from_object(&obj, &extn, &data, &attr);
+		if (rc != 0) {
+			fprintf(stderr, "%s(): reading object failed: rc=%d\n",
+				__func__, rc);
 			freevecs();
-			return 22;
+			break;
 		}
 
 		/* copy to memory */
@@ -175,7 +189,9 @@ int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,ui
 		cnt--;
 	}
 
-	return 0;
+	m0_clovis_entity_fini(&obj.ob_entity);
+
+	return rc;
 }
 
 /*
@@ -185,24 +201,37 @@ int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,ui
  * writes cnt number of blocks, each of size bsz from
  * pos (byte) position of the object
  */
-int c0appz_mw(const char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt)
+int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
+	      uint64_t bsz, uint64_t cnt)
 {
-	struct m0_uint128 id;
+	int                  rc;
+	struct m0_uint128    id = {idhi, idlo};
+	struct m0_clovis_obj obj = {};
 
-	/* ids */
-	id.u_hi = idhi;
-	id.u_lo = idlo;
+	/* Set the object entity we want to write */
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 
-	while(cnt>0){
-	    if(initvecs(pos,bsz,1)!=0){
-	    	fprintf(stderr, "error! not enough memory!!\n");
-			return 11;
-	    }
-	    bufvecw(buf,bsz,1);
-		if(write_data_to_object(id, &extn, &data, &attr)!=0){
-			fprintf(stderr, "writing to Mero object failed!\n");
+	rc = open_entity(&obj.ob_entity);
+	if (rc != 0) {
+		fprintf(stderr, "%s(): open_entity() failed: rc=%d\n",
+			__func__, rc);
+		return rc;
+	}
+
+	while (cnt > 0) {
+		if (initvecs(pos, bsz, 1) != 0) {
+			fprintf(stderr, "%s(): error! not enough memory\n",
+				__func__);
+			rc = -ENOMEM;
+			break;
+		}
+		bufvecw(buf,bsz,1);
+		rc = write_data_to_object(&obj, &extn, &data, &attr);
+		if (rc !=0 ) {
+			fprintf(stderr, "%s(): writing object failed: rc=%d\n",
+				__func__, rc);
 			freevecs();
-			return 22;
+			break;
 		}
 
 		/* QOS */
@@ -217,7 +246,9 @@ int c0appz_mw(const char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t 
 		cnt--;
 	}
 
-	return 0;
+	m0_clovis_entity_fini(&obj.ob_entity);
+
+	return rc;
 }
 
 /*
