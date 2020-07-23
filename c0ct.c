@@ -41,6 +41,7 @@ extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
+extern struct m0_fid *pool_fid;
 
 /*
  * help()
@@ -58,6 +59,7 @@ int main(int argc, char **argv)
 	uint64_t idh;	/* object id high		*/
 	uint64_t idl;   /* object id low  		*/
 	uint64_t bsz;   /* block size     		*/
+	uint64_t m0bs;  /* m0 block size     		*/
 	uint64_t cnt;   /* count          		*/
 	uint64_t pos;	/* starting position	*/
 	uint64_t fsz;   /* file size			*/
@@ -141,6 +143,13 @@ int main(int argc, char **argv)
 	ppf("%8s","check");
 	c0appz_timeout(0);
 
+	m0bs = c0appz_m0bs(bsz * cnt, pool_fid);
+	if (!m0bs) {
+		fprintf(stderr,"%s(): error: c0appz_m0bs() failed.\n",
+			__func__);
+		exit(1);
+	}
+
 	/* continuous read */
 	if(cont){
 		fbuf = malloc(cnt*bsz);
@@ -190,7 +199,7 @@ int main(int argc, char **argv)
 	qos_laps_remain=1;
 	qos_pthread_start();
 	c0appz_timein();
-	if(c0appz_ct(idh,idl,fname,bsz,cnt)!=0){
+	if (c0appz_ct(idh, idl, fname, bsz, cnt, m0bs) != 0) {
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
 		fprintf(stderr,"%s(): cat object failed!!\n",__FUNCTION__);
 		rc = 555;

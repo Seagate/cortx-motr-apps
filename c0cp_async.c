@@ -45,6 +45,7 @@ extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
+extern struct m0_fid *pool_fid;
 
 /* main */
 int main(int argc, char **argv)
@@ -128,7 +129,7 @@ int main(int argc, char **argv)
 
 	/* create object */
 	c0appz_timein();
-	if (c0appz_cr(idh, idl, bsz) != 0 && !force) {
+	if (c0appz_cr(idh, idl, pool_fid, bsz) != 0 && !force) {
 		fprintf(stderr,"error! create object failed.\n");
 		truncate64(fname,fs.st_size);
 		stat64(fname,&fs);

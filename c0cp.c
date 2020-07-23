@@ -44,6 +44,7 @@ extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
+extern struct m0_fid *pool_fid;
 
 /*
  * help()
@@ -61,6 +62,7 @@ int main(int argc, char **argv)
 	uint64_t idh;        /* object id high    */
 	uint64_t idl;        /* object is low     */
 	uint64_t bsz;        /* block size        */
+	uint64_t m0bs;       /* m0 block size     */
 	uint64_t cnt;        /* count             */
 	uint64_t pos;        /* starting position */
 	uint64_t fsz;        /* initial file size */
@@ -158,9 +160,16 @@ int main(int argc, char **argv)
 		c0appz_pool_set(pool-1);
 	}
 
+	m0bs = c0appz_m0bs(bsz * cnt, pool_fid);
+	if (!m0bs) {
+		fprintf(stderr,"%s(): error: c0appz_m0bs() failed.\n",
+			__func__);
+		exit(1);
+	}
+
 	/* create object */
 	c0appz_timein();
-	rc = c0appz_cr(idh, idl, bsz);
+	rc = c0appz_cr(idh, idl, pool_fid, m0bs);
 	if (rc < 0 || (rc != 0 && !force)) {
 		if (rc < 0)
 			fprintf(stderr,"%s(): object create failed: rc=%d\n",
@@ -222,7 +231,7 @@ int main(int argc, char **argv)
 	qos_pthread_start();
 	c0appz_timein();
 	/* copy */
-	rc = c0appz_cp(idh, idl, fname, bsz, cnt);
+	rc = c0appz_cp(idh, idl, fname, bsz, cnt, m0bs);
 	if (rc != 0) {
 		fprintf(stderr,"%s(): object copying failed: rc=%d\n",
 			__func__, rc);

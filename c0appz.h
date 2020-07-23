@@ -41,14 +41,27 @@ int c0appz_free(void);
 int open_entity(struct m0_clovis_entity *entity);
 
 /**
- * Create object
+ * Calculate the optimal block size for the object store I/O
  *
- * @param bsz block size for the object store I/O,
- *            used to set the optimal unit size
+ * @retval 0 on error
+ */
+uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool);
+
+/**
+ * Create object in the object store
+ *
+ * @param idhi high number of the object id
+ * @param idlo low number of the object id
+ * @param pool pool id in the object store
+ * @param m0bs block size for the object store I/O,
+ *             used to set the optimal unit size for
+ *             the created object
  *
  * @retval 0 on success
+ * @retval 1 the object already exists
+ * @retval <0 error code
  */
-int c0appz_cr(uint64_t idhi, uint64_t idlo, uint64_t bsz);
+int c0appz_cr(uint64_t idhi, uint64_t idlo, struct m0_fid *pool, uint64_t m0bs);
 
 /**
  * Remove object
@@ -64,31 +77,35 @@ int c0appz_rm(uint64_t idhi, uint64_t idlo);
 int c0appz_ex(uint64_t idhi, uint64_t idlo);
 
 /**
- * Cat/read the object into file
+ * Copy file to the object store
  *
- * @param filename where to read the data to
- * @param bsz block size for I/O on the file
- * @param cnt number of blocks to do
- *
- * @retval 0 on success
- */
-int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
-	      uint64_t bsz, uint64_t cnt);
-
-/**
- * Copy file to the object
+ * The object should be created beforehand with c0appz_cr().
  *
  * @param filename where to copy the data from
  * @param bsz block size for I/O on the file
- * @param cnt number of blocks to do
+ * @param cnt number of bsz-blocks to do
+ * @param m0bs block size for the object store I/O
  *
  * @retval 0 on success
  */
 int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
-	      uint64_t bsz, uint64_t cnt);
+	      uint64_t bsz, uint64_t cnt, uint64_t m0bs);
 
 /**
- * Copy file to the object asynchronously in batches
+ * Cat/read into file from the object store
+ *
+ * @param filename where to read the data to
+ * @param bsz block size for I/O on the file
+ * @param cnt number of bsz-blocks to do
+ * @param m0bs block size for the object store I/O
+ *
+ * @retval 0 on success
+ */
+int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
+	      uint64_t bsz, uint64_t cnt, uint64_t m0bs);
+
+/**
+ * Copy file to the object store asynchronously in batches
  *
  * @param filename where to copy the data from
  * @param bsz block size for I/O on the file
