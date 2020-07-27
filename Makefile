@@ -70,6 +70,7 @@ BSZ := 4
 
 #compiler/linker options
 LFLAGS += -lm -lpthread -lrt -lgf_complete -lyaml -luuid -lmero
+CFLAGS += -I/usr/include/mero
 CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern
 CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing 
 CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable 
@@ -80,7 +81,7 @@ LFLAGS += -L$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs -Wl,-rpath,$(M0_SRC_D
 CFLAGS += -I$(M0_SRC_DIR)
 endif
 
-SRC = perf.c buffer.c qos.c c0appz.c pool.c
+SRC = perf.o buffer.o qos.c c0appz.o pool.o
 
 all: $(EXE1) $(EXE2) $(EXE3) $(EXE5) $(ISC_REG)
 .PHONY: all
