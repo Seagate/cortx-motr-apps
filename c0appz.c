@@ -408,6 +408,8 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		nr_ops_sent = 0;
 		for (i = 0; i < op_cnt; i++) {
 			aio = &aio_grp.cag_aio_ops[i];
+			if (cnt < cnt_per_op)
+				cnt_per_op = cnt;
 			rc = clovis_aio_vec_alloc(aio, cnt_per_op, bsz);
 			if (rc != 0)
 				break;
