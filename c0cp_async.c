@@ -122,7 +122,6 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	cnt = (fs.st_size + bsz - 1)/bsz;
-	cnt = ((cnt + op_cnt -1)/op_cnt) * op_cnt;
 
 	/* init */
 	c0appz_timein();

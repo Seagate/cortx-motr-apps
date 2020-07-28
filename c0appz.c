@@ -364,12 +364,6 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	struct clovis_aio_opgrp   aio_grp;
 	FILE                     *fp;
 
-	if (cnt % op_cnt) {
-		fprintf(stderr, "%s(): cnt(%lu) must be multiple of op_cnt(%lu)\n",
-			__func__, cnt, op_cnt);
-		return -EINVAL;
-	}
-
 	if (bsz < 1 || bsz % PAGE_SIZE) {
 		fprintf(stderr, "%s(): bsz(%lu) must be multiple of %luK\n",
 			__func__, m0bs, PAGE_SIZE / 1024);
@@ -393,6 +387,8 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 
 	while (cnt > 0) {
 		/* Initialise operation group. */
+		if (cnt < op_cnt)
+			op_cnt = cnt;
 		rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
 		if (rc != 0) {
 			fclose(fp);
