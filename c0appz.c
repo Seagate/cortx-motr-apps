@@ -1156,7 +1156,6 @@ static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data, size_t bsz)
 	for (i = 0; i < nr_blocks; i++) {
 		read = fread(data->ov_buf[i], 1, bsz, fp);
 		if (read < bsz) {
-			data->ov_vec.v_count[i] = read;
 			if (read > 0)
 				i++;
 			break;
