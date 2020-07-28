@@ -103,7 +103,7 @@ $(EXE5): $(SRC) c0cp_async.c
 
 test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 	$(SUDO) ./$(EXE3) 0 1048577 -y
-	sleep 5
+	sleep 6
 	$(SUDO) ./$(EXE3) 0 1048599 -y
 	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
 	@echo "#####"
@@ -125,7 +125,7 @@ test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 	cmp $(FILE1) $(FILE3) || echo "ERROR: Async Test Failed !!"
 	@echo "#####"
 	$(SUDO) ./$(EXE3) 0 1048577 -y
-	sleep 5
+	sleep 6
 	$(SUDO) ./$(EXE3) 0 1048599 -y
 
 #yaml
