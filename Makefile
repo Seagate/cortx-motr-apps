@@ -180,6 +180,7 @@ clean:
 	rm -f $(EXE4)
 	rm -f sfilet-* snodet-* fidout-*
 	rm -f upFile dwFile
+	rm -f *.o
 
 m0t1fs:
 	touch /mnt/m0t1fs/0:3000
