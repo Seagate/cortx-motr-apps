@@ -102,6 +102,9 @@ $(EXE5): $(SRC) c0cp_async.c
 	gcc $(SRC) c0cp_async.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE5)
 
 test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
+	$(SUDO) ./$(EXE3) 0 1048577 -y
+	sleep 5
+	$(SUDO) ./$(EXE3) 0 1048599 -y
 	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
 	@echo "#####"
 	@ls -lh $(FILE1)
@@ -122,7 +125,7 @@ test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
 	cmp $(FILE1) $(FILE3) || echo "ERROR: Async Test Failed !!"
 	@echo "#####"
 	$(SUDO) ./$(EXE3) 0 1048577 -y
-	#sleep 5
+	sleep 5
 	$(SUDO) ./$(EXE3) 0 1048599 -y
 
 #yaml
