@@ -208,7 +208,7 @@ int main(int argc, char **argv)
 		c0appz_timein();
 		while (cont > 0) {
 			pos = (laps-cont)*cnt*bsz;
-			c0appz_mw(fbuf,idh,idl,pos,bsz,cnt);
+			c0appz_mw(fbuf, idh, idl, pos, bsz, cnt, m0bs);
 			cont--;
 			pthread_mutex_lock(&qos_lock);
 			qos_laps_served++;

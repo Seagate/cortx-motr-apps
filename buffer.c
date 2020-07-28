@@ -24,6 +24,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/user.h>		/* PAGE_SIZE */
 #include <pthread.h>
 #include <inttypes.h>
 #include <assert.h>
@@ -31,24 +32,24 @@
 #include "c0appz.h"
 #include "clovis/clovis.h"
 #include "clovis/clovis_idx.h"
-#include "layout/layout.h"   /* M0_DEFAULT_LAYOUT_ID */
+#include "layout/layout.h"	/* M0_DEFAULT_LAYOUT_ID */
 
 /*
  ******************************************************************************
  * GLOBAL VARIABLES
  ******************************************************************************
  */
-extern int qos_total_weight; 		/* total bytes read or written 	*/
-extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
+extern int qos_total_weight;	/* total bytes read or written  */
+extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
 
 /*
  ******************************************************************************
  * STATIC VARIABLES
  ******************************************************************************
  */
-static	struct m0_indexvec extn;
-static	struct m0_bufvec   data;
-static	struct m0_bufvec   attr;
+static struct m0_indexvec extn;
+static struct m0_bufvec data;
+static struct m0_bufvec attr;
 
 /*
  ******************************************************************************
@@ -56,10 +57,10 @@ static	struct m0_bufvec   attr;
  ******************************************************************************
  */
 
-static int freevecs(void);
-static int initvecs(uint64_t pos,uint64_t bsz,uint64_t cnt);
-static int bufvecw(const char *buf,uint64_t bsz,uint64_t cnt);
-static int bufvecr(char *buf,uint64_t bsz,uint64_t cnt);
+static void freevecs(void);
+static int initvecs(uint64_t pos, uint64_t bsz, uint64_t cnt);
+static int bufvecw(const char *buf, uint64_t bsz, uint64_t cnt);
+static int bufvecr(char *buf, uint64_t bsz, uint64_t cnt);
 
 /*
  ******************************************************************************
@@ -77,28 +78,28 @@ static int bufvecr(char *buf,uint64_t bsz,uint64_t cnt);
 int c0appz_fr(char *buf, char *inf, uint64_t bsz, uint64_t cnt)
 {
 	uint64_t n;
-	FILE *fp=NULL;
+	FILE *fp;
 
 	/* open input file */
-	fp=fopen(inf,"rb");
-	if(!fp){
-		fprintf(stderr,"%s(): error! - ",__FUNCTION__);
-		fprintf(stderr,"could not open input file %s\n", inf);
+	fp = fopen(inf, "rb");
+	if (fp == NULL) {
+		fprintf(stderr, "%s(): error! - ", __FUNCTION__);
+		fprintf(stderr, "could not open input file %s\n", inf);
 		return 11;
 	}
 
 	/* read into buf */
-	n=fread(buf,bsz,cnt,fp);
-	if(n!=cnt){
-		fprintf(stderr,"%s(): error! - ",__FUNCTION__);
-		fprintf(stderr,"reading from %s failed.\n",inf);
+	n = fread(buf, bsz, cnt, fp);
+	if (n < cnt - 1) {
+		fprintf(stderr, "%s(): error! - ", __FUNCTION__);
+		fprintf(stderr, "reading from %s failed.\n", inf);
 		fclose(fp);
 		return 22;
 	}
 
 	/* success */
 	fclose(fp);
-    return 0;
+	return 0;
 }
 
 /*
@@ -111,28 +112,28 @@ int c0appz_fr(char *buf, char *inf, uint64_t bsz, uint64_t cnt)
 int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt)
 {
 	uint64_t n;
-	FILE *fp=NULL;
+	FILE *fp = NULL;
 
 	/* open output file */
-	fp=fopen(ouf,"wb");
-	if(!fp){
-		fprintf(stderr,"%s(): error! - ",__FUNCTION__);
-		fprintf(stderr,"could not open input file %s\n", ouf);
+	fp = fopen(ouf, "wb");
+	if (!fp) {
+		fprintf(stderr, "%s(): error! - ", __FUNCTION__);
+		fprintf(stderr, "could not open input file %s\n", ouf);
 		return 11;
 	}
 
 	/* write to ouf */
-	n=fwrite(buf,bsz,cnt,fp);
-	if(n!=cnt){
-		fprintf(stderr,"%s(): error! - ",__FUNCTION__);
-		fprintf(stderr,"writing to %s failed.\n",ouf);
+	n = fwrite(buf, bsz, cnt, fp);
+	if (n != cnt) {
+		fprintf(stderr, "%s(): error! - ", __FUNCTION__);
+		fprintf(stderr, "writing to %s failed.\n", ouf);
 		fclose(fp);
 		return 22;
 	}
 
 	/* success */
 	fclose(fp);
-    return 0;
+	return 0;
 }
 
 /*
@@ -142,14 +143,33 @@ int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt)
  * reads cnt number of blocks, each of size bsz from
  * pos (byte) position of the object
  */
-int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,uint64_t cnt)
+int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
+	      uint64_t bsz, uint64_t cnt, uint64_t m0bs)
 {
-	int                  rc;
-	struct m0_uint128    id = {idhi, idlo};
-	struct m0_clovis_obj obj = {};
+	int rc;
+	unsigned cnt_per_op;
+	struct m0_uint128 id = { idhi, idlo };
+	struct m0_clovis_obj obj = { };
+
+	if (bsz < 1 || bsz % PAGE_SIZE) {
+		fprintf(stderr,
+			"%s(): bsz(%lu) must be multiple of %luK\n",
+			__func__, m0bs, PAGE_SIZE / 1024);
+		return -EINVAL;
+	}
+
+	if (m0bs < 1 || m0bs % bsz) {
+		fprintf(stderr,
+			"%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
+			__func__, m0bs, bsz);
+		return -EINVAL;
+	}
+
+	cnt_per_op = m0bs / bsz;
 
 	/* Set the object entity we want to write */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
+			   M0_DEFAULT_LAYOUT_ID);
 
 	rc = open_entity(&obj.ob_entity);
 	if (rc != 0) {
@@ -159,7 +179,9 @@ int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,ui
 	}
 
 	while (cnt > 0) {
-		if (initvecs(pos, bsz, 1) != 0) {
+		if (cnt < cnt_per_op)
+			cnt_per_op = cnt;
+		if (initvecs(pos, bsz, cnt_per_op) != 0) {
 			fprintf(stderr, "%s(): error! not enough memory\n",
 				__func__);
 			rc = -ENOMEM;
@@ -168,25 +190,26 @@ int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,ui
 
 		rc = read_data_from_object(&obj, &extn, &data, &attr);
 		if (rc != 0) {
-			fprintf(stderr, "%s(): reading object failed: rc=%d\n",
+			fprintf(stderr,
+				"%s(): reading object failed: rc=%d\n",
 				__func__, rc);
 			freevecs();
 			break;
 		}
 
 		/* copy to memory */
-		bufvecr(buf, bsz, 1);
+		bufvecr(buf, bsz, cnt_per_op);
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += bsz;
+		qos_total_weight += cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
 		freevecs();
-		buf += bsz;
-		pos += bsz;
-		cnt--;
+		buf += cnt_per_op * bsz;
+		pos += cnt_per_op * bsz;
+		cnt -= cnt_per_op;
 	}
 
 	m0_clovis_entity_fini(&obj.ob_entity);
@@ -202,14 +225,32 @@ int c0appz_mr(char *buf,uint64_t idhi,uint64_t idlo,uint64_t pos,uint64_t bsz,ui
  * pos (byte) position of the object
  */
 int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
-	      uint64_t bsz, uint64_t cnt)
+	      uint64_t bsz, uint64_t cnt, uint64_t m0bs)
 {
-	int                  rc;
-	struct m0_uint128    id = {idhi, idlo};
-	struct m0_clovis_obj obj = {};
+	int rc;
+	unsigned cnt_per_op;
+	struct m0_uint128 id = { idhi, idlo };
+	struct m0_clovis_obj obj = { };
+
+	if (bsz < 1 || bsz % PAGE_SIZE) {
+		fprintf(stderr,
+			"%s(): bsz(%lu) must be multiple of %luK\n",
+			__func__, m0bs, PAGE_SIZE / 1024);
+		return -EINVAL;
+	}
+
+	if (m0bs < 1 || m0bs % bsz) {
+		fprintf(stderr,
+			"%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
+			__func__, m0bs, bsz);
+		return -EINVAL;
+	}
+
+	cnt_per_op = m0bs / bsz;
 
 	/* Set the object entity we want to write */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
+			   M0_DEFAULT_LAYOUT_ID);
 
 	rc = open_entity(&obj.ob_entity);
 	if (rc != 0) {
@@ -219,16 +260,19 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 	}
 
 	while (cnt > 0) {
-		if (initvecs(pos, bsz, 1) != 0) {
+		if (cnt < cnt_per_op)
+			cnt_per_op = cnt;
+		if (initvecs(pos, bsz, cnt_per_op) != 0) {
 			fprintf(stderr, "%s(): error! not enough memory\n",
 				__func__);
 			rc = -ENOMEM;
 			break;
 		}
-		bufvecw(buf,bsz,1);
+		bufvecw(buf, bsz, cnt_per_op);
 		rc = write_data_to_object(&obj, &extn, &data, &attr);
-		if (rc !=0 ) {
-			fprintf(stderr, "%s(): writing object failed: rc=%d\n",
+		if (rc != 0) {
+			fprintf(stderr,
+				"%s(): writing object failed: rc=%d\n",
 				__func__, rc);
 			freevecs();
 			break;
@@ -236,14 +280,14 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += bsz;
+		qos_total_weight += cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
 		freevecs();
-		buf += bsz;
-		pos += bsz;
-		cnt--;
+		buf += cnt_per_op * bsz;
+		pos += cnt_per_op * bsz;
+		cnt -= cnt_per_op;
 	}
 
 	m0_clovis_entity_fini(&obj.ob_entity);
@@ -258,27 +302,26 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
  */
 
 /* initvecs() */
-static int initvecs(uint64_t pos,uint64_t bsz,uint64_t cnt)
+static int initvecs(uint64_t pos, uint64_t bsz, uint64_t cnt)
 {
-	int r=0;
-	int i=0;
+	int rc;
+	int i;
 
-    /* allocate buffers */
-    r = m0_bufvec_alloc(&data, cnt, bsz) ?:
-    		m0_bufvec_alloc(&attr, cnt, 1) ?:
-    				m0_indexvec_alloc(&extn, cnt);
-    if(r){
-    	freevecs();
-    	fprintf(stderr, "error! failed to allocate bufvecs!!\n");
-    	return 1;
-    }
+	/* allocate buffers */
+	rc = m0_bufvec_alloc(&data, cnt, bsz) ? :
+	    m0_bufvec_alloc(&attr, cnt, 1) ? :
+	    m0_indexvec_alloc(&extn, cnt);
+	if (rc != 0) {
+		freevecs();
+		fprintf(stderr, "error! failed to allocate bufvecs!!\n");
+		return rc;
+	}
 
-    /* prepare index */
-	for(i=0; i<cnt; i++)
-	{
+	/* prepare index */
+	for (i = 0; i < cnt; i++) {
 		extn.iv_index[i] = pos;
 		extn.iv_vec.v_count[i] = bsz;
-		attr.ov_vec.v_count[i] = 0; /* no attributes */
+		attr.ov_vec.v_count[i] = 0;	/* no attributes */
 		pos += bsz;
 	}
 
@@ -287,13 +330,13 @@ static int initvecs(uint64_t pos,uint64_t bsz,uint64_t cnt)
 }
 
 /* bufvecw() */
-static int bufvecw(const char *buf,uint64_t bsz,uint64_t cnt)
+static int bufvecw(const char *buf, uint64_t bsz, uint64_t cnt)
 {
-	int i=0;
+	int i;
 	/* copy block by block */
 	assert(data.ov_vec.v_nr == cnt);
-	for (i=0; i<cnt; i++){
-		memmove(data.ov_buf[i],buf,bsz);
+	for (i = 0; i < cnt; i++) {
+		memmove(data.ov_buf[i], buf, bsz);
 		buf += bsz;
 	}
 	/* success */
@@ -301,13 +344,13 @@ static int bufvecw(const char *buf,uint64_t bsz,uint64_t cnt)
 }
 
 /* bufvecr() */
-static int bufvecr(char *buf,uint64_t bsz,uint64_t cnt)
+static int bufvecr(char *buf, uint64_t bsz, uint64_t cnt)
 {
-	int i=0;
+	int i;
 	/* copy block by block */
 	assert(data.ov_vec.v_nr == cnt);
-	for (i=0; i<cnt; i++){
-		memmove(buf,data.ov_buf[i],bsz);
+	for (i = 0; i < cnt; i++) {
+		memmove(buf, data.ov_buf[i], bsz);
 		buf += bsz;
 	}
 	/* success */
@@ -315,14 +358,12 @@ static int bufvecr(char *buf,uint64_t bsz,uint64_t cnt)
 }
 
 /* freevecs() */
-static int freevecs(void)
+static void freevecs(void)
 {
 	m0_bufvec_free(&data);
 	m0_bufvec_free(&attr);
 	m0_indexvec_free(&extn);
-	return 0;
 }
-
 
 /*
  *  Local variables:
