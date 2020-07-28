@@ -86,7 +86,7 @@ int c0appz_ex(uint64_t idhi, uint64_t idlo);
  *            multiple of PAGE_SIZE (4K)
  * @param cnt number of bsz-blocks to do
  * @param m0bs block size for the object store I/O, must be
- *             multiple of bs, refer to c0appz_m0bs().
+ *             multiple of bsz, refer to c0appz_m0bs().
  *
  * @retval 0 on success
  */
@@ -101,7 +101,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
  *            multiple of PAGE_SIZE (4K)
  * @param cnt number of bsz-blocks to do
  * @param m0bs block size for the object store I/O, must be
- *             multiple of bs, refer to c0appz_m0bs().
+ *             multiple of bsz, refer to c0appz_m0bs().
  *
  * @retval 0 on success
  */
@@ -113,16 +113,16 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
  *
  * @param filename where to copy the data from
  * @param bsz block size for I/O on the file
- * @param cnt total number of blocks to do
- * @param op_cnt number of blocks in a batch
+ * @param cnt total number of blocks to do, must be
+ *            multiple of op_cnt
+ * @param op_cnt number of operations in a batch
+ * @param m0bs block size for the object store I/O, must be
+ *             multiple of bsz, refer to c0appz_m0bs().
  *
  * @retval 0 on success
  */
-int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *filename,
-		    uint64_t bsz, uint64_t cnt, uint64_t op_cnt);
-
-int c0appz_mw_async(uint64_t idhi, uint64_t idlo, char *src,
-		    uint64_t bsz, uint64_t cnt, uint64_t op_cnt);
+int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *filename, uint64_t bsz,
+		    uint64_t cnt, uint64_t op_cnt, uint64_t m0bs);
 
 int c0appz_setrc(char *rcfile);
 int c0appz_putrc(void);

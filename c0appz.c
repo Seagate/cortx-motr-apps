@@ -241,13 +241,13 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	struct m0_clovis_obj obj = {};
 
 	if (bsz < 1 || bsz % PAGE_SIZE) {
-		fprintf(stderr, "%s(): bsz(%lu) must multiple of %luK\n",
+		fprintf(stderr, "%s(): bsz(%lu) must be multiple of %luK\n",
 			__func__, m0bs, PAGE_SIZE / 1024);
 		return -EINVAL;
 	}
 
 	if (m0bs < 1 || m0bs % bsz) {
-		fprintf(stderr, "%s(): m0bs(%lu) must multiple of bsz(%lu)\n",
+		fprintf(stderr, "%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
 			__func__, m0bs, bsz);
 		return -EINVAL;
 	}
@@ -296,8 +296,10 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 
 		/* Read data from source file. */
 		st = m0_time_now();
-		if (read_data_from_file(fp, &data, bsz) != cnt_per_op) {
-			fprintf(stderr, "reading from file failed!\n");
+		if ((rc = read_data_from_file(fp, &data, bsz)) != cnt_per_op) {
+			fprintf(stderr, "%s(): reading from %s failed: "
+				"expected %u, got %u records\n",
+				__func__, filename, cnt_per_op, rc);
 			rc = -EIO;
 			break;
 		}
@@ -310,7 +312,8 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		st = m0_time_now();
 		rc = write_data_to_object(&obj, &ext, &data, &attr);
 		if (rc != 0)
-			fprintf(stderr, "writing to object failed!\n");
+			fprintf(stderr, "%s(): writing to object failed\n",
+				__func__);
 		write_time = m0_time_add(write_time,
 					 m0_time_sub(m0_time_now(), st));
 
@@ -349,18 +352,37 @@ out:
  * copy to an object from a file in an asynchronous manner
  */
 int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
-		    uint64_t cnt, uint64_t op_cnt)
+		    uint64_t cnt, uint64_t op_cnt, uint64_t m0bs)
 {
 	int                       i;
 	int                       rc = 0;
 	int                       nr_ops_sent;
+	unsigned                  cnt_per_op;
 	uint64_t                  off = 0;
 	struct m0_uint128         id = {idhi, idlo};
 	struct clovis_aio_op     *aio;
 	struct clovis_aio_opgrp   aio_grp;
-	FILE                      *fp;
+	FILE                     *fp;
 
-	assert(cnt % op_cnt == 0);
+	if (cnt % op_cnt) {
+		fprintf(stderr, "%s(): cnt(%lu) must be multiple of op_cnt(%lu)\n",
+			__func__, cnt, op_cnt);
+		return -EINVAL;
+	}
+
+	if (bsz < 1 || bsz % PAGE_SIZE) {
+		fprintf(stderr, "%s(): bsz(%lu) must be multiple of %luK\n",
+			__func__, m0bs, PAGE_SIZE / 1024);
+		return -EINVAL;
+	}
+
+	if (m0bs < 1 || m0bs % bsz) {
+		fprintf(stderr, "%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
+			__func__, m0bs, bsz);
+		return -EINVAL;
+	}
+
+	cnt_per_op = m0bs / bsz;
 
 	/* open file */
 	fp = fopen(src, "rb");
@@ -386,24 +408,33 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		nr_ops_sent = 0;
 		for (i = 0; i < op_cnt; i++) {
 			aio = &aio_grp.cag_aio_ops[i];
-			rc = clovis_aio_vec_alloc(aio, 1, bsz);
+			rc = clovis_aio_vec_alloc(aio, cnt_per_op, bsz);
 			if (rc != 0)
 				break;
 
-			aio->cao_ext.iv_index[0] = off;
-			aio->cao_ext.iv_vec.v_count[0] = bsz;
-			off += bsz;
+			for (i = 0; i < cnt_per_op; i++) {
+				aio->cao_ext.iv_index[i] = off;
+				aio->cao_ext.iv_vec.v_count[i] = bsz;
+				off += bsz;
 
-			aio->cao_attr.ov_vec.v_count[0] = 0;
+				aio->cao_attr.ov_vec.v_count[i] = 0;
+			}
 
 			/* Read data from source file. */
-			rc = read_data_from_file(fp, &aio->cao_data, bsz);
-			M0_ASSERT(rc == 1);
+			if ((rc = read_data_from_file(fp, &aio->cao_data, bsz))
+			    != cnt_per_op) {
+				fprintf(stderr, "%s(): reading from %s failed"
+					": expected %u, read %u records\n",
+					__func__, src, cnt_per_op, rc);
+				rc = -EIO;
+				break;
+			}
 
 			/* Launch IO op. */
 			rc = write_data_to_object_async(aio);
 			if (rc != 0) {
-				fprintf(stderr, "Writing to object failed!\n");
+				fprintf(stderr, "%s(): writing to object failed\n",
+					__func__);
 				break;
 			}
 			nr_ops_sent++;
@@ -434,105 +465,7 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
-		cnt -= op_cnt;
-	}
-
-	fclose(fp);
-	return rc;
-}
-
-/*
- * c0appz_mw_async()
- * copy to an object from a memory buffer in an asynchronous manner
- * TODO: change copy from file to copy from buffer
- */
-int c0appz_mw_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
-		    uint64_t cnt, uint64_t op_cnt)
-{
-	int                       i;
-	int                       rc = 0;
-	int                       nr_ops_sent;
-	uint64_t                  off = 0;
-	struct m0_uint128         id = {idhi, idlo};
-	struct clovis_aio_op     *aio;
-	struct clovis_aio_opgrp   aio_grp;
-	FILE                      *fp;
-
-	assert(cnt % op_cnt == 0);
-
-	/* open file */
-	fp = fopen(src, "rb");
-	if (fp == NULL) {
-		fprintf(stderr,"error! could not open output file %s\n", src);
-		return 1;
-	}
-
-	while (cnt > 0) {
-		/* Initialise operation group. */
-		rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
-		if (rc != 0) {
-			fclose(fp);
-			return rc;
-		}
-
-		/* Open the object. */
-		m0_clovis_obj_init(&aio_grp.cag_obj, &clovis_uber_realm,
-				   &id, M0_DEFAULT_LAYOUT_ID);
-		open_entity(&aio_grp.cag_obj.ob_entity);
-
-		/* Set each op. */
-		nr_ops_sent = 0;
-		for (i = 0; i < op_cnt; i++) {
-			aio = &aio_grp.cag_aio_ops[i];
-			rc = clovis_aio_vec_alloc(aio, 1, bsz);
-			if (rc != 0)
-				break;
-
-			aio->cao_ext.iv_index[0] = off;
-			aio->cao_ext.iv_vec.v_count[0] = bsz;
-			off += bsz;
-
-			aio->cao_attr.ov_vec.v_count[0] = 0;
-
-			/* Read data from source file. */
-			rc = read_data_from_file(fp, &aio->cao_data, bsz);
-			M0_ASSERT(rc == 1);
-
-			/* Launch IO op. */
-			rc = write_data_to_object_async(aio);
-			if (rc != 0) {
-				fprintf(stderr, "Writing to object failed!\n");
-				break;
-			}
-			nr_ops_sent++;
-		}
-
-		/* Wait for all ops to complete. */
-		for (i = 0; i < nr_ops_sent; i++)
-			m0_semaphore_down(&aio_grp.cag_sem);
-
-		/* Finalise ops and group. */
-		rc = rc ?: aio_grp.cag_rc;
-		for (i = 0; i < nr_ops_sent; i++) {
-			aio = &aio_grp.cag_aio_ops[i];
-			m0_clovis_op_fini(aio->cao_op);
-			m0_clovis_op_free(aio->cao_op);
-			clovis_aio_vec_free(aio);
-		}
-		m0_clovis_entity_fini(&aio_grp.cag_obj.ob_entity);
-		clovis_aio_opgrp_fini(&aio_grp);
-
-		/* Not all ops are launched and executed successfully. */
-		if (rc != 0)
-			break;
-
-		/* QOS */
-		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += op_cnt * bsz;
-		pthread_mutex_unlock(&qos_lock);
-		/* END */
-
-		cnt -= op_cnt;
+		cnt -= nr_ops_sent * cnt_per_op;
 	}
 
 	fclose(fp);
@@ -564,13 +497,13 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	struct m0_clovis_obj obj = {};
 
 	if (bsz < 1 || bsz % PAGE_SIZE) {
-		fprintf(stderr, "%s(): bsz(%lu) must multiple of %luK\n",
+		fprintf(stderr, "%s(): bsz(%lu) must be multiple of %luK\n",
 			__func__, m0bs, PAGE_SIZE / 1024);
 		return -EINVAL;
 	}
 
 	if (m0bs < 1 || m0bs % bsz) {
-		fprintf(stderr, "%s(): m0bs(%lu) must multiple of bsz(%lu)\n",
+		fprintf(stderr, "%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
 			__func__, m0bs, bsz);
 		return -EINVAL;
 	}

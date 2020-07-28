@@ -39,27 +39,28 @@
  * EXTERN VARIABLES
  ******************************************************************************
  */
-extern int perf; 	/* performance 	*/
-int force=0; 		/* overwrite  	*/
+extern int perf; /* show performance stats */
+int force=0;     /* overwrite object if it already exists */
 extern uint64_t qos_whgt_served;
 extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
-extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
+extern pthread_mutex_t qos_lock;  /* lock  qos_total_weight */
 extern struct m0_fid *pool_fid;
 
 /* main */
 int main(int argc, char **argv)
 {
 	int rc;
-	int opt=0;		/* options			*/
-	uint64_t idh;		/* object id high 		*/
-	uint64_t idl;		/* object is low  		*/
-	uint64_t bsz; 		/* block size	  		*/
-	uint64_t cnt;  		/* count  			*/
-	uint64_t op_cnt;	/* number of parallel ops 	*/
-	char *fname;		/* input filename 		*/
-	struct stat64 fs;	/* file statistics		*/
+	int opt=0;         /* options */
+	uint64_t idh;      /* object id high */
+	uint64_t idl;      /* object id low */
+	uint64_t bsz;      /* block size */
+	uint64_t m0bs;     /* m0 block size */
+	uint64_t cnt;      /* count */
+	uint64_t op_cnt;   /* number of parallel ops */
+	char *fname;       /* input filename */
+	struct stat64 fs;  /* file statistics */
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pfu:"))!=-1){
@@ -132,9 +133,17 @@ int main(int argc, char **argv)
 	ppf("%6s","init");
 	c0appz_timeout(0);
 
+	m0bs = c0appz_m0bs(bsz * cnt, pool_fid);
+	if (!m0bs) {
+		fprintf(stderr,"%s(): error: c0appz_m0bs() failed.\n",
+			__func__);
+		c0appz_free();
+		return 223;
+	}
+
 	/* create object */
 	c0appz_timein();
-	if (c0appz_cr(idh, idl, pool_fid, bsz) != 0 && !force) {
+	if (c0appz_cr(idh, idl, pool_fid, m0bs) != 0 && !force) {
 		fprintf(stderr,"error! create object failed.\n");
 		c0appz_free();
 		return 333;
@@ -149,7 +158,7 @@ int main(int argc, char **argv)
 	qos_laps_remain=1;
 	qos_pthread_start();
 	c0appz_timein();
-	if (c0appz_cp_async(idh,idl,fname,bsz,cnt,op_cnt)!=0){
+	if (c0appz_cp_async(idh, idl, fname, bsz, cnt, op_cnt, m0bs) != 0) {
 		fprintf(stderr,"error! copy object failed.\n");
 		qos_pthread_stop(0);
 		c0appz_free();
