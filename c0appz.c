@@ -33,6 +33,7 @@
 #include <lib/trace.h>
 #include <lib/memory.h>
 #include <lib/mutex.h>
+#include <sys/user.h>           /* PAGE_SIZE */
 
 #include "c0appz.h"
 #include "clovis/clovis.h"
@@ -99,8 +100,8 @@ struct clovis_aio_op {
  ******************************************************************************
  */
 static char *trim(char *str);
-static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz);
-static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz);
+static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data, size_t bsz);
+static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data, size_t bsz);
 
 
 static int write_data_to_object_async(struct clovis_aio_op *aio);
@@ -148,7 +149,8 @@ static uint64_t roundup_power2(uint64_t x)
 uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool)
 {
 	int                     rc;
-	unsigned long           usz;
+	unsigned long           usz; /* unit size */
+	unsigned long           gsz; /* data units in parity group */
 	uint64_t                max_bs;
 	unsigned                lid;
 	struct m0_reqh         *reqh = &clovis_instance->m0c_reqh;
@@ -173,15 +175,46 @@ uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool)
 
 	usz = m0_clovis_obj_layout_id_to_unit_size(lid);
 	pa = &pver->pv_attr;
+	gsz = usz * pa->pa_N;
 	/* max 4-times pool-width deep, otherwise we may get -E2BIG */
 	max_bs = usz * 4 * pa->pa_P * pa->pa_N / (pa->pa_N + 2 * pa->pa_K);
 
 	if (obj_sz >= max_bs)
 		return max_bs;
+	else if (obj_sz <= gsz)
+		return gsz;
 	else
 		return roundup_power2(obj_sz);
 }
 
+static void free_segs(struct m0_indexvec *ext, struct m0_bufvec *data,
+		      struct m0_bufvec *attr)
+{
+	m0_indexvec_free(ext);
+	m0_bufvec_free(data);
+	m0_bufvec_free(attr);
+}
+
+static int alloc_segs(struct m0_indexvec *ext, struct m0_bufvec *data,
+		      struct m0_bufvec *attr, uint64_t cnt, uint64_t bsz)
+{
+	int i, rc;
+
+	rc = m0_bufvec_alloc(data, cnt, bsz) ?:
+		m0_bufvec_alloc(attr, cnt, 1) ?:
+		m0_indexvec_alloc(ext, cnt);
+	if (rc != 0)
+		goto err;
+
+	/* We don't want any attributes */
+	for (i = 0; i < cnt; i++)
+		attr->ov_vec.v_count[i] = 0;
+
+	return 0;
+err:
+	free_segs(ext, data, attr);
+	return rc;
+}
 
 /*
  * c0appz_cp()
@@ -192,8 +225,8 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 {
 	int                rc=0;
 	unsigned           i;
-	unsigned           cnt_per_op = m0bs / bsz;
-	uint64_t           last_index = 0;
+	unsigned           cnt_per_op;
+	uint64_t           off = 0;
 	struct m0_uint128  id = {idhi, idlo};
 	struct m0_indexvec ext;
 	struct m0_bufvec   data;
@@ -207,11 +240,19 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	double             clovis_bw;
 	struct m0_clovis_obj obj = {};
 
-	if (cnt_per_op < 1) {
-		fprintf(stderr, "%s(): m0bs(%lu) must be >= bsz(%lu)",
+	if (bsz < 1 || bsz % PAGE_SIZE) {
+		fprintf(stderr, "%s(): bsz(%lu) must multiple of %luK\n",
+			__func__, m0bs, PAGE_SIZE / 1024);
+		return -EINVAL;
+	}
+
+	if (m0bs < 1 || m0bs % bsz) {
+		fprintf(stderr, "%s(): m0bs(%lu) must multiple of bsz(%lu)\n",
 			__func__, m0bs, bsz);
 		return -EINVAL;
 	}
+
+	cnt_per_op = m0bs / bsz;
 
 	/* Open src file */
 	fp = fopen(filename, "rb");
@@ -222,11 +263,9 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	}
 
 	/* Allocate data buffers, bufvec and indexvec for write */
-	rc = m0_bufvec_alloc(&data, cnt_per_op, bsz) ?:
-	     m0_bufvec_alloc(&attr, cnt_per_op, 1) ?:
-	     m0_indexvec_alloc(&ext, cnt_per_op);
+	rc = alloc_segs(&ext, &data, &attr, cnt_per_op, bsz);
 	if (rc != 0)
-		goto free_vecs;
+		goto out;
 
 	/* Open the object entity we want to write to */
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
@@ -237,24 +276,22 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		goto free_vecs;
 	}
 
-
 	while (cnt > 0) {
 		/*
 		 * Prepare indexvec for write: <clovis_block_count> from the
 		 * beginning of the object.
 		 */
 		if (cnt < cnt_per_op) {
-			for (i = cnt; i < cnt_per_op; i++)
-				ext.iv_vec.v_count[i] = 0;
+			free_segs(&ext, &data, &attr);
+			rc = alloc_segs(&ext, &data, &attr, cnt, bsz);
+			if (rc != 0)
+				break;
 			cnt_per_op = cnt;
 		}
 		for (i = 0; i < cnt_per_op; i++) {
-			ext.iv_index[i] = last_index;
+			ext.iv_index[i] = off;
 			ext.iv_vec.v_count[i] = bsz;
-			last_index += bsz;
-
-			/* We don't want any attributes */
-			attr.ov_vec.v_count[i] = 0;
+			off += bsz;
 		}
 
 		/* Read data from source file. */
@@ -264,6 +301,8 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 			rc = -EIO;
 			break;
 		}
+		ext.iv_vec.v_count[cnt_per_op -1] =
+			data.ov_vec.v_count[cnt_per_op -1];
 		read_time = m0_time_add(read_time,
 					m0_time_sub(m0_time_now(), st));
 
@@ -289,19 +328,16 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 
 	m0_clovis_entity_fini(&obj.ob_entity);
 free_vecs:
-	/* Free bufvec's and indexvec's */
-	m0_indexvec_free(&ext);
-	m0_bufvec_free(&data);
-	m0_bufvec_free(&attr);
-
+	free_segs(&ext, &data, &attr);
+out:
 	fclose(fp);
 
 	if (perf && rc == 0) {
 		time = (double) read_time / M0_TIME_ONE_SECOND;
-		fs_bw = last_index / 1000000.0 / time;
+		fs_bw = off / 1000000.0 / time;
 		ppf("Mero I/O[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]",time, fs_bw);
 		time = (double) write_time / M0_TIME_ONE_SECOND;
-		clovis_bw = last_index / 1000000.0 / time;
+		clovis_bw = off / 1000000.0 / time;
 		ppf("[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, clovis_bw);
 	}
 
@@ -318,8 +354,8 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	int                       i;
 	int                       rc = 0;
 	int                       nr_ops_sent;
-	uint64_t                  last_index;
-	struct m0_uint128         id;
+	uint64_t                  off = 0;
+	struct m0_uint128         id = {idhi, idlo};
 	struct clovis_aio_op     *aio;
 	struct clovis_aio_opgrp   aio_grp;
 	FILE                      *fp;
@@ -333,11 +369,6 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		return 1;
 	}
 
-	/* ids */
-	id.u_hi = idhi;
-	id.u_lo = idlo;
-
-	last_index = 0;
 	while (cnt > 0) {
 		/* Initialise operation group. */
 		rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
@@ -359,9 +390,9 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 			if (rc != 0)
 				break;
 
-			aio->cao_ext.iv_index[0] = last_index;
+			aio->cao_ext.iv_index[0] = off;
 			aio->cao_ext.iv_vec.v_count[0] = bsz;
-			last_index += bsz;
+			off += bsz;
 
 			aio->cao_attr.ov_vec.v_count[0] = 0;
 
@@ -421,8 +452,8 @@ int c0appz_mw_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	int                       i;
 	int                       rc = 0;
 	int                       nr_ops_sent;
-	uint64_t                  last_index;
-	struct m0_uint128         id;
+	uint64_t                  off = 0;
+	struct m0_uint128         id = {idhi, idlo};
 	struct clovis_aio_op     *aio;
 	struct clovis_aio_opgrp   aio_grp;
 	FILE                      *fp;
@@ -436,11 +467,6 @@ int c0appz_mw_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		return 1;
 	}
 
-	/* ids */
-	id.u_hi = idhi;
-	id.u_lo = idlo;
-
-	last_index = 0;
 	while (cnt > 0) {
 		/* Initialise operation group. */
 		rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
@@ -462,9 +488,9 @@ int c0appz_mw_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 			if (rc != 0)
 				break;
 
-			aio->cao_ext.iv_index[0] = last_index;
+			aio->cao_ext.iv_index[0] = off;
 			aio->cao_ext.iv_vec.v_count[0] = bsz;
-			last_index += bsz;
+			off += bsz;
 
 			aio->cao_attr.ov_vec.v_count[0] = 0;
 
@@ -522,8 +548,8 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 {
 	int                rc=0;
 	unsigned           i;
-	unsigned           cnt_per_op = m0bs / bsz;
-	uint64_t           last_index = 0;
+	unsigned           cnt_per_op;
+	uint64_t           off = 0;
 	struct m0_uint128  id = {idhi, idlo};
 	struct m0_indexvec ext;
 	struct m0_bufvec   data;
@@ -537,11 +563,19 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	double             clovis_bw;
 	struct m0_clovis_obj obj = {};
 
-	if (cnt_per_op < 1) {
-		fprintf(stderr, "%s(): m0bs(%lu) must be >= bsz(%lu)",
+	if (bsz < 1 || bsz % PAGE_SIZE) {
+		fprintf(stderr, "%s(): bsz(%lu) must multiple of %luK\n",
+			__func__, m0bs, PAGE_SIZE / 1024);
+		return -EINVAL;
+	}
+
+	if (m0bs < 1 || m0bs % bsz) {
+		fprintf(stderr, "%s(): m0bs(%lu) must multiple of bsz(%lu)\n",
 			__func__, m0bs, bsz);
 		return -EINVAL;
 	}
+
+	cnt_per_op = m0bs / bsz;
 
 	/* open output file */
 	fp = fopen(filename, "w");
@@ -551,11 +585,9 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	}
 
 	/* Allocate data buffers, bufvec and indexvec for write. */
-	rc = m0_bufvec_alloc(&data, cnt_per_op, bsz) ?:
-	     m0_bufvec_alloc(&attr, cnt_per_op, 1) ?:
-	     m0_indexvec_alloc(&ext, cnt_per_op);
+	rc = alloc_segs(&ext, &data, &attr, cnt_per_op, bsz);
 	if (rc != 0)
-		goto free_vecs;
+		goto out;
 
 	/* Open object. */
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
@@ -572,14 +604,16 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 		 * beginning of the object.
 		 */
 		if (cnt < cnt_per_op) {
-			for (i = cnt; i < cnt_per_op; i++)
-				ext.iv_vec.v_count[i] = 0;
+			free_segs(&ext, &data, &attr);
+			rc = alloc_segs(&ext, &data, &attr, cnt, bsz);
+			if (rc != 0)
+				break;
 			cnt_per_op = cnt;
 		}
 		for (i = 0; i < cnt_per_op; i++) {
-			ext.iv_index[i] = last_index;
+			ext.iv_index[i] = off;
 			ext.iv_vec.v_count[i] = bsz;
-			last_index += bsz;
+			off += bsz;
 
 			/* We don't want any attributes */
 			attr.ov_vec.v_count[i] = 0;
@@ -616,11 +650,8 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 
 	m0_clovis_entity_fini(&obj.ob_entity);
 free_vecs:
-	/* Free bufvec's and indexvec's */
-	m0_indexvec_free(&ext);
-	m0_bufvec_free(&data);
-	m0_bufvec_free(&attr);
-
+	free_segs(&ext, &data, &attr);
+out:
 	/* block */
 	qos_pthread_cond_wait();
 	fprintf(stderr,"writing to file...\n");
@@ -632,10 +663,10 @@ free_vecs:
 				 m0_time_sub(m0_time_now(), st));
 	if (perf && rc == 0) {
 		time = (double) read_time / M0_TIME_ONE_SECOND;
-		clovis_bw = last_index / 1000000.0 / time;
+		clovis_bw = off / 1000000.0 / time;
 		ppf("Mero I/O[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]",time, clovis_bw);
 		time = (double) write_time / M0_TIME_ONE_SECOND;
-		fs_bw = last_index / 1000000.0 / time;
+		fs_bw = off / 1000000.0 / time;
 		ppf("[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, fs_bw);
 	}
 
@@ -1140,7 +1171,7 @@ int c0appz_cr(uint64_t idhi, uint64_t idlo, struct m0_fid *pool, uint64_t bsz)
 		lid = m0_layout_find_by_buffsize(&reqh->rh_ldom, &pver->pv_id,
 						 bsz);
 
-	printf("pool="FID_F" width=%u parity=(%u+%u) unit=%dKiB m0bs=%luKiB\n",
+	printf("pool="FID_F" width=%u parity=(%u+%u) unit=%dK m0bs=%luK\n",
 	       FID_P(&pver->pv_pool->po_id), pver->pv_attr.pa_P,
 	       pver->pv_attr.pa_N, pver->pv_attr.pa_K,
 	       m0_clovis_obj_layout_id_to_unit_size(lid) / 1024, bsz / 1024);
@@ -1182,17 +1213,21 @@ err:
  * read_data_from_file()
  * reads data from file and populates buffer.
  */
-static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz)
+static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data, size_t bsz)
 {
-	int i;
-	int rc;
-	int nr_blocks;
+	size_t i;
+	size_t read;
+	unsigned nr_blocks;
 
 	nr_blocks = data->ov_vec.v_nr;
 	for (i = 0; i < nr_blocks; i++) {
-		rc = fread(data->ov_buf[i], bsz, 1, fp);
-		if (rc != 1)
+		read = fread(data->ov_buf[i], 1, bsz, fp);
+		if (read < bsz) {
+			data->ov_vec.v_count[i] = read;
+			if (read > 0)
+				i++;
 			break;
+		}
 
 		if (feof(fp))
 			break;
@@ -1201,16 +1236,16 @@ static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz)
 	return i;
 }
 
-static int write_data_to_file(FILE *fp, struct m0_bufvec *data, int bsz)
+static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data, size_t bsz)
 {
-	int i;
-	int rc;
-	int nr_blocks;
+	size_t i;
+	size_t wrtn;
+	unsigned nr_blocks;
 
 	nr_blocks = data->ov_vec.v_nr;
 	for (i = 0; i < nr_blocks; i++) {
-		rc = fwrite(data->ov_buf[i], bsz, 1, fp);
-		if (rc != 1)
+		wrtn = fwrite(data->ov_buf[i], 1, data->ov_vec.v_count[i], fp);
+		if (wrtn != data->ov_vec.v_count[i])
 			break;
 	}
 

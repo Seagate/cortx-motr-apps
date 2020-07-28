@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <libgen.h>
 #include <sys/stat.h>
 #include <pthread.h>
@@ -44,21 +45,21 @@ extern uint64_t qos_whgt_served;
 extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
-extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
+extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
 extern struct m0_fid *pool_fid;
 
 /* main */
 int main(int argc, char **argv)
 {
-	uint64_t idh;		/* object id high 			*/
-	uint64_t idl;		/* object is low  			*/
-	uint64_t bsz; 		/* block size	  			*/
-	uint64_t cnt;  		/* count	  				*/
+	int rc;
+	int opt=0;		/* options			*/
+	uint64_t idh;		/* object id high 		*/
+	uint64_t idl;		/* object is low  		*/
+	uint64_t bsz; 		/* block size	  		*/
+	uint64_t cnt;  		/* count  			*/
 	uint64_t op_cnt;	/* number of parallel ops 	*/
-	uint64_t fsz;		/* initial file size		*/
-	char *fname;		/* input filename 			*/
-	struct stat64 fs;	/* file statistics			*/
-	int opt=0;			/* options					*/
+	char *fname;		/* input filename 		*/
+	struct stat64 fs;	/* file statistics		*/
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pfu:"))!=-1){
@@ -108,7 +109,19 @@ int main(int argc, char **argv)
 	fname = argv[optind+2];
 	bsz = atoll(argv[optind+3]) * 1024;
 	op_cnt = atoll(argv[optind+4]);
-	assert(bsz>0);
+
+	if (bsz == 0) {
+		fprintf(stderr,"%s: bsz must be > 0\n", argv[0]);
+		exit(1);
+	}
+
+	rc = stat64(fname, &fs);
+	if (rc != 0) {
+		fprintf(stderr,"%s: %s: %s\n", argv[0], fname, strerror(errno));
+		exit(1);
+	}
+	cnt = (fs.st_size + bsz - 1)/bsz;
+	cnt = ((cnt + op_cnt -1)/op_cnt) * op_cnt;
 
 	/* init */
 	c0appz_timein();
@@ -119,21 +132,10 @@ int main(int argc, char **argv)
 	ppf("%6s","init");
 	c0appz_timeout(0);
 
-	/* extend */
-	stat64(fname, &fs);
-	cnt = (fs.st_size + bsz - 1)/bsz;
-	fsz = fs.st_size;
-	cnt = ((cnt + op_cnt -1)/op_cnt) * op_cnt;
-	truncate64(fname,cnt*bsz);
-	assert(!(fsz>cnt*bsz));
-
 	/* create object */
 	c0appz_timein();
 	if (c0appz_cr(idh, idl, pool_fid, bsz) != 0 && !force) {
 		fprintf(stderr,"error! create object failed.\n");
-		truncate64(fname,fs.st_size);
-		stat64(fname,&fs);
-		assert(fsz==fs.st_size);
 		c0appz_free();
 		return 333;
 	}
@@ -149,9 +151,6 @@ int main(int argc, char **argv)
 	c0appz_timein();
 	if (c0appz_cp_async(idh,idl,fname,bsz,cnt,op_cnt)!=0){
 		fprintf(stderr,"error! copy object failed.\n");
-		truncate64(fname,fs.st_size);
-		stat64(fname,&fs);
-		assert(fsz==fs.st_size);
 		qos_pthread_stop(0);
 		c0appz_free();
 		return 444;
@@ -163,11 +162,6 @@ int main(int argc, char **argv)
 	ppf("%6s","copy");
 	c0appz_timeout(bsz*cnt);
 	qos_pthread_wait();
-
-	/* resize */
-	truncate64(fname,fs.st_size);
-	stat64(fname,&fs);
-	assert(fsz==fs.st_size);
 
 	/* free */
 	c0appz_timein();

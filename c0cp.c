@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <libgen.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -43,7 +44,7 @@ extern uint64_t qos_whgt_served;
 extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
-extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
+extern pthread_mutex_t qos_lock;       /* lock  qos_total_weight */
 extern struct m0_fid *pool_fid;
 
 /*
@@ -65,14 +66,13 @@ int main(int argc, char **argv)
 	uint64_t m0bs;       /* m0 block size     */
 	uint64_t cnt;        /* count             */
 	uint64_t pos;        /* starting position */
-	uint64_t fsz;        /* initial file size */
-	char *fname;         /* input filename    */
+	char    *fname;      /* input filename    */
 	struct stat64 fs;    /* file statistics   */
-	int opt;             /* options           */
-	int rc=0;            /* return code       */
-	char *fbuf=NULL;     /* file buffer       */
-	int laps=0;          /* number of writes  */
-	int pool=0;          /* default pool ID   */
+	int      opt;        /* options           */
+	int      rc;         /* return code       */
+	char    *fbuf;       /* file buffer       */
+	int      laps;       /* number of writes  */
+	int      pool=0;     /* default pool ID   */
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pfc:x:u:"))!=-1){
@@ -132,23 +132,24 @@ int main(int argc, char **argv)
 	idl = atoll(argv[optind+1]);
 	fname = argv[optind+2];
 	bsz = atoll(argv[optind+3]) * 1024;
-	assert(bsz>0);
 
-	/* extend */
-	stat64(fname, &fs);
-	fsz = fs.st_size;
-	cnt = (fs.st_size + bsz - 1)/bsz;
-	truncate64(fname,fs.st_size + bsz - 1);
-	assert(!(fsz>cnt*bsz));
+	if (bsz == 0) {
+		fprintf(stderr,"%s: bsz must be > 0\n", argv[0]);
+		help();
+	}
+
+	rc = stat64(fname, &fs);
+	if (rc != 0) {
+		fprintf(stderr,"%s: %s: %s\n", argv[0], fname, strerror(errno));
+		exit(1);
+	}
+	cnt = (fs.st_size + bsz - 1) / bsz;
 
 	/* init */
 	c0appz_timein();
 	if (c0appz_init(0) != 0) {
 		fprintf(stderr,"%s(): error: clovis initialisation failed.\n",
 			__func__);
-		truncate64(fname,fs.st_size);
-		stat64(fname,&fs);
-		assert(fsz==fs.st_size);
 		return 222;
 	}
 	ppf("%8s","init");
@@ -164,7 +165,8 @@ int main(int argc, char **argv)
 	if (!m0bs) {
 		fprintf(stderr,"%s(): error: c0appz_m0bs() failed.\n",
 			__func__);
-		exit(1);
+		rc = 222;
+		goto end;
 	}
 
 	/* create object */
@@ -197,9 +199,6 @@ int main(int argc, char **argv)
 			goto end;
 		}
 
-		truncate64(fname,fs.st_size);
-		stat64(fname,&fs);
-		assert(fsz==fs.st_size);
 		laps=cont;
 		qos_whgt_served=0;
 		qos_whgt_remain=bsz*cnt*laps;
@@ -230,6 +229,7 @@ int main(int argc, char **argv)
 	qos_laps_remain=1;
 	qos_pthread_start();
 	c0appz_timein();
+
 	/* copy */
 	rc = c0appz_cp(idh, idl, fname, bsz, cnt, m0bs);
 	if (rc != 0) {
@@ -247,12 +247,6 @@ int main(int argc, char **argv)
 	qos_pthread_wait();
 
 end:
-
-	/* resize */
-	truncate64(fname,fs.st_size);
-	stat64(fname,&fs);
-	assert(fsz==fs.st_size);
-
 	/* free */
 	c0appz_timein();
 	c0appz_free();
@@ -260,7 +254,7 @@ end:
 	c0appz_timeout(0);
 
 	/* failure */
-	if(rc){
+	if (rc != 0) {
 		printf("%s %" PRIu64 "\n",fname,fs.st_size);
 		fprintf(stderr,"%s failed!\n",basename(argv[0]));
 		return rc;

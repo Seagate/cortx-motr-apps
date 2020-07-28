@@ -54,8 +54,8 @@ uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool);
  * @param idlo low number of the object id
  * @param pool pool id in the object store
  * @param m0bs block size for the object store I/O,
- *             used to set the optimal unit size for
- *             the created object
+ *             used to set the optimal object's unit size,
+ *             refer to c0appz_m0bs()
  *
  * @retval 0 on success
  * @retval 1 the object already exists
@@ -82,9 +82,11 @@ int c0appz_ex(uint64_t idhi, uint64_t idlo);
  * The object should be created beforehand with c0appz_cr().
  *
  * @param filename where to copy the data from
- * @param bsz block size for I/O on the file
+ * @param bsz block size for I/O on the file, must be
+ *            multiple of PAGE_SIZE (4K)
  * @param cnt number of bsz-blocks to do
- * @param m0bs block size for the object store I/O
+ * @param m0bs block size for the object store I/O, must be
+ *             multiple of bs, refer to c0appz_m0bs().
  *
  * @retval 0 on success
  */
@@ -95,9 +97,11 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
  * Cat/read into file from the object store
  *
  * @param filename where to read the data to
- * @param bsz block size for I/O on the file
+ * @param bsz block size for I/O on the file, must be
+ *            multiple of PAGE_SIZE (4K)
  * @param cnt number of bsz-blocks to do
- * @param m0bs block size for the object store I/O
+ * @param m0bs block size for the object store I/O, must be
+ *             multiple of bs, refer to c0appz_m0bs().
  *
  * @retval 0 on success
  */
