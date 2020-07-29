@@ -27,9 +27,6 @@
 #include "clovis/clovis.h"
 #include "lib/types.h" /* uint32_t */
 
-extern unsigned unit_size; /* in KiBs, default 4 */
-extern struct m0_clovis_realm clovis_uber_realm;
-
 int c0appz_init(int idx);
 int c0appz_free(void);
 

@@ -33,6 +33,7 @@
 #include <inttypes.h>
 #include <assert.h>
 #include "c0appz.h"
+#include "c0appz_internal.h"
 
 /*
  ******************************************************************************

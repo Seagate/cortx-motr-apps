@@ -30,6 +30,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include "c0appz.h"
+#include "c0appz_internal.h"
 #include "help.h"
 
 /*

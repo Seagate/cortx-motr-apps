@@ -35,7 +35,6 @@
 #include <lib/mutex.h>
 #include <sys/user.h>           /* PAGE_SIZE */
 
-#include "c0appz.h"
 #include "clovis/clovis.h"
 #include "clovis/clovis_internal.h"
 #include "clovis/clovis_idx.h"
@@ -48,6 +47,8 @@
 #include "reqh/reqh.h"        /* m0_reqh */
 #include "lib/types.h"        /* uint32_t */
 
+#include "c0appz.h"
+#include "c0appz_internal.h"
 #include "iscservice/isc.h"
 #include "lib/buf.h"
 #include "rpc/rpclib.h"
@@ -72,28 +73,6 @@ static struct m0_spiel            spiel_inst;
 static char    c0rc[8][SZC0RCSTR];
 static char    c0rcfile[SZC0RCFILE] = C0RCFLE;
 
-struct clovis_aio_op;
-struct clovis_aio_opgrp {
-	struct m0_semaphore   cag_sem;
-
-	struct m0_mutex       cag_mlock;
-	uint32_t              cag_blocks_to_write;
-	uint32_t              cag_blocks_written;
-	int                   cag_rc;
-
-	struct m0_clovis_obj  cag_obj;
-	struct clovis_aio_op *cag_aio_ops;
-};
-
-struct clovis_aio_op {
-	struct clovis_aio_opgrp *cao_grp;
-
-	struct m0_clovis_op     *cao_op;
-	struct m0_indexvec       cao_ext;
-	struct m0_bufvec         cao_data;
-	struct m0_bufvec         cao_attr;
-};
-
 /*
  ******************************************************************************
  * STATIC FUNCTION PROTOTYPES
@@ -103,17 +82,6 @@ static char *trim(char *str);
 static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data, size_t bsz);
 static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data, size_t bsz);
 
-
-static int write_data_to_object_async(struct clovis_aio_op *aio);
-static int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
-				uint32_t blk_count, uint64_t blk_size);
-static void clovis_aio_vec_free(struct clovis_aio_op *aio);
-static int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
-				 uint32_t blk_cnt, uint32_t op_cnt);
-static void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp);
-static void clovis_aio_executed_cb(struct m0_clovis_op *op);
-static void clovis_aio_stable_cb(struct m0_clovis_op *op);
-static void clovis_aio_failed_cb(struct m0_clovis_op *op);
 
 /*
  ******************************************************************************
@@ -1226,7 +1194,7 @@ int write_data_to_object(struct m0_clovis_obj *obj,
  * write_data_to_object_async()
  * writes to and object in async manner
  */
-static int write_data_to_object_async(struct clovis_aio_op *aio)
+int write_data_to_object_async(struct clovis_aio_op *aio)
 {
 	struct m0_clovis_obj    *obj;
 	struct m0_clovis_op_ops *op_ops;
@@ -1291,7 +1259,7 @@ int read_data_from_object(struct m0_clovis_obj *obj,
 }
 
 
-static int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
+int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
 				uint32_t blk_count, uint64_t blk_size)
 {
 	int rc = 0;
@@ -1306,7 +1274,7 @@ static int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
 	return rc;
 }
 
-static void clovis_aio_vec_free(struct clovis_aio_op *aio)
+void clovis_aio_vec_free(struct clovis_aio_op *aio)
 {
 	/* Free bufvec's and indexvec's */
 	m0_indexvec_free(&aio->cao_ext);
@@ -1314,7 +1282,7 @@ static void clovis_aio_vec_free(struct clovis_aio_op *aio)
 	m0_bufvec_free(&aio->cao_attr);
 }
 
-static int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
+int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
 				 uint32_t blk_cnt, uint32_t op_cnt)
 {
 	int                   i;
@@ -1337,7 +1305,7 @@ static int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
 	return 0;
 }
 
-static void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp)
+void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp)
 {
 	m0_mutex_fini(&grp->cag_mlock);
 	m0_semaphore_fini(&grp->cag_sem);
@@ -1347,12 +1315,12 @@ static void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp)
 	m0_free(grp->cag_aio_ops);
 }
 
-static void clovis_aio_executed_cb(struct m0_clovis_op *op)
+void clovis_aio_executed_cb(struct m0_clovis_op *op)
 {
 	/** Stuff to do when OP is in excecuted state */
 }
 
-static void clovis_aio_stable_cb(struct m0_clovis_op *op)
+void clovis_aio_stable_cb(struct m0_clovis_op *op)
 {
 	struct clovis_aio_opgrp *grp;
 
@@ -1368,7 +1336,7 @@ static void clovis_aio_stable_cb(struct m0_clovis_op *op)
 	m0_semaphore_up(&grp->cag_sem);
 }
 
-static void clovis_aio_failed_cb(struct m0_clovis_op *op)
+void clovis_aio_failed_cb(struct m0_clovis_op *op)
 {
 	struct clovis_aio_opgrp *grp;
 

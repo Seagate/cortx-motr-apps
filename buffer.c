@@ -29,10 +29,11 @@
 #include <inttypes.h>
 #include <assert.h>
 
-#include "c0appz.h"
 #include "clovis/clovis.h"
 #include "clovis/clovis_idx.h"
 #include "layout/layout.h"	/* M0_DEFAULT_LAYOUT_ID */
+#include "c0appz.h"
+#include "c0appz_internal.h"
 
 /*
  ******************************************************************************
