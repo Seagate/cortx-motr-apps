@@ -81,7 +81,7 @@ LFLAGS += -L$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs -Wl,-rpath,$(M0_SRC_D
 CFLAGS += -I$(M0_SRC_DIR)
 endif
 
-SRC = perf.o buffer.o qos.c c0appz.o pool.o
+SRC = perf.o buffer.o qos.o c0appz.o pool.o
 
 all: $(EXE1) $(EXE2) $(EXE3) $(EXE5) $(ISC_REG)
 .PHONY: all

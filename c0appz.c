@@ -106,10 +106,10 @@ static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data, size_t bsz);
 
 static int write_data_to_object_async(struct clovis_aio_op *aio);
 static int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
-			       uint32_t blk_count, uint32_t blk_size);
+				uint32_t blk_count, uint64_t blk_size);
 static void clovis_aio_vec_free(struct clovis_aio_op *aio);
 static int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
-				 int blk_cnt, int op_cnt);
+				 uint32_t blk_cnt, uint32_t op_cnt);
 static void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp);
 static void clovis_aio_executed_cb(struct m0_clovis_op *op);
 static void clovis_aio_stable_cb(struct m0_clovis_op *op);
@@ -224,8 +224,8 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	      uint64_t bsz, uint64_t cnt, uint64_t m0bs)
 {
 	int                rc=0;
-	unsigned           i;
-	unsigned           cnt_per_op;
+	uint32_t           i;
+	uint32_t           cnt_per_op;
 	uint64_t           off = 0;
 	struct m0_uint128  id = {idhi, idlo};
 	struct m0_indexvec ext;
@@ -352,12 +352,12 @@ out:
  * copy to an object from a file in an asynchronous manner
  */
 int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
-		    uint64_t cnt, uint64_t op_cnt, uint64_t m0bs)
+		    uint64_t cnt, uint32_t op_cnt, uint64_t m0bs)
 {
-	int                       i;
 	int                       rc = 0;
-	int                       nr_ops_sent;
-	unsigned                  cnt_per_op;
+	uint32_t                  i;
+	uint32_t                  nr_ops_sent;
+	uint32_t                  cnt_per_op;
 	uint64_t                  off = 0;
 	struct m0_uint128         id = {idhi, idlo};
 	struct clovis_aio_op     *aio;
@@ -381,24 +381,29 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	/* open file */
 	fp = fopen(src, "rb");
 	if (fp == NULL) {
-		fprintf(stderr,"error! could not open output file %s\n", src);
-		return 1;
+		fprintf(stderr,"%s(): failed to open output file %s: %s\n",
+			__func__, src, strerror(errno));
+		return -errno;
+	}
+
+	rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
+	if (rc != 0)
+		goto out;
+
+	/* Open the object. */
+	m0_clovis_obj_init(&aio_grp.cag_obj, &clovis_uber_realm,
+			   &id, M0_DEFAULT_LAYOUT_ID);
+	rc = open_entity(&aio_grp.cag_obj.ob_entity);
+	if (rc != 0) {
+		fprintf(stderr, "%s(): open_entity() failed: rc=%d\n",
+			__func__, rc);
+		goto fini;
 	}
 
 	while (cnt > 0) {
 		/* Initialise operation group. */
 		if (cnt < op_cnt)
 			op_cnt = cnt;
-		rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
-		if (rc != 0) {
-			fclose(fp);
-			return rc;
-		}
-
-		/* Open the object. */
-		m0_clovis_obj_init(&aio_grp.cag_obj, &clovis_uber_realm,
-				   &id, M0_DEFAULT_LAYOUT_ID);
-		open_entity(&aio_grp.cag_obj.ob_entity);
 
 		/* Set each op. */
 		nr_ops_sent = 0;
@@ -450,8 +455,6 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 			m0_clovis_op_free(aio->cao_op);
 			clovis_aio_vec_free(aio);
 		}
-		m0_clovis_entity_fini(&aio_grp.cag_obj.ob_entity);
-		clovis_aio_opgrp_fini(&aio_grp);
 
 		/* Not all ops are launched and executed successfully. */
 		if (rc != 0)
@@ -466,6 +469,10 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		cnt -= nr_ops_sent * cnt_per_op;
 	}
 
+fini:
+	m0_clovis_entity_fini(&aio_grp.cag_obj.ob_entity);
+	clovis_aio_opgrp_fini(&aio_grp);
+out:
 	fclose(fp);
 	return rc;
 }
@@ -478,8 +485,8 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	      uint64_t bsz, uint64_t cnt, uint64_t m0bs)
 {
 	int                rc=0;
-	unsigned           i;
-	unsigned           cnt_per_op;
+	uint32_t           i;
+	uint32_t           cnt_per_op;
 	uint64_t           off = 0;
 	struct m0_uint128  id = {idhi, idlo};
 	struct m0_indexvec ext;
@@ -1285,7 +1292,7 @@ int read_data_from_object(struct m0_clovis_obj *obj,
 
 
 static int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
-				uint32_t blk_count, uint32_t blk_size)
+				uint32_t blk_count, uint64_t blk_size)
 {
 	int rc = 0;
 
@@ -1308,7 +1315,7 @@ static void clovis_aio_vec_free(struct clovis_aio_op *aio)
 }
 
 static int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
-				 int blk_cnt, int op_cnt)
+				 uint32_t blk_cnt, uint32_t op_cnt)
 {
 	int                   i;
 	struct clovis_aio_op *ops;
@@ -1320,7 +1327,7 @@ static int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
 		return -ENOMEM;
 	grp->cag_aio_ops = ops;
 	for (i = 0; i < op_cnt; i++)
-		grp->cag_aio_ops[i].cao_grp = grp;
+		ops[i].cao_grp = grp;
 
 	m0_mutex_init(&grp->cag_mlock);
 	m0_semaphore_init(&grp->cag_sem, 0);

@@ -122,7 +122,7 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
  * @retval 0 on success
  */
 int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *filename, uint64_t bsz,
-		    uint64_t cnt, uint64_t op_cnt, uint64_t m0bs);
+		    uint64_t cnt, uint32_t op_cnt, uint64_t m0bs);
 
 int c0appz_setrc(char *rcfile);
 int c0appz_putrc(void);
