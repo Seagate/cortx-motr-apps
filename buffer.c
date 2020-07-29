@@ -84,15 +84,17 @@ int c0appz_fr(char *buf, char *inf, uint64_t bsz, uint64_t cnt)
 	fp = fopen(inf, "rb");
 	if (fp == NULL) {
 		fprintf(stderr, "%s(): error! - ", __FUNCTION__);
-		fprintf(stderr, "could not open input file %s\n", inf);
+		fprintf(stderr, "could not open input file %s: %s\n",
+			inf, strerror(errno));
 		return 11;
 	}
 
 	/* read into buf */
-	n = fread(buf, bsz, cnt, fp);
-	if (n < cnt - 1) {
+	n = fread(buf, 1, bsz * cnt, fp);
+	if (n <= bsz * (cnt - 1)) {
 		fprintf(stderr, "%s(): error! - ", __FUNCTION__);
-		fprintf(stderr, "reading from %s failed.\n", inf);
+		fprintf(stderr, "reading from %s failed: expected at least %lu "
+			", but read %lu bytes\n", inf, bsz * (cnt - 1) + 1, n);
 		fclose(fp);
 		return 22;
 	}
