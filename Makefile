@@ -21,7 +21,7 @@
 # *
 # * Modification: Ganesan Umanesan <ganesan.umanesan@seagate.com>
 # * Modification Date: 07-May-2020
-# * 
+# *
 #*/
 
 
@@ -36,25 +36,25 @@ FILE2 = './file2'
 FILE3 = './file3'
 
 #executables
-EXE1 = c0cp
-EXE2 = c0ct
-EXE3 = c0rm
-EXE4 = fgen
-EXE5 = c0cp_async
+C0CP = c0cp
+C0CT = c0ct
+C0RM = c0rm
+FGEN = fgen
+C0CP_A = c0cp_async
 
 #isc executables and library
 LIBISC = libdemo.so
 ISC_REG = c0isc_reg
 ISC_INVK = c0isc_demo
 
-#archieve/node names 
+#archieve/node names
 TARF = m0trace_$(shell date +%Y%m%d-%H%M%S).tar.bz2
 TARN = $(shell ls -la m0trace.* &> /dev/null | wc -l)
 NODE = $(shell eval uname -n)
 
 #dd block size, count and filesize
-#dd can have any block size and a random 
-#number of blocks, making the file size 
+#dd can have any block size and a random
+#number of blocks, making the file size
 #random
 DDZ := 1032
 CNT := $(shell expr 100 + $$RANDOM % 1000)
@@ -72,9 +72,9 @@ BSZ := 4
 LFLAGS += -lm -lpthread -lrt -lgf_complete -lyaml -luuid -lmero
 CFLAGS += -I/usr/include/mero
 CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern
-CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing 
-CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable 
-CFLAGS += -rdynamic 
+CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing
+CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
+CFLAGS += -rdynamic
 ifneq ($(M0_SRC_DIR),)
 LFLAGS += -L$(M0_SRC_DIR)/mero/.libs -Wl,-rpath,$(M0_SRC_DIR)/mero/.libs
 LFLAGS += -L$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs -Wl,-rpath,$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs
@@ -82,51 +82,62 @@ CFLAGS += -I$(M0_SRC_DIR)
 endif
 
 SRC = perf.o buffer.o qos.o c0appz.o pool.o
+SRC_ALL = $(SRC) c0cp.o c0ct.o c0rm.o c0cp_async.o fgen.o \
+		c0isc_register.o c0isc_demo.o isc_libdemo.o
 
-all: $(EXE1) $(EXE2) $(EXE3) $(EXE5) $(ISC_REG)
+all: $(C0CP) $(C0CT) $(C0RM) $(C0CP_A) isc-all
 .PHONY: all
 
-$(EXE1): $(SRC) c0cp.c help_c0cp.txt
+# Generate automatic dependencies,
+# see https://www.gnu.org/software/make/manual/html_node/Automatic-Prerequisites.html
+%.d: %.c
+	@set -e; rm -f $@; \
+		$(CC) -MM $(CFLAGS) $< > $@.$$$$; \
+		sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+		rm -f $@.$$$$
+-include $(SRC_ALL:.o=.d)
+
+$(C0CP): $(SRC) c0cp.c help_c0cp.txt
 	xxd -i help_c0cp.txt > help.h
-	gcc $(SRC) c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE1)
+	gcc $(SRC) c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0CP)
 
-$(EXE2): $(SRC) c0ct.c help_c0ct.txt
+$(C0CT): $(SRC) c0ct.c help_c0ct.txt
 	xxd -i help_c0ct.txt > help.h
-	gcc $(SRC) c0ct.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE2)
+	gcc $(SRC) c0ct.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0CT)
 
-$(EXE3): $(SRC) c0rm.c help_c0rm.txt
+$(C0RM): $(SRC) c0rm.c help_c0rm.txt
 	xxd -i help_c0rm.txt > help.h
-	gcc $(SRC) c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE3)
+	gcc $(SRC) c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0RM)
 
-$(EXE5): $(SRC) c0cp_async.c
-	gcc $(SRC) c0cp_async.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE5)
+$(C0CP_A): $(SRC) c0cp_async.c
+	gcc $(SRC) c0cp_async.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0CP_A)
 
-test: $(EXE1) $(EXE2) $(EXE3) $(EXE5)
-	$(SUDO) ./$(EXE3) 0 1048577 -y
+test: $(C0CP) $(C0CT) $(C0RM) $(C0CP_A)
+	$(SUDO) ./$(C0RM) 0 1048577 -y
 	sleep 6
-	$(SUDO) ./$(EXE3) 0 1048599 -y
+	$(SUDO) ./$(C0RM) 0 1048599 -y
 	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
 	@echo "#####"
 	@ls -lh $(FILE1)
-	$(SUDO) ./$(EXE1) 0 1048577 $(FILE1) $(BSZ)
+	$(SUDO) ./$(C0CP) 0 1048577 $(FILE1) $(BSZ)
 	@echo "#####"
 	@ls -la $(FILE1)
-	$(SUDO) ./$(EXE2) 0 1048577 $(FILE2) $(BSZ) $(FSZ)
+	$(SUDO) ./$(C0CT) 0 1048577 $(FILE2) $(BSZ) $(FSZ)
 	@ls -la $(FILE2)
 	@echo "#####"
 	@ls -la $(FILE1)
-	$(SUDO) ./$(EXE5) 0 1048599 $(FILE1) $(BSZ) 8
+	$(SUDO) ./$(C0CP_A) 0 1048599 $(FILE1) $(BSZ) 8
 	@echo "#####"
-	$(SUDO) ./$(EXE2) 0 1048599 $(FILE3) $(BSZ) $(FSZ) 
+	$(SUDO) ./$(C0CT) 0 1048599 $(FILE3) $(BSZ) $(FSZ)
 	@ls -ls $(FILE3)
 	@echo "#####"
 	cmp $(FILE1) $(FILE2) || echo "ERROR: Test Failed !!"
 	@echo "#####"
 	cmp $(FILE1) $(FILE3) || echo "ERROR: Async Test Failed !!"
 	@echo "#####"
-	$(SUDO) ./$(EXE3) 0 1048577 -y
+	$(SUDO) ./$(C0RM) 0 1048577 -y
 	sleep 6
-	$(SUDO) ./$(EXE3) 0 1048599 -y
+	$(SUDO) ./$(C0RM) 0 1048599 -y
 
 #yaml
 #bundle trace files for shipment
@@ -144,43 +155,43 @@ yaml:
 	ls -lh $(TARF)
 
 fgen:
-	gcc -Wall -lssl -lcrypto fgen.c -o $(EXE4)
+	gcc -Wall -lssl -lcrypto fgen.c -o $(FGEN)
 
 vmrcf:
-	mkdir -p .$(EXE1)rc
-	mkdir -p .$(EXE2)rc
-	mkdir -p .$(EXE3)rc
-	mkdir -p .$(EXE5)rc
+	mkdir -p .$(C0CP)rc
+	mkdir -p .$(C0CT)rc
+	mkdir -p .$(C0RM)rc
+	mkdir -p .$(C0CP_A)rc
 	mkdir -p .$(ISC_REG)rc
 	mkdir -p .$(ISC_INVK)rc
-	./scripts/c0appzrcgen > ./.$(EXE1)rc/$(NODE)
-	./scripts/c0appzrcgen > ./.$(EXE2)rc/$(NODE)
-	./scripts/c0appzrcgen > ./.$(EXE3)rc/$(NODE)
-	./scripts/c0appzrcgen > ./.$(EXE5)rc/$(NODE)
+	./scripts/c0appzrcgen > ./.$(C0CP)rc/$(NODE)
+	./scripts/c0appzrcgen > ./.$(C0CT)rc/$(NODE)
+	./scripts/c0appzrcgen > ./.$(C0RM)rc/$(NODE)
+	./scripts/c0appzrcgen > ./.$(C0CP_A)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(ISC_REG)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(ISC_INVK)rc/$(NODE)
 
 sagercf:
-	mkdir -p .${EXE1}rc
-	mkdir -p .${EXE2}rc
-	mkdir -p .${EXE3}rc
-	mkdir -p .${EXE5}rc
+	mkdir -p .${C0CP}rc
+	mkdir -p .${C0CT}rc
+	mkdir -p .${C0RM}rc
+	mkdir -p .${C0CP_A}rc
 	mkdir -p .$(ISC_REG)rc
 	mkdir -p .$(ISC_INVK)rc
-	sage-user-application-assignment ganesan $(EXE1) 172.18.1.${c} > .$(EXE1)rc/client-${c}
-	sage-user-application-assignment ganesan $(EXE2) 172.18.1.${c} > .$(EXE2)rc/client-${c}
-	sage-user-application-assignment ganesan $(EXE3) 172.18.1.${c} > .$(EXE3)rc/client-${c}
-	sage-user-application-assignment ganesan $(EXE5) 172.18.1.${c} > .$(EXE5)rc/client-${c}
-	sage-user-application-assignment ganesan $(EXE1) 172.18.1.${c} > .$(ISC_REG)rc/client-${c}
-	sage-user-application-assignment ganesan $(EXE2) 172.18.1.${c} > .$(ISC_INVK)rc/client-${c}
+	sage-user-application-assignment ganesan $(C0CP) 172.18.1.${c} > .$(C0CP)rc/client-${c}
+	sage-user-application-assignment ganesan $(C0CT) 172.18.1.${c} > .$(C0CT)rc/client-${c}
+	sage-user-application-assignment ganesan $(C0RM) 172.18.1.${c} > .$(C0RM)rc/client-${c}
+	sage-user-application-assignment ganesan $(C0CP_A) 172.18.1.${c} > .$(C0CP_A)rc/client-${c}
+	sage-user-application-assignment ganesan $(C0CP) 172.18.1.${c} > .$(ISC_REG)rc/client-${c}
+	sage-user-application-assignment ganesan $(C0CT) 172.18.1.${c} > .$(ISC_INVK)rc/client-${c}
 
-clean:
-	rm -f $(EXE1) $(EXE2) $(EXE3) $(EXE5) m0trace.*
+clean: isc-clean
+	rm -f $(C0CP) $(C0CT) $(C0RM) $(C0CP_A) m0trace.*
 	rm -f $(FILE1) $(FILE2) $(FILE3)
-	rm -f $(EXE4)
+	rm -f $(FGEN)
 	rm -f sfilet-* snodet-* fidout-*
 	rm -f upFile dwFile
-	rm -f *.o
+	rm -f *.o *.d
 
 m0t1fs:
 	touch /mnt/m0t1fs/0:3000
@@ -234,9 +245,8 @@ $(ISC_INVK):
 	gcc $(SRC) c0isc_demo.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_INVK)
 isc-all: $(ISC_REG) $(ISC_INVK) $(LIBISC)
 isc-clean:
-	rm -f $(ISC_REG) $(ISC_INVK)
-isc-lib-clean:
-	rm -f $(LIBISC)
+	rm -f $(ISC_REG) $(ISC_INVK) $(LIBISC)
+
 #
 #ECMWF Appz
 #
