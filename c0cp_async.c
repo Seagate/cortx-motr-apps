@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 		fprintf(stderr,"%s: %s: %s\n", argv[0], fname, strerror(errno));
 		exit(1);
 	}
-	cnt = (fs.st_size + bsz - 1)/bsz;
+	cnt = (fs.st_size + bsz - 1) / bsz;
 
 	/* init */
 	c0appz_timein();

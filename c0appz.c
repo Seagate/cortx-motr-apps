@@ -155,33 +155,45 @@ uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool)
 		return roundup_power2(obj_sz);
 }
 
-static void free_segs(struct m0_indexvec *ext, struct m0_bufvec *data,
-		      struct m0_bufvec *attr)
+void free_segs(struct m0_bufvec *data, struct m0_indexvec *ext,
+	       struct m0_bufvec *attr)
 {
 	m0_indexvec_free(ext);
 	m0_bufvec_free(data);
 	m0_bufvec_free(attr);
 }
 
-static int alloc_segs(struct m0_indexvec *ext, struct m0_bufvec *data,
-		      struct m0_bufvec *attr, uint64_t cnt, uint64_t bsz)
+int alloc_segs(struct m0_bufvec *data, struct m0_indexvec *ext,
+	       struct m0_bufvec *attr, uint64_t bsz, uint32_t cnt)
 {
 	int i, rc;
 
 	rc = m0_bufvec_alloc(data, cnt, bsz) ?:
-		m0_bufvec_alloc(attr, cnt, 1) ?:
-		m0_indexvec_alloc(ext, cnt);
+	     m0_bufvec_alloc(attr, cnt, 1) ?:
+	     m0_indexvec_alloc(ext, cnt);
 	if (rc != 0)
 		goto err;
 
-	/* We don't want any attributes */
 	for (i = 0; i < cnt; i++)
-		attr->ov_vec.v_count[i] = 0;
+		attr->ov_vec.v_count[i] = 0; /* no attrs */
 
 	return 0;
 err:
-	free_segs(ext, data, attr);
+	free_segs(data, ext, attr);
 	return rc;
+}
+
+uint64_t set_exts(struct m0_indexvec *ext, uint64_t off, uint64_t bsz)
+{
+	uint32_t i;
+
+	for (i = 0; i < ext->iv_vec.v_nr; i++) {
+		ext->iv_index[i] = off;
+		ext->iv_vec.v_count[i] = bsz;
+		off += bsz;
+	}
+
+	return i * bsz;
 }
 
 /*
@@ -192,7 +204,6 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	      uint64_t bsz, uint64_t cnt, uint64_t m0bs)
 {
 	int                rc=0;
-	uint32_t           i;
 	uint32_t           cnt_per_op;
 	uint64_t           off = 0;
 	struct m0_uint128  id = {idhi, idlo};
@@ -231,7 +242,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	}
 
 	/* Allocate data buffers, bufvec and indexvec for write */
-	rc = alloc_segs(&ext, &data, &attr, cnt_per_op, bsz);
+	rc = alloc_segs(&data, &ext, &attr, bsz, cnt_per_op);
 	if (rc != 0)
 		goto out;
 
@@ -250,31 +261,27 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		 * beginning of the object.
 		 */
 		if (cnt < cnt_per_op) {
-			free_segs(&ext, &data, &attr);
-			rc = alloc_segs(&ext, &data, &attr, cnt, bsz);
+			free_segs(&data, &ext, &attr);
+			rc = alloc_segs(&data, &ext, &attr, bsz, cnt);
 			if (rc != 0)
 				break;
 			cnt_per_op = cnt;
 		}
-		for (i = 0; i < cnt_per_op; i++) {
-			ext.iv_index[i] = off;
-			ext.iv_vec.v_count[i] = bsz;
-			off += bsz;
-		}
 
 		/* Read data from source file. */
 		st = m0_time_now();
-		if ((rc = read_data_from_file(fp, &data, bsz)) != cnt_per_op) {
-			fprintf(stderr, "%s(): reading from %s failed: "
-				"expected %u, got %u records\n",
-				__func__, filename, cnt_per_op, rc);
+		rc = read_data_from_file(fp, &data, bsz);
+		if (rc != cnt_per_op) {
+			fprintf(stderr, "%s(): reading from %s at %lu failed: "
+				"expected %u, got %d records\n",
+				__func__, filename, off, cnt_per_op, rc);
 			rc = -EIO;
 			break;
 		}
-		ext.iv_vec.v_count[cnt_per_op -1] =
-			data.ov_vec.v_count[cnt_per_op -1];
 		read_time = m0_time_add(read_time,
 					m0_time_sub(m0_time_now(), st));
+
+		off += set_exts(&ext, off, bsz);
 
 		/* Copy data to the object*/
 		st = m0_time_now();
@@ -299,7 +306,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 
 	m0_clovis_entity_fini(&obj.ob_entity);
 free_vecs:
-	free_segs(&ext, &data, &attr);
+	free_segs(&data, &ext, &attr);
 out:
 	fclose(fp);
 
@@ -354,6 +361,7 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		return -errno;
 	}
 
+	/* Initialise operation group. */
 	rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
 	if (rc != 0)
 		goto out;
@@ -369,37 +377,28 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	}
 
 	while (cnt > 0) {
-		/* Initialise operation group. */
-		if (cnt < op_cnt)
-			op_cnt = cnt;
-
 		/* Set each op. */
 		nr_ops_sent = 0;
-		for (i = 0; i < op_cnt; i++) {
+		for (i = 0; i < op_cnt && cnt > 0; i++) {
 			aio = &aio_grp.cag_aio_ops[i];
 			if (cnt < cnt_per_op)
 				cnt_per_op = cnt;
-			rc = clovis_aio_vec_alloc(aio, cnt_per_op, bsz);
+			rc = clovis_aio_vec_alloc(aio, bsz, cnt_per_op);
 			if (rc != 0)
 				break;
 
-			for (i = 0; i < cnt_per_op; i++) {
-				aio->cao_ext.iv_index[i] = off;
-				aio->cao_ext.iv_vec.v_count[i] = bsz;
-				off += bsz;
-
-				aio->cao_attr.ov_vec.v_count[i] = 0;
-			}
-
 			/* Read data from source file. */
-			if ((rc = read_data_from_file(fp, &aio->cao_data, bsz))
-			    != cnt_per_op) {
-				fprintf(stderr, "%s(): reading from %s failed"
-					": expected %u, read %u records\n",
-					__func__, src, cnt_per_op, rc);
+			rc = read_data_from_file(fp, &aio->cao_data, bsz);
+			if (rc != cnt_per_op) {
+				fprintf(stderr,
+					"%s(): reading from %s at %lu failed: "
+					"expected %u, read %u records\n",
+					__func__, src, off, cnt_per_op, rc);
 				rc = -EIO;
 				break;
 			}
+
+			off += set_exts(&aio->cao_ext, off, bsz);
 
 			/* Launch IO op. */
 			rc = write_data_to_object_async(aio);
@@ -409,6 +408,7 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 				break;
 			}
 			nr_ops_sent++;
+			cnt -= cnt_per_op;
 		}
 
 		/* Wait for all ops to complete. */
@@ -433,8 +433,6 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		qos_total_weight += op_cnt * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
-
-		cnt -= nr_ops_sent * cnt_per_op;
 	}
 
 fini:
@@ -453,7 +451,6 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	      uint64_t bsz, uint64_t cnt, uint64_t m0bs)
 {
 	int                rc=0;
-	uint32_t           i;
 	uint32_t           cnt_per_op;
 	uint64_t           off = 0;
 	struct m0_uint128  id = {idhi, idlo};
@@ -491,7 +488,7 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	}
 
 	/* Allocate data buffers, bufvec and indexvec for write. */
-	rc = alloc_segs(&ext, &data, &attr, cnt_per_op, bsz);
+	rc = alloc_segs(&data, &ext, &attr, bsz, cnt_per_op);
 	if (rc != 0)
 		goto out;
 
@@ -510,20 +507,13 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 		 * beginning of the object.
 		 */
 		if (cnt < cnt_per_op) {
-			free_segs(&ext, &data, &attr);
-			rc = alloc_segs(&ext, &data, &attr, cnt, bsz);
+			free_segs(&data, &ext, &attr);
+			rc = alloc_segs(&data, &ext, &attr, bsz, cnt);
 			if (rc != 0)
 				break;
 			cnt_per_op = cnt;
 		}
-		for (i = 0; i < cnt_per_op; i++) {
-			ext.iv_index[i] = off;
-			ext.iv_vec.v_count[i] = bsz;
-			off += bsz;
-
-			/* We don't want any attributes */
-			attr.ov_vec.v_count[i] = 0;
-		}
+		off += set_exts(&ext, off, bsz);
 
 		/* Copy data from the object*/
 		st = m0_time_now();
@@ -556,7 +546,7 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 
 	m0_clovis_entity_fini(&obj.ob_entity);
 free_vecs:
-	free_segs(&ext, &data, &attr);
+	free_segs(&data, &ext, &attr);
 out:
 	/* block */
 	qos_pthread_cond_wait();
@@ -1288,27 +1278,15 @@ int read_data_from_object(struct m0_clovis_obj *obj,
 }
 
 
-int clovis_aio_vec_alloc(struct clovis_aio_op *aio,
-				uint32_t blk_count, uint64_t blk_size)
+int clovis_aio_vec_alloc(struct clovis_aio_op *aio, uint64_t bsz, uint32_t cnt)
 {
-	int rc = 0;
-
-	rc = m0_bufvec_alloc(&aio->cao_data, blk_count, blk_size) ?:
-	     m0_bufvec_alloc(&aio->cao_attr, blk_count, 1) ?:
-	     m0_indexvec_alloc(&aio->cao_ext, blk_count);
-	if (rc != 0) {
-		m0_bufvec_free(&aio->cao_data);
-		m0_bufvec_free(&aio->cao_attr);
-	}
-	return rc;
+	return alloc_segs(&aio->cao_data, &aio->cao_ext, &aio->cao_attr,
+			  bsz, cnt);
 }
 
 void clovis_aio_vec_free(struct clovis_aio_op *aio)
 {
-	/* Free bufvec's and indexvec's */
-	m0_indexvec_free(&aio->cao_ext);
-	m0_bufvec_free(&aio->cao_data);
-	m0_bufvec_free(&aio->cao_attr);
+	free_segs(&aio->cao_data, &aio->cao_ext, &aio->cao_attr);
 }
 
 int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,

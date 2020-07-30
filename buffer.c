@@ -45,23 +45,12 @@ extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
 
 /*
  ******************************************************************************
- * STATIC VARIABLES
- ******************************************************************************
- */
-static struct m0_indexvec extn;
-static struct m0_bufvec data;
-static struct m0_bufvec attr;
-
-/*
- ******************************************************************************
  * STATIC FUNCTION PROTOTYPES
  ******************************************************************************
  */
 
-static void freevecs(void);
-static int initvecs(uint64_t pos, uint64_t bsz, uint64_t cnt);
-static int bufvecw(const char *buf, uint64_t bsz, uint64_t cnt);
-static int bufvecr(char *buf, uint64_t bsz, uint64_t cnt);
+static uint64_t bufvecw(struct m0_bufvec *data, const char *buf, uint64_t bsz);
+static uint64_t bufvecr(const struct m0_bufvec *data, char *buf, uint64_t bsz);
 
 /*
  ******************************************************************************
@@ -153,6 +142,9 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 	unsigned cnt_per_op;
 	struct m0_uint128 id = { idhi, idlo };
 	struct m0_clovis_obj obj = { };
+	struct m0_indexvec ext;
+	struct m0_bufvec   data;
+	struct m0_bufvec   attr;
 
 	if (bsz < 1 || bsz % PAGE_SIZE) {
 		fprintf(stderr,
@@ -184,24 +176,25 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 	while (cnt > 0) {
 		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
-		if (initvecs(pos, bsz, cnt_per_op) != 0) {
+		rc = alloc_segs(&data, &ext, &attr, bsz, cnt_per_op);
+		if (rc != 0) {
 			fprintf(stderr, "%s(): error! not enough memory\n",
 				__func__);
-			rc = -ENOMEM;
 			break;
 		}
+		pos += set_exts(&ext, pos, bsz);
 
-		rc = read_data_from_object(&obj, &extn, &data, &attr);
+		rc = read_data_from_object(&obj, &ext, &data, &attr);
 		if (rc != 0) {
 			fprintf(stderr,
 				"%s(): reading object failed: rc=%d\n",
 				__func__, rc);
-			freevecs();
+			free_segs(&data, &ext, &attr);
 			break;
 		}
 
 		/* copy to memory */
-		bufvecr(buf, bsz, cnt_per_op);
+		buf += bufvecr(&data, buf, bsz);
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
@@ -209,9 +202,7 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
-		freevecs();
-		buf += cnt_per_op * bsz;
-		pos += cnt_per_op * bsz;
+		free_segs(&data, &ext, &attr);
 		cnt -= cnt_per_op;
 	}
 
@@ -234,6 +225,9 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 	unsigned cnt_per_op;
 	struct m0_uint128 id = { idhi, idlo };
 	struct m0_clovis_obj obj = { };
+	struct m0_indexvec ext;
+	struct m0_bufvec   data;
+	struct m0_bufvec   attr;
 
 	if (bsz < 1 || bsz % PAGE_SIZE) {
 		fprintf(stderr,
@@ -265,19 +259,20 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 	while (cnt > 0) {
 		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
-		if (initvecs(pos, bsz, cnt_per_op) != 0) {
+		rc = alloc_segs(&data, &ext, &attr, bsz, cnt_per_op);
+		if (rc != 0) {
 			fprintf(stderr, "%s(): error! not enough memory\n",
 				__func__);
-			rc = -ENOMEM;
 			break;
 		}
-		bufvecw(buf, bsz, cnt_per_op);
-		rc = write_data_to_object(&obj, &extn, &data, &attr);
+		pos += set_exts(&ext, pos, bsz);
+		buf += bufvecw(&data, buf, bsz);
+		rc = write_data_to_object(&obj, &ext, &data, &attr);
 		if (rc != 0) {
 			fprintf(stderr,
 				"%s(): writing object failed: rc=%d\n",
 				__func__, rc);
-			freevecs();
+			free_segs(&data, &ext, &attr);
 			break;
 		}
 
@@ -287,9 +282,7 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
-		freevecs();
-		buf += cnt_per_op * bsz;
-		pos += cnt_per_op * bsz;
+		free_segs(&data, &ext, &attr);
 		cnt -= cnt_per_op;
 	}
 
@@ -304,68 +297,28 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
  ******************************************************************************
  */
 
-/* initvecs() */
-static int initvecs(uint64_t pos, uint64_t bsz, uint64_t cnt)
-{
-	int rc;
-	int i;
-
-	/* allocate buffers */
-	rc = m0_bufvec_alloc(&data, cnt, bsz) ? :
-	    m0_bufvec_alloc(&attr, cnt, 1) ? :
-	    m0_indexvec_alloc(&extn, cnt);
-	if (rc != 0) {
-		freevecs();
-		fprintf(stderr, "error! failed to allocate bufvecs!!\n");
-		return rc;
-	}
-
-	/* prepare index */
-	for (i = 0; i < cnt; i++) {
-		extn.iv_index[i] = pos;
-		extn.iv_vec.v_count[i] = bsz;
-		attr.ov_vec.v_count[i] = 0;	/* no attributes */
-		pos += bsz;
-	}
-
-	/* success */
-	return 0;
-}
-
-/* bufvecw() */
-static int bufvecw(const char *buf, uint64_t bsz, uint64_t cnt)
+static uint64_t bufvecw(struct m0_bufvec *data, const char *buf, uint64_t bsz)
 {
 	int i;
 	/* copy block by block */
-	assert(data.ov_vec.v_nr == cnt);
-	for (i = 0; i < cnt; i++) {
-		memmove(data.ov_buf[i], buf, bsz);
+	for (i = 0; i < data->ov_vec.v_nr; i++) {
+		memmove(data->ov_buf[i], buf, bsz);
 		buf += bsz;
 	}
-	/* success */
-	return 0;
+
+	return i * bsz;
 }
 
-/* bufvecr() */
-static int bufvecr(char *buf, uint64_t bsz, uint64_t cnt)
+static uint64_t bufvecr(const struct m0_bufvec *data, char *buf, uint64_t bsz)
 {
 	int i;
 	/* copy block by block */
-	assert(data.ov_vec.v_nr == cnt);
-	for (i = 0; i < cnt; i++) {
-		memmove(buf, data.ov_buf[i], bsz);
+	for (i = 0; i < data->ov_vec.v_nr; i++) {
+		memmove(buf, data->ov_buf[i], bsz);
 		buf += bsz;
 	}
-	/* success */
-	return 0;
-}
 
-/* freevecs() */
-static void freevecs(void)
-{
-	m0_bufvec_free(&data);
-	m0_bufvec_free(&attr);
-	m0_indexvec_free(&extn);
+	return i * bsz;
 }
 
 /*
