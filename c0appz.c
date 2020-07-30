@@ -1190,6 +1190,40 @@ int write_data_to_object(struct m0_clovis_obj *obj,
 	return rc;
 }
 
+static void clovis_aio_executed_cb(struct m0_clovis_op *op)
+{
+	/** Stuff to do when OP is in excecuted state */
+}
+
+static void clovis_aio_stable_cb(struct m0_clovis_op *op)
+{
+	struct clovis_aio_opgrp *grp;
+
+	grp = ((struct clovis_aio_op *)op->op_datum)->cao_grp;
+	m0_mutex_lock(&grp->cag_mlock);
+	if (op->op_rc == 0) {
+		grp->cag_blocks_written += 0;
+		grp->cag_blocks_to_write   += 0;
+		grp->cag_rc = grp->cag_rc ?: op->op_rc;
+	}
+	m0_mutex_unlock(&grp->cag_mlock);
+
+	m0_semaphore_up(&grp->cag_sem);
+}
+
+static void clovis_aio_failed_cb(struct m0_clovis_op *op)
+{
+	struct clovis_aio_opgrp *grp;
+
+	m0_console_printf("Write operation failed!");
+	grp = ((struct clovis_aio_op *)op->op_datum)->cao_grp;
+	m0_mutex_lock(&grp->cag_mlock);
+	grp->cag_rc = grp->cag_rc ?: op->op_rc;
+	m0_mutex_unlock(&grp->cag_mlock);
+
+	m0_semaphore_up(&grp->cag_sem);
+}
+
 /*
  * write_data_to_object_async()
  * writes to and object in async manner
@@ -1197,16 +1231,14 @@ int write_data_to_object(struct m0_clovis_obj *obj,
 int write_data_to_object_async(struct clovis_aio_op *aio)
 {
 	struct m0_clovis_obj    *obj;
-	struct m0_clovis_op_ops *op_ops;
 	struct clovis_aio_opgrp *grp;
+	static struct m0_clovis_op_ops op_ops = {
+		.oop_executed = clovis_aio_executed_cb,
+		.oop_stable   = clovis_aio_stable_cb,
+		.oop_failed   = clovis_aio_failed_cb };
 
 	grp = aio->cao_grp;
 	obj = &grp->cag_obj;
-	M0_ALLOC_PTR(op_ops);
-	if (op_ops == NULL) {
-		fprintf(stderr,"%s() failed to allocate memory\n", __func__);
-		return -ENOMEM;
-	}
 
 	/* Create an WRITE op. */
 	m0_clovis_obj_op(obj, M0_CLOVIS_OC_WRITE,
@@ -1215,10 +1247,7 @@ int write_data_to_object_async(struct clovis_aio_op *aio)
 	aio->cao_op->op_datum = aio;
 
 	/* Set op's Callbacks */
-	op_ops->oop_executed = clovis_aio_executed_cb;
-	op_ops->oop_stable = clovis_aio_stable_cb;
-	op_ops->oop_failed = clovis_aio_failed_cb;
-	m0_clovis_op_setup(aio->cao_op, op_ops, 0);
+	m0_clovis_op_setup(aio->cao_op, &op_ops, 0);
 
 	/* Launch the write request */
 	m0_clovis_op_launch(&aio->cao_op, 1);
@@ -1313,40 +1342,6 @@ void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp)
 	grp->cag_blocks_written = 0;
 
 	m0_free(grp->cag_aio_ops);
-}
-
-void clovis_aio_executed_cb(struct m0_clovis_op *op)
-{
-	/** Stuff to do when OP is in excecuted state */
-}
-
-void clovis_aio_stable_cb(struct m0_clovis_op *op)
-{
-	struct clovis_aio_opgrp *grp;
-
-	grp = ((struct clovis_aio_op *)op->op_datum)->cao_grp;
-	m0_mutex_lock(&grp->cag_mlock);
-	if (op->op_rc == 0) {
-		grp->cag_blocks_written += 0;
-		grp->cag_blocks_to_write   += 0;
-		grp->cag_rc = grp->cag_rc ?: op->op_rc;
-	}
-	m0_mutex_unlock(&grp->cag_mlock);
-
-	m0_semaphore_up(&grp->cag_sem);
-}
-
-void clovis_aio_failed_cb(struct m0_clovis_op *op)
-{
-	struct clovis_aio_opgrp *grp;
-
-	m0_console_printf("Write operation failed!");
-	grp = ((struct clovis_aio_op *)op->op_datum)->cao_grp;
-	m0_mutex_lock(&grp->cag_mlock);
-	grp->cag_rc = grp->cag_rc ?: op->op_rc;
-	m0_mutex_unlock(&grp->cag_mlock);
-
-	m0_semaphore_up(&grp->cag_sem);
 }
 
 /*
