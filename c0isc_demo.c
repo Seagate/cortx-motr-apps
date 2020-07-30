@@ -352,7 +352,7 @@ int main(int argc, char **argv)
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
 	char str[256];
-	sprintf(str,".%src",basename(argv[0]));
+	sprintf(str,"%s/.%src", dirname(argv[0]), basename(argv[0]));
 	c0appz_setrc(str);
 	c0appz_putrc();
 
