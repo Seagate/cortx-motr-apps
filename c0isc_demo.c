@@ -18,6 +18,8 @@
  * Original creation date: 06-Sep-2018
  */
 
+#include <libgen.h>      /* dirname */
+
 #include "conf/schema.h" /* M0_CST_ISCS */
 #include "lib/memory.h"  /* m0_alloc m0_free */
 
