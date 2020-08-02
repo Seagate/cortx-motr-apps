@@ -24,6 +24,7 @@
 # 26/02/2020 - getoption added
 # 27/02/2020 - paritygroup added
 # 04/03/2020 - usage added
+# 02/08/2020 - visnode added
 
 #!/usr/bin/bash
 
@@ -36,11 +37,13 @@ readonly PROG_NAME=$(basename $0)
 
 INTERACTIVE=0
 WHOLESYSTEM=1
-CLIENTS='client-2[1-8]'
-SERVERS=
+CLIENTS=''
+CLIENTS+='client-2[1-8]',
+CLIENTS+='visnode-0[1-4]'
+SERVERS=''
 SERVERS+='sage-tier1-[1-2]',
 SERVERS+='sage-tier2-[1-4]',
-SERVERS+='sage-tier3-[1-1]',
+SERVERS+='sage-tier3-[1-1]'
 
 #
 # Functions
@@ -118,6 +121,7 @@ merostat()
 {
 	echo "-[ Mero status(clients) ]-"
 	ssh -A client-21 hctl mero status | grep client
+	ssh -A client-21 hctl mero status | grep visnode
 	getchar
 	echo "-[ Mero status(tier nodes) ]-"
 	ssh -A client-21 hctl mero status | grep sage-tier
