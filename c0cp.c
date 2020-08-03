@@ -31,7 +31,6 @@
 #include <ctype.h>
 #include "c0appz.h"
 #include "c0appz_internal.h"
-#include "help.h"
 
 /*
  ******************************************************************************
@@ -49,17 +48,57 @@ extern struct m0_fid *pool_fid;
 
 char *prog;
 
-/*
- * help()
- */
+const char *help_c0cp_txt = "\
+Usage:\n\
+\n\
+c0cp [options] idh idl filename bsz\n\
+c0cp 1234 56789 256KiB-file 64\n\
+\n\
+idh - Mero fid high\n\
+idl - Mero fid low\n\
+bsz - Clovis block size (in KiBs)\n\
+\n\
+options are:\n\
+	-f | force\n\
+	-p | performance\n\
+	-c | contiguous mode. \n\
+	   | -c <n> write <n> contiguous copies of the file. \n\
+	-x | pool ID. \n\
+	   | -x <n> creates the object in pool with ID <n>. \n\
+	-u | unit size (in KiBs), must be power of 2, >= 4 and <= 4096.\n\
+           | By default, determined automatically based on the bsz and\n\
+           | parity configuration of the pool.\n\
+\n\
+The -f option forces rewriting on an object if that object already exists. \n\
+It creates a new object if the object does not exist.\n\
+c0cp -f 1234 56789 256MiB-file 8192 -u 1024\n\
+\n\
+The -p option enables performance monitoring. It collects performance stats\n\
+(such as bandwidth) and displays them at the end of the execution. It also\n\
+outputs realtime storage bandwith consumption.\n\
+c0cp -p 1234 56789 256MiB-file 8192 -u 1024\n\
+\n\
+The -c <n> option takes <n> a positive number as an argument and creates an \n\
+object with <n> contiguous copies of the same file.\n\
+c0cp -c 10 1234 56789 256MiB-file 8192 -u 1024\n\
+\n\
+The -x option takes <n> a positive number as an argument and selects the pool\n\
+with ID <n> for creating the object. Without this option objects are created\n\
+in the default pool.\n\
+c0cp -x 3 1234 56789 256MiB-file 8192 -u 1024\n\
+\n\
+Note: in order to get the maximum performance, block_size should be multiple\n\
+of data units in the parity group, i.e. multiple of unit_size * N, where\n\
+N is the number of data units in the parity group configuration of the pool.\n\
+For example, with 8+2 parity group configuration (8 data + 2 parity units\n\
+in the group) and 1MiB unit size - the block_size should be multiple of 8MiB.";
+
 int help()
 {
-	fprintf(stderr,"%s",(const char*)help_c0cp_txt);
-	fprintf(stderr,"\n");
+	fprintf(stderr, "%s\n", help_c0cp_txt);
 	exit(1);
 }
 
-/* main */
 int main(int argc, char **argv)
 {
 	uint64_t idh;        /* object id high    */

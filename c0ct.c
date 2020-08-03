@@ -28,7 +28,6 @@
 #include <inttypes.h>
 #include <assert.h>
 #include "c0appz.h"
-#include "help.h"
 
 /*
  ******************************************************************************
@@ -43,17 +42,40 @@ extern uint64_t qos_laps_remain;
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
 extern struct m0_fid *pool_fid;
 
-/*
- * help()
- */
+const char *help_c0ct_txt = "\
+Usage:\n\
+\n\
+c0ct [options] idh idl filename bsz fsz\n\
+c0ct 1234 56789 256MiB-file 1024 268435456\n\
+\n\
+idh - Mero fid high\n\
+idl - Mero fid low\n\
+bsz - Clovis block size (in KiBs)\n\
+fsz - File size (in bytes)\n\
+\n\
+options are:\n\
+	-p | performance\n\
+	-c | contiguous mode. \n\
+	     -c <n> read <n> contiguous copies of the file. \n\
+\n\
+The -p option enables performance monitoring. It collects performance stats\n\
+(such as bandwidth) and displays them at the end of the execution. It also\n\
+outputs realtime storage bandwith consumption.\n\
+c0ct -p 1234 56789 256MiB-file 1024 268435456\n\
+\n\
+The -c <n> option takes <n> a positive number as an argument and reads from\n\
+an object with <n> contiguous copies of the same file.\n\
+c0ct -c 10 1234 56789 256MiB-file 1024 268435456\n\
+\n\
+The options can also be combined.\n\
+c0ct 1234 56789 256MiB-file 1024 268435456 -p -c 10";
+
 int help()
 {
-	fprintf(stderr,"%s",(const char*)help_c0ct_txt);
-	fprintf(stderr,"\n");
+	fprintf(stderr,"%s\n", help_c0ct_txt);
 	exit(1);
 }
 
-/* main */
 int main(int argc, char **argv)
 {
 	uint64_t idh;	/* object id high		*/

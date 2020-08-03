@@ -24,7 +24,6 @@
 #include <libgen.h>
 #include <unistd.h>
 #include "c0appz.h"
-#include "help.h"
 
 /*
  ******************************************************************************
@@ -33,17 +32,32 @@
  */
 extern int perf; /* performance */
 
-/*
- * help()
- */
+const char *help_c0rm_txt = "\
+Usage:\n\
+	\n\
+c0rm [option] idh idl\n\
+c0rm 1234 56789\n\
+c0rm -y 1234 56789\n\
+\n\
+idh - Mero fid high\n\
+idl - Mero fid low\n\
+\n\
+option is:\n\
+	-y | yes\n\
+	-p | performance\n\
+		\n\
+The -y option forces deleting an object if that object already exists.\n\
+The -p option enables performance monitoring. It collects performance stats\n\
+such as cpu time, wall clock time, bandwidth, etc., and displays them at the\n\
+end of the execution.\n\
+c0rm -p 1234 56789";
+
 int help()
 {
-	fprintf(stderr,"%s",(const char*)help_c0rm_txt);
-	fprintf(stderr,"\n");
+	fprintf(stderr,"%s\n", help_c0rm_txt);
 	exit(1);
 }
 
-/* main */
 int main(int argc, char **argv)
 {
 	uint64_t idh;	/* object id high 	*/

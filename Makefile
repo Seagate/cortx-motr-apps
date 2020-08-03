@@ -97,16 +97,13 @@ all: $(C0CP) $(C0CT) $(C0RM) $(C0CP_A) isc-all
 		rm -f $@.$$$$
 -include $(SRC_ALL:.o=.d)
 
-$(C0CP): $(SRC) c0cp.c help_c0cp.txt
-	xxd -i help_c0cp.txt > help.h
+$(C0CP): $(SRC) c0cp.c
 	gcc $(SRC) c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0CP)
 
-$(C0CT): $(SRC) c0ct.c help_c0ct.txt
-	xxd -i help_c0ct.txt > help.h
+$(C0CT): $(SRC) c0ct.c
 	gcc $(SRC) c0ct.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0CT)
 
-$(C0RM): $(SRC) c0rm.c help_c0rm.txt
-	xxd -i help_c0rm.txt > help.h
+$(C0RM): $(SRC) c0rm.c
 	gcc $(SRC) c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0RM)
 
 $(C0CP_A): $(SRC) c0cp_async.c
@@ -191,7 +188,7 @@ clean: isc-clean
 	rm -f $(FGEN)
 	rm -f sfilet-* snodet-* fidout-*
 	rm -f upFile dwFile
-	rm -f *.o *.d
+	rm -f *.o *.d help.h
 
 m0t1fs:
 	touch /mnt/m0t1fs/0:3000
