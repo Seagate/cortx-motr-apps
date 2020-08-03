@@ -35,13 +35,7 @@
 #include "c0appz.h"
 #include "c0appz_internal.h"
 
-/*
- ******************************************************************************
- * EXTERN VARIABLES
- ******************************************************************************
- */
 extern int perf; /* show performance stats */
-int force=0;     /* overwrite object if it already exists */
 extern uint64_t qos_whgt_served;
 extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
@@ -49,59 +43,73 @@ extern uint64_t qos_laps_remain;
 extern pthread_mutex_t qos_lock;  /* lock  qos_total_weight */
 extern struct m0_fid *pool_fid;
 
-/* main */
+char *prog;
+
 int main(int argc, char **argv)
 {
 	int rc;
-	int opt=0;         /* options */
+	int opt = 0;       /* options */
+	int cont = 0;      /* continuous mode   */
+	int force = 0;     /* overwrite object if already exists */
+	char *fname;       /* input filename */
+	char *fbuf;        /* file buffer */
 	uint64_t idh;      /* object id high */
 	uint64_t idl;      /* object id low */
+	uint64_t pos;      /* starting position */
 	uint64_t bsz;      /* block size */
 	uint64_t m0bs;     /* m0 block size */
 	uint64_t cnt;      /* count */
 	uint64_t op_cnt;   /* number of parallel ops */
-	char *fname;       /* input filename */
 	struct stat64 fs;  /* file statistics */
+	char str[256];
 
-	/* getopt */
-	while((opt = getopt(argc, argv, ":pfu:"))!=-1){
+	prog = basename(argv[0]);
+
+	while((opt = getopt(argc, argv, ":pfu:c:"))!=-1){
 		switch(opt){
-			case 'p':
-				perf = 1;
-				break;
-			case 'f':
-				force = 1;
-				break;
-			case 'u':
-				if (sscanf(optarg, "%i", &unit_size) != 1) {
-					fprintf(stderr, "invalid unit size\n");
-					exit(1);
-				}
-				break;
-			case ':':
-				fprintf(stderr,"option needs a value\n");
-				break;
-			case '?':
-				fprintf(stderr,"unknown option: %c\n", optopt);
-				break;
-			default:
-				fprintf(stderr,"unknown default option: %c\n", optopt);
-				break;
+		case 'p':
+			perf = 1;
+			break;
+		case 'f':
+			force = 1;
+			break;
+		case 'u':
+			if (sscanf(optarg, "%i", &unit_size) != 1) {
+				fprintf(stderr, "invalid unit size\n");
+				exit(1);
+			}
+			break;
+		case 'c':
+			cont = atoi(optarg);
+			if (cont < 0) cont=0;
+			if (!cont) {
+				fprintf(stderr, "invalid -c value: %d\n", cont);
+				exit(1);
+			}
+			break;
+		case ':':
+			fprintf(stderr,"option needs a value\n");
+			break;
+		case '?':
+			fprintf(stderr,"unknown option: %c\n", optopt);
+			break;
+		default:
+			fprintf(stderr,"unknown default option: %c\n", optopt);
+			break;
 		}
 	}
 
 	/* check input */
-	if(argc-optind!=5){
-		fprintf(stderr,"Usage:\n");
-		fprintf(stderr,"%s [options] idh idl filename bsz opcnt\n", basename(argv[0]));
+	if (argc - optind != 5) {
+		fprintf(stderr,"Usage:\n"
+			"%s [options] idh idl filename bsz opcnt\n", prog);
 		return 111;
 	}
 
 	/* c0rcfile
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
-	char str[256];
-	sprintf(str,"%s/.%src", dirname(argv[0]), basename(argv[0]));
+	sprintf(str,"%s/.%src", dirname(argv[0]), prog);
 	c0appz_setrc(str);
 	c0appz_putrc();
 
@@ -113,13 +121,13 @@ int main(int argc, char **argv)
 	op_cnt = atoll(argv[optind+4]);
 
 	if (bsz == 0) {
-		fprintf(stderr,"%s: bsz must be > 0\n", argv[0]);
+		fprintf(stderr,"%s: bsz must be > 0\n", prog);
 		exit(1);
 	}
 
 	rc = stat64(fname, &fs);
 	if (rc != 0) {
-		fprintf(stderr,"%s: %s: %s\n", argv[0], fname, strerror(errno));
+		fprintf(stderr,"%s: %s: %s\n", prog, fname, strerror(errno));
 		exit(1);
 	}
 	cnt = (fs.st_size + bsz - 1) / bsz;
@@ -151,6 +159,54 @@ int main(int argc, char **argv)
 	ppf("%6s","create");
 	c0appz_timeout(0);
 
+	/* continuous write */
+	if (cont) {
+		fbuf = malloc(fs.st_size + bsz - 1);
+		if (!fbuf) {
+			fprintf(stderr,"%s(): error: not enough memory.\n",
+				__func__);
+			rc = 111;
+			goto end;
+		}
+		rc = c0appz_fr(fbuf, fname, bsz, cnt);
+		if (rc != 0) {
+			fprintf(stderr,"%s(): c0appz_fr failed: rc=%d\n",
+				__func__, rc);
+			rc = 555;
+			goto end;
+		}
+
+		qos_whgt_served = 0;
+		qos_whgt_remain = bsz * cnt * cont;
+		qos_laps_served = 0;
+		qos_laps_remain = cont;
+		qos_pthread_start();
+		c0appz_timein();
+
+		for (pos = 0; cont > 0; cont--, pos += cnt * bsz) {
+			rc = c0appz_mw_async(fbuf, idh, idl, pos, bsz, cnt,
+					     op_cnt, m0bs);
+			if (rc != 0) {
+				fprintf(stderr, "%s: c0appz_mw_async() failed"
+					" at pos %lu: %d\n", prog, pos, rc);
+				break;
+			}
+			pthread_mutex_lock(&qos_lock);
+			qos_laps_served++;
+			qos_laps_remain--;
+			pthread_mutex_unlock(&qos_lock);
+		}
+
+		ppf("%8s","write");
+		c0appz_timeout(pos);
+		qos_pthread_wait();
+		printf("%" PRIu64 " x %" PRIu64 " = %" PRIu64 "\n", cnt, bsz,
+		       cnt * bsz);
+		printf("Total written: %lu bytes\n", pos);
+		free(fbuf);
+		goto end;
+	}
+
 	/* copy */
 	qos_whgt_served=0;
 	qos_whgt_remain=bsz*cnt;
@@ -171,7 +227,7 @@ int main(int argc, char **argv)
 	ppf("%6s","copy");
 	c0appz_timeout(bsz*cnt);
 	qos_pthread_wait();
-
+ end:
 	/* free */
 	c0appz_timein();
 	c0appz_free();
@@ -181,7 +237,7 @@ int main(int argc, char **argv)
 	/* success */
 	c0appz_dump_perf();
 	printf("%s %" PRIu64 "\n",fname,fs.st_size);
-	fprintf(stderr,"%s success\n", basename(argv[0]));
+	fprintf(stderr,"%s success\n", prog);
 	return 0;
 }
 

@@ -130,12 +130,11 @@ int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt)
 
 /*
  * c0appz_mr()
- * read from mero object!
- * reads data from a mero object to memory buffer.
- * reads cnt number of blocks, each of size bsz from
- * pos (byte) position of the object
+ * Reads data from a mero object to memory buffer.
+ * Reads cnt number of blocks, each of size bsz starting at
+ * off (byte) offset of the object.
  */
-int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
+int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	      uint64_t bsz, uint64_t cnt, uint64_t m0bs)
 {
 	int rc;
@@ -182,7 +181,7 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 				__func__);
 			break;
 		}
-		pos += set_exts(&ext, pos, bsz);
+		off += set_exts(&ext, off, bsz);
 
 		rc = read_data_from_object(&obj, &ext, &data, &attr);
 		if (rc != 0) {
@@ -213,12 +212,11 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 
 /*
  * c0appz_mw()
- * write to mero object!
- * writes data from memory buffer to a mero object.
- * writes cnt number of blocks, each of size bsz from
- * pos (byte) position of the object
+ * Writes data from memory buffer to a mero object.
+ * Writes cnt number of blocks, each of size bsz starting at
+ * off (byte) offset of the object.
  */
-int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
+int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	      uint64_t bsz, uint64_t cnt, uint64_t m0bs)
 {
 	int rc;
@@ -265,7 +263,7 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 				__func__);
 			break;
 		}
-		pos += set_exts(&ext, pos, bsz);
+		off += set_exts(&ext, off, bsz);
 		buf += bufvecw(&data, buf, bsz);
 		rc = write_data_to_object(&obj, &ext, &data, &attr);
 		if (rc != 0) {
@@ -292,10 +290,113 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
 }
 
 /*
- ******************************************************************************
- * STATIC FUNCTIONS
- ******************************************************************************
+ * c0appz_mw_async()
+ * Writes data from memory buffer to a mero object in async mode op_cnt
+ * Clovis operations at a time. Writes cnt number of blocks, each of size
+ * bsz at off (byte) offset of the object.
  */
+int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
+		    uint64_t bsz, uint64_t cnt, uint32_t op_cnt, uint64_t m0bs)
+{
+	int                       rc = 0;
+	uint32_t                  i;
+	uint32_t                  nr_ops_sent;
+	uint32_t                  cnt_per_op;
+	struct m0_uint128         id = {idhi, idlo};
+	struct clovis_aio_op     *aio;
+	struct clovis_aio_opgrp   aio_grp;
+
+	if (bsz < 1 || bsz % PAGE_SIZE) {
+		fprintf(stderr, "%s(): bsz(%lu) must be multiple of %luK\n",
+			__func__, m0bs, PAGE_SIZE / 1024);
+		return -EINVAL;
+	}
+
+	if (m0bs < 1 || m0bs % bsz) {
+		fprintf(stderr, "%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
+			__func__, m0bs, bsz);
+		return -EINVAL;
+	}
+
+	cnt_per_op = m0bs / bsz;
+
+	/* Initialise operation group. */
+	rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
+	if (rc != 0) {
+		fprintf(stderr, "%s(): clovis_aio_opgrp_init() failed: rc=%d\n",
+			__func__, rc);
+		return rc;
+	}
+
+	/* Open the object. */
+	m0_clovis_obj_init(&aio_grp.cag_obj, &clovis_uber_realm,
+			   &id, M0_DEFAULT_LAYOUT_ID);
+	rc = open_entity(&aio_grp.cag_obj.ob_entity);
+	if (rc != 0) {
+		fprintf(stderr, "%s(): open_entity() failed: rc=%d\n",
+			__func__, rc);
+		goto fini;
+	}
+
+	while (cnt > 0) {
+		/* Set each op. */
+		nr_ops_sent = 0;
+		for (i = 0; i < op_cnt && cnt > 0; i++) {
+			aio = &aio_grp.cag_aio_ops[i];
+			if (cnt < cnt_per_op)
+				cnt_per_op = cnt;
+			rc = clovis_aio_vec_alloc(aio, bsz, cnt_per_op);
+			if (rc != 0)
+				break;
+
+			off += set_exts(&aio->cao_ext, off, bsz);
+			buf += bufvecw(&aio->cao_data, buf, bsz);
+
+			/* Launch IO op. */
+			rc = write_data_to_object_async(aio);
+			if (rc != 0) {
+				fprintf(stderr, "%s(): writing to object failed\n",
+					__func__);
+				break;
+			}
+			nr_ops_sent++;
+			cnt -= cnt_per_op;
+		}
+
+		/* Wait for all ops to complete. */
+		for (i = 0; i < nr_ops_sent; i++)
+			m0_semaphore_down(&aio_grp.cag_sem);
+
+		/* Finalise ops and group. */
+		rc = rc ?: aio_grp.cag_rc;
+		for (i = 0; i < nr_ops_sent; i++) {
+			aio = &aio_grp.cag_aio_ops[i];
+			m0_clovis_op_fini(aio->cao_op);
+			m0_clovis_op_free(aio->cao_op);
+			clovis_aio_vec_free(aio);
+		}
+
+		/* Not all ops are launched and executed successfully. */
+		if (rc != 0)
+			break;
+
+		/* QOS */
+		pthread_mutex_lock(&qos_lock);
+		qos_total_weight += op_cnt * bsz;
+		pthread_mutex_unlock(&qos_lock);
+		/* END */
+	}
+ fini:
+	m0_clovis_entity_fini(&aio_grp.cag_obj.ob_entity);
+	clovis_aio_opgrp_fini(&aio_grp);
+
+	return rc;
+}
+
+
+/******************************************************************************
+ * STATIC FUNCTIONS
+ ******************************************************************************/
 
 static uint64_t bufvecw(struct m0_bufvec *data, const char *buf, uint64_t bsz)
 {

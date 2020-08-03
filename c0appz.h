@@ -140,10 +140,12 @@ int c0appz_pool_set(int pid);
 
 int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt);
 int c0appz_fr(char *buf, char *inf, uint64_t bsz, uint64_t cnt);
-int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
+int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	      uint64_t bsz, uint64_t cnt, uint64_t m0bs);
-int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t pos,
+int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	      uint64_t bsz, uint64_t cnt, uint64_t m0bs);
+int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
+		    uint64_t bsz, uint64_t cnt, uint32_t op_cnt, uint64_t m0bs);
 
 int write_data_to_object(struct m0_clovis_obj *o, struct m0_indexvec *ext,
 			 struct m0_bufvec *data, struct m0_bufvec *attr);

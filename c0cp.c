@@ -40,13 +40,14 @@
  */
 extern int perf; 	/* performance 		*/
 int force=0; 		/* overwrite  		*/
-int cont=0; 		/* continuous mode 	*/
 extern uint64_t qos_whgt_served;
 extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
 extern pthread_mutex_t qos_lock;       /* lock  qos_total_weight */
 extern struct m0_fid *pool_fid;
+
+char *prog;
 
 /*
  * help()
@@ -72,46 +73,46 @@ int main(int argc, char **argv)
 	int      opt;        /* options           */
 	int      rc;         /* return code       */
 	char    *fbuf;       /* file buffer       */
-	int      laps;       /* number of writes  */
+	int      cont=0;     /* continuous mode   */
 	int      pool=0;     /* default pool ID   */
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pfc:x:u:"))!=-1){
 		switch(opt){
-			case 'p':
-				perf = 1;
-				break;
-			case 'f':
-				force = 1;
-				break;
-			case 'c':
-				cont = atoi(optarg);
-				if(cont<0) cont=0;
-				if(!cont) help();
-				break;
-			case 'u':
-				if (sscanf(optarg, "%i", &unit_size) != 1) {
-					fprintf(stderr, "invalid unit size\n");
-					help();
-				}
-				break;
-			case 'x':
-				pool = atoi(optarg);
-				if(!isdigit(optarg[0])) pool = -1;
-				if((pool<0)||(pool>3)) help();
-				break;
-			case ':':
-				fprintf(stderr,"option %c needs a value\n",optopt);
+		case 'p':
+			perf = 1;
+			break;
+		case 'f':
+			force = 1;
+			break;
+		case 'c':
+			cont = atoi(optarg);
+			if(cont<0) cont=0;
+			if(!cont) help();
+			break;
+		case 'u':
+			if (sscanf(optarg, "%i", &unit_size) != 1) {
+				fprintf(stderr, "invalid unit size\n");
 				help();
-				break;
-			case '?':
-				fprintf(stderr,"unknown option: %c\n", optopt);
-				help();
-				break;
-			default:
-				fprintf(stderr,"unknown option: %c\n", optopt);
-				help();
-				break;
+			}
+			break;
+		case 'x':
+			pool = atoi(optarg);
+			if(!isdigit(optarg[0])) pool = -1;
+			if((pool<0)||(pool>3)) help();
+			break;
+		case ':':
+			fprintf(stderr,"option %c needs a value\n",optopt);
+			help();
+			break;
+		case '?':
+			fprintf(stderr,"unknown option: %c\n", optopt);
+			help();
+			break;
+		default:
+			fprintf(stderr,"unknown option: %c\n", optopt);
+			help();
+			break;
 		}
 	}
 
@@ -124,7 +125,8 @@ int main(int argc, char **argv)
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
 	char str[256];
-	sprintf(str,"%s/.%src", dirname(argv[0]), basename(argv[0]));
+	prog = basename(argv[0]);
+	sprintf(str,"%s/.%src", dirname(argv[0]), prog);
 	c0appz_setrc(str);
 	c0appz_putrc();
 
@@ -135,13 +137,13 @@ int main(int argc, char **argv)
 	bsz = atoll(argv[optind+3]) * 1024;
 
 	if (bsz == 0) {
-		fprintf(stderr,"%s: bsz must be > 0\n", argv[0]);
+		fprintf(stderr,"%s: bsz must be > 0\n", prog);
 		help();
 	}
 
 	rc = stat64(fname, &fs);
 	if (rc != 0) {
-		fprintf(stderr,"%s: %s: %s\n", argv[0], fname, strerror(errno));
+		fprintf(stderr,"%s: %s: %s\n", prog, fname, strerror(errno));
 		exit(1);
 	}
 	cnt = (fs.st_size + bsz - 1) / bsz;
@@ -200,26 +202,31 @@ int main(int argc, char **argv)
 			goto end;
 		}
 
-		laps=cont;
-		qos_whgt_served=0;
-		qos_whgt_remain=bsz*cnt*laps;
-		qos_laps_served=0;
-		qos_laps_remain=laps;
+		qos_whgt_served = 0;
+		qos_whgt_remain = bsz * cnt * cont;
+		qos_laps_served = 0;
+		qos_laps_remain = cont;
 		qos_pthread_start();
 		c0appz_timein();
-		while (cont > 0) {
-			pos = (laps-cont)*cnt*bsz;
-			c0appz_mw(fbuf, idh, idl, pos, bsz, cnt, m0bs);
-			cont--;
+
+		for (pos = 0; cont > 0; cont--, pos += cnt * bsz) {
+			rc = c0appz_mw(fbuf, idh, idl, pos, bsz, cnt, m0bs);
+			if (rc != 0) {
+				fprintf(stderr, "%s: c0appz_mw() failed"
+					" at pos %lu: %d\n", prog, pos, rc);
+				break;
+			}
 			pthread_mutex_lock(&qos_lock);
 			qos_laps_served++;
 			qos_laps_remain--;
 			pthread_mutex_unlock(&qos_lock);
 		}
+
 		ppf("%8s","write");
-		c0appz_timeout(bsz*cnt*laps);
+		c0appz_timeout(pos);
 		qos_pthread_wait();
-		printf("%" PRIu64 " x %" PRIu64 " = %" PRIu64 "\n",cnt,bsz,cnt*bsz);
+		printf("%" PRIu64 " x %" PRIu64 " = %" PRIu64 "\n", cnt, bsz,
+		       cnt * bsz);
 		free(fbuf);
 		goto end;
 	}
@@ -257,14 +264,14 @@ end:
 	/* failure */
 	if (rc != 0) {
 		printf("%s %" PRIu64 "\n",fname,fs.st_size);
-		fprintf(stderr,"%s failed!\n",basename(argv[0]));
+		fprintf(stderr,"%s failed!\n", prog);
 		return rc;
 	}
 
 	/* success */
 	c0appz_dump_perf();
 	printf("%s %" PRIu64 "\n",fname,fs.st_size);
-	fprintf(stderr,"%s success\n",basename(argv[0]));
+	fprintf(stderr,"%s success\n", prog);
 	return 0;
 }
 

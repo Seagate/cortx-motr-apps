@@ -434,11 +434,10 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 	}
-
-fini:
+ fini:
 	m0_clovis_entity_fini(&aio_grp.cag_obj.ob_entity);
 	clovis_aio_opgrp_fini(&aio_grp);
-out:
+ out:
 	fclose(fp);
 	return rc;
 }
@@ -1016,8 +1015,7 @@ int c0appz_setrc(char *rcfile)
 int c0appz_putrc(void)
 {
 	/* print rc filename */
-	fprintf(stderr, "%s", c0rcfile);
-	fprintf(stderr, "\n");
+	fprintf(stderr, "%s\n", c0rcfile);
 	return 0;
 }
 
