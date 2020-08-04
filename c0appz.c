@@ -144,8 +144,8 @@ uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool)
 	usz = m0_clovis_obj_layout_id_to_unit_size(lid);
 	pa = &pver->pv_attr;
 	gsz = usz * pa->pa_N;
-	/* max 4-times pool-width deep, otherwise we may get -E2BIG */
-	max_bs = usz * 4 * pa->pa_P * pa->pa_N / (pa->pa_N + 2 * pa->pa_K);
+	/* max 2-times pool-width deep, otherwise we may get -E2BIG */
+	max_bs = usz * 2 * pa->pa_P * pa->pa_N / (pa->pa_N + 2 * pa->pa_K);
 
 	if (obj_sz >= max_bs)
 		return max_bs;

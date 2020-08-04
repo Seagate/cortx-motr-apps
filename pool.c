@@ -68,7 +68,7 @@ int c0appz_pool_ini(void)
 
 	/* pool 0 */
 	c0p[0].pool_fid.f_container = 0x6f00000000000001;
-	c0p[0].pool_fid.f_key = 0x6bf;
+	c0p[0].pool_fid.f_key = 0x9e2;
 	c0p[0].pool_bsz = 4096*2;
 
 	/*
@@ -77,7 +77,7 @@ int c0appz_pool_ini(void)
 
 	/* pool 1 */
 	c0p[1].pool_fid.f_container = 0x6f00000000000001;
-	c0p[1].pool_fid.f_key = 0x6d5;
+	c0p[1].pool_fid.f_key = 0x9f8;
 	c0p[1].pool_bsz = 4096*8;
 
 	/*
@@ -86,7 +86,7 @@ int c0appz_pool_ini(void)
 
 	/* pool 2 */
 	c0p[2].pool_fid.f_container = 0x6f00000000000001;
-	c0p[2].pool_fid.f_key = 0x6f4;
+	c0p[2].pool_fid.f_key = 0xa13;
 	c0p[2].pool_bsz = 4096*8;
 
 
