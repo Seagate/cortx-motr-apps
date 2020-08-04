@@ -42,6 +42,8 @@ extern uint64_t qos_laps_remain;
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
 extern struct m0_fid *pool_fid;
 
+char *prog;
+
 const char *help_c0ct_txt = "\
 Usage:\n\
 \n\
@@ -92,30 +94,32 @@ int main(int argc, char **argv)
 	int laps=0;		/* number of reads		*/
 	int rc=0;		/* return code			*/
 
+	prog = basename(argv[0]);
+
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pc:"))!=-1){
 		switch(opt){
-			case 'p':
-				perf = 1;
-				break;
-			case 'c':
-				cont = 1;
-				cont = atoi(optarg);
-				if(cont<0) cont=0;
-				if(!cont) help();
-				break;
-			case ':':
-				fprintf(stderr,"option needs a value\n");
-				help();
-				break;
-			case '?':
-				fprintf(stderr,"unknown option: %c\n", optopt);
-				help();
-				break;
-			default:
-				fprintf(stderr,"unknown option: %c\n", optopt);
-				help();
-				break;
+		case 'p':
+			perf = 1;
+			break;
+		case 'c':
+			cont = 1;
+			cont = atoi(optarg);
+			if(cont<0) cont=0;
+			if(!cont) help();
+			break;
+		case ':':
+			fprintf(stderr,"option needs a value\n");
+			help();
+			break;
+		case '?':
+			fprintf(stderr,"unknown option: %c\n", optopt);
+			help();
+			break;
+		default:
+			fprintf(stderr,"unknown option: %c\n", optopt);
+			help();
+			break;
 		}
 	}
 
@@ -131,7 +135,7 @@ int main(int argc, char **argv)
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
 	char str[256];
-	sprintf(str,"%s/.%src", dirname(argv[0]), basename(argv[0]));
+	sprintf(str,"%s/.%src", dirname(argv[0]), prog);
 	c0appz_setrc(str);
 	c0appz_putrc();
 
@@ -252,14 +256,14 @@ end:
 	/* failure */
 	if(rc){
 		printf("%s %" PRIu64 "\n",fname,fsz);
-		fprintf(stderr,"%s failed!\n",basename(argv[0]));
+		fprintf(stderr,"%s failed!\n", prog);
 		return rc;
 	}
 
 	/* success */
 	c0appz_dump_perf();
 	printf("%s %" PRIu64 "\n",fname,fsz);
-	fprintf(stderr,"%s success\n",basename(argv[0]));
+	fprintf(stderr,"%s success\n", prog);
 	return 0;
 }
 
