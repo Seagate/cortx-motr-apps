@@ -52,6 +52,8 @@ such as cpu time, wall clock time, bandwidth, etc., and displays them at the\n\
 end of the execution.\n\
 c0rm -p 1234 56789";
 
+char *prog;
+
 int help()
 {
 	fprintf(stderr,"%s\n", help_c0rm_txt);
@@ -65,6 +67,8 @@ int main(int argc, char **argv)
 	int opt=0;		/* options			*/
 	int rc=0;
 	int yes=0;
+
+	prog = basename(strdup(argv[0]));
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":py"))!=-1){
@@ -98,7 +102,7 @@ int main(int argc, char **argv)
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
 	char str[256];
-	sprintf(str,"%s/.%src", dirname(argv[0]), basename(argv[0]));
+	sprintf(str,"%s/.%src", dirname(argv[0]), prog);
 	c0appz_setrc(str);
 	c0appz_putrc();
 
@@ -158,13 +162,13 @@ end:
 
 	/* failure */
 	if(rc>1){
-		fprintf(stderr,"%s failed!\n",basename(argv[0]));
+		fprintf(stderr,"%s failed!\n", prog);
 		return rc;
 	}
 
 	/* success */
 	c0appz_dump_perf();
-	fprintf(stderr,"%s success\n",basename(argv[0]));
+	fprintf(stderr,"%s success\n", prog);
 	return 0;
 }
 

@@ -316,15 +316,17 @@ static void* output_process(struct m0_buf *result, void *in_args,
 	return NULL;
 }
 
-static void usage_print(char *bin_name)
+char *prog;
+
+static void usage_print()
 {
 	fprintf(stderr,"Usage:\n");
-	fprintf(stderr,"%s op_name\n", bin_name);
+	fprintf(stderr,"%s op_name\n", prog);
 	fprintf	(stderr,"supported operations: ping, min, max\n");
 	fprintf(stderr, "See README");
 }
 
-/* main */
+
 int main(int argc, char **argv)
 {
 	struct m0_buf          buf;
@@ -341,9 +343,11 @@ int main(int argc, char **argv)
 	int                    op_type;
 	int                    rc;
 
+	prog = basename(strdup(argv[0]));
+
 	/* check input */
 	if (argc != 2) {
-		usage_print(basename(argv[0]));
+		usage_print();
 		return -1;
 	}
 
@@ -354,13 +358,13 @@ int main(int argc, char **argv)
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
 	char str[256];
-	sprintf(str,"%s/.%src", dirname(argv[0]), basename(argv[0]));
+	sprintf(str,"%s/.%src", dirname(argv[0]), prog);
 	c0appz_setrc(str);
 	c0appz_putrc();
 
 	op_type = op_type_get(argv[1]);
 	if (op_type == -EINVAL) {
-		usage_print(basename(argv[0]));
+		usage_print(prog);
 		return -EINVAL;
 	}
 
@@ -432,9 +436,9 @@ out:
 
 	/* success */
 	if (rc == 0)
-		fprintf(stderr,"%s success\n",basename(argv[0]));
+		fprintf(stderr,"%s success\n", prog);
 	else
-		fprintf(stderr,"%s fail\n",basename(argv[0]));
+		fprintf(stderr,"%s fail\n", prog);
 	return rc;
 }
 

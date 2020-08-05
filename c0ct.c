@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 	int laps=0;		/* number of reads		*/
 	int rc=0;		/* return code			*/
 
-	prog = basename(argv[0]);
+	prog = basename(strdup(argv[0]));
 
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pc:"))!=-1){

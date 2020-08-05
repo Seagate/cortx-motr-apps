@@ -20,9 +20,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <libgen.h>
 #include <string.h>
 #include <errno.h>
-#include <libgen.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -115,6 +115,8 @@ int main(int argc, char **argv)
 	int      cont=0;     /* continuous mode   */
 	int      pool=0;     /* default pool ID   */
 
+	prog = basename(strdup(argv[0]));
+
 	/* getopt */
 	while((opt = getopt(argc, argv, ":pfc:x:u:"))!=-1){
 		switch(opt){
@@ -164,7 +166,6 @@ int main(int argc, char **argv)
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
 	char str[256];
-	prog = basename(argv[0]);
 	sprintf(str,"%s/.%src", dirname(argv[0]), prog);
 	c0appz_setrc(str);
 	c0appz_putrc();

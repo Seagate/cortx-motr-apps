@@ -30,15 +30,19 @@
 #include "iscservice/isc.h"
 #include "rpc/link.h"
 
+char *prog;
+
 /* main */
 int main(int argc, char **argv)
 {
 	int rc = 0;
 
+	prog = basename(strdup(argv[0]));
+
 	/* check input */
 	if (argc != 2) {
 		fprintf(stderr,"Usage:\n");
-		fprintf(stderr,"%s libpath\n", basename(argv[0]));
+		fprintf(stderr,"%s libpath\n", prog);
 		return -1;
 	}
 
@@ -49,7 +53,7 @@ int main(int argc, char **argv)
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
 	char str[256];
-	sprintf(str,"%s/.%src", dirname(argv[0]), basename(argv[0]));
+	sprintf(str,"%s/.%src", dirname(argv[0]), prog);
 	c0appz_setrc(str);
 	c0appz_putrc();
 
@@ -71,9 +75,9 @@ int main(int argc, char **argv)
 
 	/* success */
 	if (rc == 0)
-		fprintf(stderr,"%s success\n",basename(argv[0]));
+		fprintf(stderr,"%s success\n", prog);
 	else
-		fprintf(stderr,"%s fail\n",basename(argv[0]));
+		fprintf(stderr,"%s fail\n", prog);
 	return rc;
 }
 

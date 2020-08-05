@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 	struct stat64 fs;  /* file statistics */
 	char str[256];
 
-	prog = basename(argv[0]);
+	prog = basename(strdup(argv[0]));
 
 	while((opt = getopt(argc, argv, ":pfu:c:"))!=-1){
 		switch(opt){
