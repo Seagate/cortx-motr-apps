@@ -236,9 +236,9 @@ mpi-sagercf:
 
 $(ISC_REG): $(SRC) c0isc_register.c
 	gcc $(SRC) c0isc_register.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_REG)
-$(LIBISC):
+$(LIBISC): isc_libdemo.c
 	gcc isc_libdemo.c -I/usr/include/mero $(CFLAGS) -fpic -shared -o $(LIBISC)
-$(ISC_INVK):
+$(ISC_INVK): $(SRC) c0isc_demo.c
 	gcc $(SRC) c0isc_demo.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_INVK)
 isc-all: $(ISC_REG) $(ISC_INVK) $(LIBISC)
 isc-clean:

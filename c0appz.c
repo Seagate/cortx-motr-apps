@@ -362,7 +362,7 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	}
 
 	/* Initialise operation group. */
-	rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
+	rc = clovis_aio_opgrp_init(&aio_grp, cnt, op_cnt);
 	if (rc != 0)
 		goto out;
 
@@ -379,7 +379,7 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	while (cnt > 0) {
 		/* Set each op. */
 		nr_ops_sent = 0;
-		for (i = 0; i < op_cnt && cnt > 0; i++) {
+		for (i = 0; i < op_cnt && cnt > 0; i++, cnt -= cnt_per_op) {
 			aio = &aio_grp.cag_aio_ops[i];
 			if (cnt < cnt_per_op)
 				cnt_per_op = cnt;
@@ -408,29 +408,23 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 				break;
 			}
 			nr_ops_sent++;
-			cnt -= cnt_per_op;
 		}
 
 		/* Wait for all ops to complete. */
 		for (i = 0; i < nr_ops_sent; i++)
 			m0_semaphore_down(&aio_grp.cag_sem);
 
-		/* Finalise ops and group. */
-		rc = rc ?: aio_grp.cag_rc;
-		for (i = 0; i < nr_ops_sent; i++) {
-			aio = &aio_grp.cag_aio_ops[i];
-			m0_clovis_op_fini(aio->cao_op);
-			m0_clovis_op_free(aio->cao_op);
-			clovis_aio_vec_free(aio);
-		}
+		/* Finalise ops. */
+		for (i = 0; i < nr_ops_sent; i++)
+			clovis_aio_op_fini_free(aio_grp.cag_aio_ops + i);
 
-		/* Not all ops are launched and executed successfully. */
+		rc = rc ?: aio_grp.cag_rc;
 		if (rc != 0)
 			break;
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += op_cnt * bsz;
+		qos_total_weight += nr_ops_sent * cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 	}
@@ -576,7 +570,7 @@ int c0appz_rm(uint64_t idhi,uint64_t idlo)
 {
 	int                  rc;
 	struct m0_clovis_obj obj = {};
-	struct m0_clovis_op *ops[1] = {NULL};
+	struct m0_clovis_op *op = NULL;
 	struct m0_uint128    id;
 
 	id.u_hi = idhi;
@@ -590,14 +584,14 @@ int c0appz_rm(uint64_t idhi,uint64_t idlo)
 		return rc;
 	}
 
-	m0_clovis_entity_delete(&obj.ob_entity, &ops[0]);
-	m0_clovis_op_launch(ops, ARRAY_SIZE(ops));
-	rc = m0_clovis_op_wait(ops[0], M0_BITS(M0_CLOVIS_OS_FAILED,
-					       M0_CLOVIS_OS_STABLE),
+	m0_clovis_entity_delete(&obj.ob_entity, &op);
+	m0_clovis_op_launch(&op, 1);
+	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_FAILED,
+					   M0_CLOVIS_OS_STABLE),
 				   M0_TIME_NEVER);
 
-	m0_clovis_op_fini(ops[0]);
-	m0_clovis_op_free(ops[0]);
+	m0_clovis_op_fini(op);
+	m0_clovis_op_free(op);
 	m0_clovis_entity_fini(&obj.ob_entity);
 
 	return rc;
@@ -1287,8 +1281,16 @@ void clovis_aio_vec_free(struct clovis_aio_op *aio)
 	free_segs(&aio->cao_data, &aio->cao_ext, &aio->cao_attr);
 }
 
+void clovis_aio_op_fini_free(struct clovis_aio_op *aio)
+{
+	m0_clovis_op_fini(aio->cao_op);
+	m0_clovis_op_free(aio->cao_op);
+	aio->cao_op = NULL;
+	clovis_aio_vec_free(aio);
+}
+
 int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
-				 uint32_t blk_cnt, uint32_t op_cnt)
+			  uint32_t blk_cnt, uint32_t op_cnt)
 {
 	int                   i;
 	struct clovis_aio_op *ops;

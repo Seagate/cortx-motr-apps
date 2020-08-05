@@ -369,12 +369,8 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 
 		/* Finalise ops and group. */
 		rc = rc ?: aio_grp.cag_rc;
-		for (i = 0; i < nr_ops_sent; i++) {
-			aio = &aio_grp.cag_aio_ops[i];
-			m0_clovis_op_fini(aio->cao_op);
-			m0_clovis_op_free(aio->cao_op);
-			clovis_aio_vec_free(aio);
-		}
+		for (i = 0; i < nr_ops_sent; i++)
+			clovis_aio_op_fini_free(aio_grp.cag_aio_ops + i);
 
 		/* Not all ops are launched and executed successfully. */
 		if (rc != 0)

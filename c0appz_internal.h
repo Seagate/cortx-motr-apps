@@ -58,10 +58,12 @@ int read_data_from_object(struct m0_clovis_obj *o, struct m0_indexvec *ext,
 int ppf(const char *fmt, ...);
 
 int write_data_to_object_async(struct clovis_aio_op *aio);
+
 int clovis_aio_vec_alloc(struct clovis_aio_op *aio, uint64_t bsz, uint32_t cnt);
-void clovis_aio_vec_free(struct clovis_aio_op *aio);
+void clovis_aio_op_fini_free(struct clovis_aio_op *aio);
+
 int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
-				 uint32_t blk_cnt, uint32_t op_cnt);
+			  uint32_t blk_cnt, uint32_t op_cnt);
 void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp);
 
 int alloc_segs(struct m0_bufvec *data, struct m0_indexvec *ext,
