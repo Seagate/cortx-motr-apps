@@ -79,8 +79,10 @@ static char    c0rcfile[SZC0RCFILE] = C0RCFLE;
  ******************************************************************************
  */
 static char *trim(char *str);
-static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data, size_t bsz);
-static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data, size_t bsz);
+static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data,
+				  size_t bsz, uint32_t cnt);
+static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data,
+				 size_t bsz, uint32_t cnt);
 
 
 /*
@@ -256,21 +258,12 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	}
 
 	while (cnt > 0) {
-		/*
-		 * Prepare indexvec for write: <clovis_block_count> from the
-		 * beginning of the object.
-		 */
-		if (cnt < cnt_per_op) {
-			free_segs(&data, &ext, &attr);
-			rc = alloc_segs(&data, &ext, &attr, bsz, cnt);
-			if (rc != 0)
-				break;
+		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
-		}
 
 		/* Read data from source file. */
 		st = m0_time_now();
-		rc = read_data_from_file(fp, &data, bsz);
+		rc = read_data_from_file(fp, &data, bsz, cnt_per_op);
 		if (rc != cnt_per_op) {
 			fprintf(stderr, "%s(): reading from %s at %lu failed: "
 				"expected %u, got %d records\n",
@@ -362,7 +355,7 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	}
 
 	/* Initialise operation group. */
-	rc = clovis_aio_opgrp_init(&aio_grp, cnt, op_cnt);
+	rc = clovis_aio_opgrp_init(&aio_grp, bsz, cnt_per_op, op_cnt);
 	if (rc != 0)
 		goto out;
 
@@ -383,12 +376,10 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 			aio = &aio_grp.cag_aio_ops[i];
 			if (cnt < cnt_per_op)
 				cnt_per_op = cnt;
-			rc = clovis_aio_vec_alloc(aio, bsz, cnt_per_op);
-			if (rc != 0)
-				break;
 
 			/* Read data from source file. */
-			rc = read_data_from_file(fp, &aio->cao_data, bsz);
+			rc = read_data_from_file(fp, &aio->cao_data,
+						 bsz, cnt_per_op);
 			if (rc != cnt_per_op) {
 				fprintf(stderr,
 					"%s(): reading from %s at %lu failed: "
@@ -495,17 +486,9 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	}
 
 	while (cnt > 0) {
-		/*
-		 * Prepare indexvec for write: <clovis_block_count> from the
-		 * beginning of the object.
-		 */
-		if (cnt < cnt_per_op) {
-			free_segs(&data, &ext, &attr);
-			rc = alloc_segs(&data, &ext, &attr, bsz, cnt);
-			if (rc != 0)
-				break;
+		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
-		}
+
 		off += set_exts(&ext, off, bsz);
 
 		/* Copy data from the object*/
@@ -521,7 +504,8 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 
 		/* Output data to file. */
 		st = m0_time_now();
-		if (write_data_to_file(fp, &data, bsz) != cnt_per_op) {
+		if (write_data_to_file(fp, &data, bsz, cnt_per_op)
+		    != cnt_per_op) {
 			rc = -EIO;
 			break;
 		}
@@ -1101,14 +1085,15 @@ err:
  * read_data_from_file()
  * reads data from file and populates buffer.
  */
-static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data, size_t bsz)
+static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data, size_t bsz,
+				  uint32_t cnt)
 {
 	size_t i;
 	size_t read;
-	unsigned nr_blocks;
 
-	nr_blocks = data->ov_vec.v_nr;
-	for (i = 0; i < nr_blocks; i++) {
+	if (cnt > data->ov_vec.v_nr)
+		cnt = data->ov_vec.v_nr;
+	for (i = 0; i < cnt; i++) {
 		read = fread(data->ov_buf[i], 1, bsz, fp);
 		if (read < bsz) {
 			if (read > 0)
@@ -1123,14 +1108,15 @@ static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data, size_t bsz)
 	return i;
 }
 
-static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data, size_t bsz)
+static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data, size_t bsz,
+				 uint32_t cnt)
 {
 	size_t i;
 	size_t wrtn;
-	unsigned nr_blocks;
 
-	nr_blocks = data->ov_vec.v_nr;
-	for (i = 0; i < nr_blocks; i++) {
+	if (cnt > data->ov_vec.v_nr)
+		cnt = data->ov_vec.v_nr;
+	for (i = 0; i < cnt; i++) {
 		wrtn = fwrite(data->ov_buf[i], 1, data->ov_vec.v_count[i], fp);
 		if (wrtn != data->ov_vec.v_count[i])
 			break;
@@ -1286,13 +1272,13 @@ void clovis_aio_op_fini_free(struct clovis_aio_op *aio)
 	m0_clovis_op_fini(aio->cao_op);
 	m0_clovis_op_free(aio->cao_op);
 	aio->cao_op = NULL;
-	clovis_aio_vec_free(aio);
 }
 
-int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
-			  uint32_t blk_cnt, uint32_t op_cnt)
+int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp, uint64_t bsz,
+			  uint32_t cnt_per_op, uint32_t op_cnt)
 {
-	int                   i;
+	int rc = 0;
+	uint32_t i;
 	struct clovis_aio_op *ops;
 
 	M0_SET0(grp);
@@ -1300,25 +1286,40 @@ int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
 	M0_ALLOC_ARR(ops, op_cnt);
 	if (ops == NULL)
 		return -ENOMEM;
-	grp->cag_aio_ops = ops;
-	for (i = 0; i < op_cnt; i++)
-		ops[i].cao_grp = grp;
 
+	grp->cag_aio_ops = ops;
+	for (i = 0; i < op_cnt; i++) {
+		ops[i].cao_grp = grp;
+		rc = clovis_aio_vec_alloc(ops + i, bsz, cnt_per_op);
+		if (rc != 0)
+			goto err;
+	}
+
+	grp->cag_op_cnt = op_cnt;
 	m0_mutex_init(&grp->cag_mlock);
 	m0_semaphore_init(&grp->cag_sem, 0);
-	grp->cag_blocks_to_write = blk_cnt;
+	grp->cag_blocks_to_write = cnt_per_op * op_cnt;
 	grp->cag_blocks_written = 0;
 
 	return 0;
+ err:
+	while (i--)
+		clovis_aio_vec_free(ops + i);
+	m0_free(grp->cag_aio_ops);
+	return rc;
 }
 
 void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp)
 {
+	uint32_t i = grp->cag_op_cnt;
+
 	m0_mutex_fini(&grp->cag_mlock);
 	m0_semaphore_fini(&grp->cag_sem);
 	grp->cag_blocks_to_write = 0;
 	grp->cag_blocks_written = 0;
 
+	while (i--)
+		clovis_aio_vec_free(grp->cag_aio_ops + i);
 	m0_free(grp->cag_aio_ops);
 }
 

@@ -49,8 +49,10 @@ extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
  ******************************************************************************
  */
 
-static uint64_t bufvecw(struct m0_bufvec *data, const char *buf, uint64_t bsz);
-static uint64_t bufvecr(const struct m0_bufvec *data, char *buf, uint64_t bsz);
+static uint64_t bufvecw(struct m0_bufvec *data, const char *buf,
+			uint64_t bsz, uint32_t cnt);
+static uint64_t bufvecr(const struct m0_bufvec *data, char *buf,
+			uint64_t bsz, uint32_t cnt);
 
 /*
  ******************************************************************************
@@ -161,6 +163,13 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 
 	cnt_per_op = m0bs / bsz;
 
+	rc = alloc_segs(&data, &ext, &attr, bsz, cnt_per_op);
+	if (rc != 0) {
+		fprintf(stderr, "%s(): error! not enough memory\n",
+			__func__);
+		return rc;
+	}
+
 	/* Set the object entity we want to write */
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
 			   M0_DEFAULT_LAYOUT_ID);
@@ -169,18 +178,13 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	if (rc != 0) {
 		fprintf(stderr, "%s(): open_entity() failed: rc=%d\n",
 			__func__, rc);
-		return rc;
+		goto free;
 	}
 
 	while (cnt > 0) {
 		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
-		rc = alloc_segs(&data, &ext, &attr, bsz, cnt_per_op);
-		if (rc != 0) {
-			fprintf(stderr, "%s(): error! not enough memory\n",
-				__func__);
-			break;
-		}
+
 		off += set_exts(&ext, off, bsz);
 
 		rc = read_data_from_object(&obj, &ext, &data, &attr);
@@ -193,7 +197,7 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 		}
 
 		/* copy to memory */
-		buf += bufvecr(&data, buf, bsz);
+		buf += bufvecr(&data, buf, bsz, cnt_per_op);
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
@@ -201,10 +205,10 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
-		free_segs(&data, &ext, &attr);
 		cnt -= cnt_per_op;
 	}
-
+ free:
+	free_segs(&data, &ext, &attr);
 	m0_clovis_entity_fini(&obj.ob_entity);
 
 	return rc;
@@ -243,6 +247,13 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 
 	cnt_per_op = m0bs / bsz;
 
+	rc = alloc_segs(&data, &ext, &attr, bsz, cnt_per_op);
+	if (rc != 0) {
+		fprintf(stderr, "%s(): error! not enough memory\n",
+			__func__);
+		return rc;
+	}
+
 	/* Set the object entity we want to write */
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
 			   M0_DEFAULT_LAYOUT_ID);
@@ -251,20 +262,15 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	if (rc != 0) {
 		fprintf(stderr, "%s(): open_entity() failed: rc=%d\n",
 			__func__, rc);
-		return rc;
+		goto free;
 	}
 
 	while (cnt > 0) {
 		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
-		rc = alloc_segs(&data, &ext, &attr, bsz, cnt_per_op);
-		if (rc != 0) {
-			fprintf(stderr, "%s(): error! not enough memory\n",
-				__func__);
-			break;
-		}
+
 		off += set_exts(&ext, off, bsz);
-		buf += bufvecw(&data, buf, bsz);
+		buf += bufvecw(&data, buf, bsz, cnt_per_op);
 		rc = write_data_to_object(&obj, &ext, &data, &attr);
 		if (rc != 0) {
 			fprintf(stderr,
@@ -280,10 +286,10 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
 
-		free_segs(&data, &ext, &attr);
 		cnt -= cnt_per_op;
 	}
-
+ free:
+	free_segs(&data, &ext, &attr);
 	m0_clovis_entity_fini(&obj.ob_entity);
 
 	return rc;
@@ -321,7 +327,7 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	cnt_per_op = m0bs / bsz;
 
 	/* Initialise operation group. */
-	rc = clovis_aio_opgrp_init(&aio_grp, op_cnt, op_cnt);
+	rc = clovis_aio_opgrp_init(&aio_grp, bsz, cnt_per_op, op_cnt);
 	if (rc != 0) {
 		fprintf(stderr, "%s(): clovis_aio_opgrp_init() failed: rc=%d\n",
 			__func__, rc);
@@ -345,12 +351,9 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 			aio = &aio_grp.cag_aio_ops[i];
 			if (cnt < cnt_per_op)
 				cnt_per_op = cnt;
-			rc = clovis_aio_vec_alloc(aio, bsz, cnt_per_op);
-			if (rc != 0)
-				break;
 
 			off += set_exts(&aio->cao_ext, off, bsz);
-			buf += bufvecw(&aio->cao_data, buf, bsz);
+			buf += bufvecw(&aio->cao_data, buf, bsz, cnt_per_op);
 
 			/* Launch IO op. */
 			rc = write_data_to_object_async(aio);
@@ -394,11 +397,15 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
  * STATIC FUNCTIONS
  ******************************************************************************/
 
-static uint64_t bufvecw(struct m0_bufvec *data, const char *buf, uint64_t bsz)
+static uint64_t bufvecw(struct m0_bufvec *data, const char *buf,
+			uint64_t bsz, uint32_t cnt)
 {
-	int i;
+	uint32_t i;
+
+	if (cnt > data->ov_vec.v_nr)
+		cnt = data->ov_vec.v_nr;
 	/* copy block by block */
-	for (i = 0; i < data->ov_vec.v_nr; i++) {
+	for (i = 0; i < cnt; i++) {
 		memmove(data->ov_buf[i], buf, bsz);
 		buf += bsz;
 	}
@@ -406,11 +413,15 @@ static uint64_t bufvecw(struct m0_bufvec *data, const char *buf, uint64_t bsz)
 	return i * bsz;
 }
 
-static uint64_t bufvecr(const struct m0_bufvec *data, char *buf, uint64_t bsz)
+static uint64_t bufvecr(const struct m0_bufvec *data, char *buf,
+			uint64_t bsz, uint32_t cnt)
 {
-	int i;
+	uint32_t i;
+
+	if (cnt > data->ov_vec.v_nr)
+		cnt = data->ov_vec.v_nr;
 	/* copy block by block */
-	for (i = 0; i < data->ov_vec.v_nr; i++) {
+	for (i = 0; i < cnt; i++) {
 		memmove(buf, data->ov_buf[i], bsz);
 		buf += bsz;
 	}

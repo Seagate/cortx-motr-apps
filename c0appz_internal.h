@@ -30,8 +30,8 @@ extern struct m0_clovis_realm clovis_uber_realm;
 struct clovis_aio_op;
 struct clovis_aio_opgrp {
 	struct m0_semaphore   cag_sem;
-
 	struct m0_mutex       cag_mlock;
+	uint32_t              cag_op_cnt;
 	uint32_t              cag_blocks_to_write;
 	uint32_t              cag_blocks_written;
 	int                   cag_rc;
@@ -59,12 +59,10 @@ int ppf(const char *fmt, ...);
 
 int write_data_to_object_async(struct clovis_aio_op *aio);
 
-int clovis_aio_vec_alloc(struct clovis_aio_op *aio, uint64_t bsz, uint32_t cnt);
-void clovis_aio_op_fini_free(struct clovis_aio_op *aio);
-
-int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp,
-			  uint32_t blk_cnt, uint32_t op_cnt);
+int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp, uint64_t bsz,
+			  uint32_t cnt_per_op, uint32_t op_cnt);
 void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp);
+void clovis_aio_op_fini_free(struct clovis_aio_op *aio);
 
 int alloc_segs(struct m0_bufvec *data, struct m0_indexvec *ext,
 	       struct m0_bufvec *attr, uint64_t bsz, uint32_t cnt);
