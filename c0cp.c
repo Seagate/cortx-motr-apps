@@ -271,10 +271,10 @@ int main(int argc, char **argv)
 		goto end;
 	}
 
-	qos_whgt_served=0;
-	qos_whgt_remain=bsz*cnt;
-	qos_laps_served=0;
-	qos_laps_remain=1;
+	qos_whgt_served = 0;
+	qos_whgt_remain = bsz * cnt;
+	qos_laps_served = 0;
+	qos_laps_remain = 1;
 	qos_pthread_start();
 	c0appz_timein();
 

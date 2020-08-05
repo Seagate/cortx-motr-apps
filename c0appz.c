@@ -257,7 +257,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		goto free_vecs;
 	}
 
-	while (cnt > 0) {
+	for (; cnt > 0 && rc == 0; cnt -= cnt_per_op) {
 		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
 
@@ -290,11 +290,6 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		qos_total_weight += cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
-
-		if (rc != 0)
-			break;
-
-		cnt -= cnt_per_op;
 	}
 
 	m0_clovis_entity_fini(&obj.ob_entity);
@@ -369,10 +364,10 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 		goto fini;
 	}
 
-	while (cnt > 0) {
+	while (cnt > 0 && rc == 0) {
 		/* Set each op. */
-		nr_ops_sent = 0;
-		for (i = 0; i < op_cnt && cnt > 0; i++, cnt -= cnt_per_op) {
+		for (i = 0, nr_ops_sent = 0; i < op_cnt && cnt > 0;
+		     i++, cnt -= cnt_per_op, nr_ops_sent++) {
 			aio = &aio_grp.cag_aio_ops[i];
 			if (cnt < cnt_per_op)
 				cnt_per_op = cnt;
@@ -398,7 +393,12 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 					__func__);
 				break;
 			}
-			nr_ops_sent++;
+
+			/* QOS */
+			pthread_mutex_lock(&qos_lock);
+			qos_total_weight += cnt_per_op * bsz;
+			pthread_mutex_unlock(&qos_lock);
+			/* END */
 		}
 
 		/* Wait for all ops to complete. */
@@ -410,14 +410,6 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 			clovis_aio_op_fini_free(aio_grp.cag_aio_ops + i);
 
 		rc = rc ?: aio_grp.cag_rc;
-		if (rc != 0)
-			break;
-
-		/* QOS */
-		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += nr_ops_sent * cnt_per_op * bsz;
-		pthread_mutex_unlock(&qos_lock);
-		/* END */
 	}
  fini:
 	m0_clovis_entity_fini(&aio_grp.cag_obj.ob_entity);
@@ -485,7 +477,7 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 		goto free_vecs;
 	}
 
-	while (cnt > 0) {
+	for (; cnt > 0; cnt -= cnt_per_op) {
 		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
 
@@ -517,8 +509,6 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 		qos_total_weight += cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
-
-		cnt -= cnt_per_op;
 	}
 
 	m0_clovis_entity_fini(&obj.ob_entity);

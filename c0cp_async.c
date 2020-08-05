@@ -208,10 +208,10 @@ int main(int argc, char **argv)
 	}
 
 	/* copy */
-	qos_whgt_served=0;
-	qos_whgt_remain=bsz*cnt;
-	qos_laps_served=0;
-	qos_laps_remain=1;
+	qos_whgt_served = 0;
+	qos_whgt_remain = bsz * cnt;
+	qos_laps_served = 0;
+	qos_laps_remain = 1;
 	qos_pthread_start();
 	c0appz_timein();
 	if (c0appz_cp_async(idh, idl, fname, bsz, cnt, op_cnt, m0bs) != 0) {

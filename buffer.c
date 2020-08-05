@@ -181,7 +181,7 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 		goto free;
 	}
 
-	while (cnt > 0) {
+	for (; cnt > 0; cnt -= cnt_per_op) {
 		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
 
@@ -204,8 +204,6 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 		qos_total_weight += cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
-
-		cnt -= cnt_per_op;
 	}
  free:
 	free_segs(&data, &ext, &attr);
@@ -265,7 +263,7 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 		goto free;
 	}
 
-	while (cnt > 0) {
+	for (; cnt > 0; cnt -= cnt_per_op) {
 		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
 
@@ -285,8 +283,6 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 		qos_total_weight += cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
-
-		cnt -= cnt_per_op;
 	}
  free:
 	free_segs(&data, &ext, &attr);
@@ -347,7 +343,7 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	while (cnt > 0) {
 		/* Set each op. */
 		nr_ops_sent = 0;
-		for (i = 0; i < op_cnt && cnt > 0; i++) {
+		for (i = 0; i < op_cnt && cnt > 0; i++, cnt -= cnt_per_op) {
 			aio = &aio_grp.cag_aio_ops[i];
 			if (cnt < cnt_per_op)
 				cnt_per_op = cnt;
@@ -363,7 +359,12 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 				break;
 			}
 			nr_ops_sent++;
-			cnt -= cnt_per_op;
+
+			/* QOS */
+			pthread_mutex_lock(&qos_lock);
+			qos_total_weight += cnt_per_op * bsz;
+			pthread_mutex_unlock(&qos_lock);
+			/* END */
 		}
 
 		/* Wait for all ops to complete. */
@@ -378,12 +379,6 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 		/* Not all ops are launched and executed successfully. */
 		if (rc != 0)
 			break;
-
-		/* QOS */
-		pthread_mutex_lock(&qos_lock);
-		qos_total_weight += op_cnt * bsz;
-		pthread_mutex_unlock(&qos_lock);
-		/* END */
 	}
  fini:
 	m0_clovis_entity_fini(&aio_grp.cag_obj.ob_entity);
