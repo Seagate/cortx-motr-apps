@@ -28,6 +28,7 @@
 #include <inttypes.h>
 #include <assert.h>
 #include "c0appz.h"
+#include "c0appz_internal.h"
 
 /*
  ******************************************************************************
@@ -59,6 +60,7 @@ options are:\n\
 	-p | performance\n\
 	-c | contiguous mode. \n\
 	     -c <n> read <n> contiguous copies of the file. \n\
+	-v | be more verbose\n\
 \n\
 The -p option enables performance monitoring. It collects performance stats\n\
 (such as bandwidth) and displays them at the end of the execution. It also\n\
@@ -97,7 +99,7 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":pc:"))!=-1){
+	while((opt = getopt(argc, argv, ":pc:v"))!=-1){
 		switch(opt){
 		case 'p':
 			perf = 1;
@@ -107,6 +109,9 @@ int main(int argc, char **argv)
 			cont = atoi(optarg);
 			if(cont<0) cont=0;
 			if(!cont) help();
+			break;
+		case 'v':
+			trace_level++;
 			break;
 		case ':':
 			fprintf(stderr,"option needs a value\n");
@@ -175,6 +180,7 @@ int main(int argc, char **argv)
 			__func__);
 		exit(1);
 	}
+	DBG("m0bs=%lu\n", m0bs);
 
 	/* continuous read */
 	if(cont){

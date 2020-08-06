@@ -22,6 +22,8 @@
 #define __C0APPZ_INTERNAL_H__
 
 #include <stdint.h>
+#include <string.h>
+#include <errno.h>
 #include "clovis/clovis.h"
 
 extern unsigned unit_size; /* in KiBs, default 4 */
@@ -70,6 +72,18 @@ void free_segs(struct m0_bufvec *data, struct m0_indexvec *ext,
 	       struct m0_bufvec *attr);
 uint64_t set_exts(struct m0_indexvec *ext, uint64_t off, uint64_t bsz);
 
+extern int trace_level;
+extern char *prog;
+
+enum {LOG_ERROR = 0,
+      LOG_DEBUG = 1};
+
+#define LOG(_fmt, ...) \
+  fprintf(stderr, "%s: %s():%d "_fmt, prog, __func__, __LINE__, ##__VA_ARGS__)
+#define ERR(_fmt, ...) if (trace_level >= LOG_ERROR) LOG(_fmt, ##__VA_ARGS__)
+#define ERRS(_fmt, ...) if (trace_level >= LOG_ERROR) \
+	LOG(_fmt ": %s\n", ##__VA_ARGS__, strerror(errno))
+#define DBG(_fmt, ...) if (trace_level >= LOG_DEBUG) LOG(_fmt, ##__VA_ARGS__)
 
 #endif /* __C0APPZ_INTERNAL_H__ */
 

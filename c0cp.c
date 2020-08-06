@@ -61,13 +61,14 @@ bsz - Clovis block size (in KiBs)\n\
 options are:\n\
 	-f | force\n\
 	-p | performance\n\
-	-c | contiguous mode. \n\
+	-c | contiguous mode\n\
 	   | -c <n> write <n> contiguous copies of the file. \n\
 	-x | pool ID. \n\
 	   | -x <n> creates the object in pool with ID <n>. \n\
 	-u | unit size (in KiBs), must be power of 2, >= 4 and <= 4096.\n\
            | By default, determined automatically based on the bsz and\n\
            | parity configuration of the pool.\n\
+        -v | be more verbose\n\
 \n\
 The -f option forces rewriting on an object if that object already exists. \n\
 It creates a new object if the object does not exist.\n\
@@ -118,7 +119,7 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":pfc:x:u:"))!=-1){
+	while((opt = getopt(argc, argv, ":pfc:x:u:v"))!=-1){
 		switch(opt){
 		case 'p':
 			perf = 1;
@@ -141,6 +142,9 @@ int main(int argc, char **argv)
 			pool = atoi(optarg);
 			if(!isdigit(optarg[0])) pool = -1;
 			if((pool<0)||(pool>3)) help();
+			break;
+		case 'v':
+			trace_level++;
 			break;
 		case ':':
 			fprintf(stderr,"option %c needs a value\n",optopt);
@@ -183,7 +187,7 @@ int main(int argc, char **argv)
 
 	rc = stat64(fname, &fs);
 	if (rc != 0) {
-		fprintf(stderr,"%s: %s: %s\n", prog, fname, strerror(errno));
+		ERRS("%s", fname);
 		exit(1);
 	}
 	cnt = (fs.st_size + bsz - 1) / bsz;

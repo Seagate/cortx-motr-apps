@@ -96,6 +96,7 @@ int perf=0;				/* performance option 		*/
 extern int qos_total_weight; 		/* total bytes read or written 	*/
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 	*/
 enum {MAX_M0_BUFSZ = 128*1024*1024};    /* max bs for object store I/O  */
+int trace_level=0;
 
 /*
  ******************************************************************************
@@ -132,8 +133,7 @@ uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool)
 
 	rc = m0_pool_version_get(reqh->rh_pools, pool, &pver);
 	if (rc != 0) {
-		fprintf(stderr, "%s: m0_pool_version_get() failed: rc=%d\n",
-			__func__, rc);
+		ERR("m0_pool_version_get() failed: rc=%d\n", rc);
 		return 0;
 	}
 
@@ -148,6 +148,9 @@ uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool)
 	gsz = usz * pa->pa_N;
 	/* max 2-times pool-width deep, otherwise we may get -E2BIG */
 	max_bs = usz * 2 * pa->pa_P * pa->pa_N / (pa->pa_N + 2 * pa->pa_K);
+
+	DBG("usz=%lu (N,K,P)=(%u,%u,%u) max_bs=%lu\n",
+	    usz, pa->pa_N, pa->pa_K, pa->pa_P, max_bs);
 
 	if (obj_sz >= max_bs)
 		return max_bs;

@@ -111,18 +111,14 @@ int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt)
 	/* open output file */
 	fp = fopen(ouf, "wb");
 	if (!fp) {
-		fprintf(stderr, "%s(): error! - ", __FUNCTION__);
-		fprintf(stderr, "could not open input file %s: %s\n", ouf,
-			strerror(errno));
+		ERRS("could not open input file %s", ouf);
 		return 11;
 	}
 
 	/* write to ouf */
 	n = fwrite(buf, bsz, cnt, fp);
 	if (n != cnt) {
-		fprintf(stderr, "%s(): error! - ", __FUNCTION__);
-		fprintf(stderr, "writing to %s failed: %s\n", ouf,
-			strerror(errno));
+		ERRS("writing to %s failed", ouf);
 		fclose(fp);
 		return 22;
 	}
