@@ -1101,17 +1101,19 @@ static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data, size_t bsz,
 static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data, size_t bsz,
 				 uint32_t cnt)
 {
-	size_t i;
+	uint32_t i;
 	size_t wrtn;
 
 	if (cnt > data->ov_vec.v_nr)
 		cnt = data->ov_vec.v_nr;
 	for (i = 0; i < cnt; i++) {
-		wrtn = fwrite(data->ov_buf[i], 1, data->ov_vec.v_count[i], fp);
-		if (wrtn != data->ov_vec.v_count[i])
+		wrtn = fwrite(data->ov_buf[i], bsz, 1, fp);
+		if (wrtn != 1)
 			break;
 	}
-
+	if (i != cnt)
+		fprintf(stderr, "%s(): writing to file failed: %s\n",
+			__func__, strerror(errno));
 	return i;
 }
 
