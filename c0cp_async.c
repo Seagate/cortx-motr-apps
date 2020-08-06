@@ -117,7 +117,12 @@ int main(int argc, char **argv)
 	idh = atoll(argv[optind+0]);
 	idl = atoll(argv[optind+1]);
 	fname = argv[optind+2];
-	bsz = atoll(argv[optind+3]) * 1024;
+	if (sscanf(argv[optind+3], "%li", &bsz) != 1) {
+		ERR("invalid block size value: %s\n", argv[optind+3]);
+		exit(1);
+	}
+	bsz *= 1024;
+
 	op_cnt = atoll(argv[optind+4]);
 
 	if (bsz == 0) {
