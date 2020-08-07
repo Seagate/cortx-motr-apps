@@ -1013,16 +1013,16 @@ int c0appz_cr(uint64_t idhi, uint64_t idlo, struct m0_fid *pool, uint64_t bsz)
 		lid = m0_layout_find_by_buffsize(&reqh->rh_ldom, &pver->pv_id,
 						 bsz);
 
-	printf("pool="FID_F" width=%u parity=(%u+%u) unit=%dK m0bs=%luK\n",
-	       FID_P(&pver->pv_pool->po_id), pver->pv_attr.pa_P,
-	       pver->pv_attr.pa_N, pver->pv_attr.pa_K,
-	       m0_clovis_obj_layout_id_to_unit_size(lid) / 1024, bsz / 1024);
+	DBG("pool="FID_F" width=%u parity=(%u+%u) unit=%dK m0bs=%luK\n",
+	    FID_P(&pver->pv_pool->po_id), pver->pv_attr.pa_P,
+	    pver->pv_attr.pa_N, pver->pv_attr.pa_K,
+	    m0_clovis_obj_layout_id_to_unit_size(lid) / 1024, bsz / 1024);
 
 	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, lid);
 
 	rc = open_entity(&obj.ob_entity);
 	if (rc == 0) {
-		fprintf(stderr,"%s: object already exists!\n", __func__);
+		DBG("object already exists!\n");
 		return 1;
 	}
 

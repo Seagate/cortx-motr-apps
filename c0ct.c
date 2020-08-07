@@ -145,8 +145,14 @@ int main(int argc, char **argv)
 	c0appz_putrc();
 
 	/* set input */
-	idh	= atoll(argv[optind+0]);
-	idl = atoll(argv[optind+1]);
+	if (sscanf(argv[optind+0], "%li", &idh) != 1) {
+		ERR("invalid idhi - %s", argv[optind+0]);
+		help();
+	}
+	if (sscanf(argv[optind+1], "%li", &idl) != 1) {
+		ERR("invalid idlo - %s", argv[optind+1]);
+		help();
+	}
 	fname = argv[optind+2];
 	if (sscanf(argv[optind+3], "%li", &bsz) != 1) {
 		ERR("invalid block size value: %s\n", argv[optind+3]);

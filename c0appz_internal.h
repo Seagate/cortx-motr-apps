@@ -79,7 +79,7 @@ enum {LOG_ERROR = 0,
       LOG_DEBUG = 1};
 
 #define LOG(_fmt, ...) \
-  fprintf(stderr, "%s: %s():%d "_fmt, prog, __func__, __LINE__, ##__VA_ARGS__)
+  fprintf(stderr, "%s: %s():%d: "_fmt, prog, __func__, __LINE__, ##__VA_ARGS__)
 #define ERR(_fmt, ...) if (trace_level >= LOG_ERROR) LOG(_fmt, ##__VA_ARGS__)
 #define ERRS(_fmt, ...) if (trace_level >= LOG_ERROR) \
 	LOG(_fmt ": %s\n", ##__VA_ARGS__, strerror(errno))
