@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 
 	/* init */
 	c0appz_timein();
-	if(c0appz_init(0) != 0){
+	if (c0appz_init(0) != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return 222;
 	}
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
 
 	/* check */
 	c0appz_timein();
-	if(!(c0appz_ex(idh,idl))){
+	if (!c0appz_ex(idh, idl, NULL)) {
 		fprintf(stderr,"error!\n");
 		fprintf(stderr,"object NOT found!!\n");
 		rc = 1;
@@ -129,13 +129,13 @@ int main(int argc, char **argv)
 	ppf("chck");
 	c0appz_timeout(0);
 
-	if(rc == 1) goto end;
+	if (rc == 1) goto end;
 
-	if(!yes){
+	if (!yes) {
 		int c=0;
 		printf("delete object(y/n):");
 		c = getchar();
-		if(c!='y'){
+		if (c != 'y') {
 			fprintf(stderr,"object NOT deleted.\n");
 			goto end;
 		}

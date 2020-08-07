@@ -85,6 +85,17 @@ enum {LOG_ERROR = 0,
 	LOG(_fmt ": %s\n", ##__VA_ARGS__, strerror(errno))
 #define DBG(_fmt, ...) if (trace_level >= LOG_DEBUG) LOG(_fmt, ##__VA_ARGS__)
 
+#define	CHECK_BSZ_ARGS(bsz, m0bs) \
+  if ((bsz) < 1 || (bsz) % PAGE_SIZE) { \
+    ERR("bsz(%lu) must be multiple of %luK\n", (m0bs), PAGE_SIZE/1024); \
+    return -EINVAL; \
+  } \
+  if ((m0bs) < 1 || (m0bs) % (bsz)) { \
+    ERR("bsz(%lu) must divide m0bs(%lu)\n", (bsz), (m0bs)); \
+    return -EINVAL; \
+  }
+
+
 #endif /* __C0APPZ_INTERNAL_H__ */
 
 /*

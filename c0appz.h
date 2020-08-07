@@ -40,9 +40,15 @@ int open_entity(struct m0_clovis_entity *entity);
 /**
  * Calculate the optimal block size for the object store I/O
  *
+ * @param idhi high number of the object id
+ * @param idlo low number of the object id
+ * @param obj_sz estimated total object size
+ * @param pool pool id in the object store
+ *
  * @retval 0 on error
  */
-uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool);
+uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz,
+		     struct m0_fid *pool);
 
 /**
  * Create object in the object store
@@ -68,10 +74,14 @@ int c0appz_rm(uint64_t idhi, uint64_t idlo);
 /**
  * Check whether the object exists
  *
+ * @param idhi high number of the object id
+ * @param idlo low number of the object id
+ * @param obj_out returned if not NULL and obj exists
+ *
  * @retval 1 yes, the object exists
  * @retval 0 no such object
  */
-int c0appz_ex(uint64_t idhi, uint64_t idlo);
+int c0appz_ex(uint64_t idhi, uint64_t idlo, struct m0_clovis_obj *obj_out);
 
 /**
  * Copy file to the object store

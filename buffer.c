@@ -145,19 +145,7 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	struct m0_bufvec   data;
 	struct m0_bufvec   attr;
 
-	if (bsz < 1 || bsz % PAGE_SIZE) {
-		fprintf(stderr,
-			"%s(): bsz(%lu) must be multiple of %luK\n",
-			__func__, m0bs, PAGE_SIZE / 1024);
-		return -EINVAL;
-	}
-
-	if (m0bs < 1 || m0bs % bsz) {
-		fprintf(stderr,
-			"%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
-			__func__, m0bs, bsz);
-		return -EINVAL;
-	}
+	CHECK_BSZ_ARGS(bsz, m0bs);
 
 	cnt_per_op = m0bs / bsz;
 
@@ -227,19 +215,7 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	struct m0_bufvec   data;
 	struct m0_bufvec   attr;
 
-	if (bsz < 1 || bsz % PAGE_SIZE) {
-		fprintf(stderr,
-			"%s(): bsz(%lu) must be multiple of %luK\n",
-			__func__, m0bs, PAGE_SIZE / 1024);
-		return -EINVAL;
-	}
-
-	if (m0bs < 1 || m0bs % bsz) {
-		fprintf(stderr,
-			"%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
-			__func__, m0bs, bsz);
-		return -EINVAL;
-	}
+	CHECK_BSZ_ARGS(bsz, m0bs);
 
 	cnt_per_op = m0bs / bsz;
 
@@ -306,17 +282,7 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	struct clovis_aio_op     *aio;
 	struct clovis_aio_opgrp   aio_grp;
 
-	if (bsz < 1 || bsz % PAGE_SIZE) {
-		fprintf(stderr, "%s(): bsz(%lu) must be multiple of %luK\n",
-			__func__, m0bs, PAGE_SIZE / 1024);
-		return -EINVAL;
-	}
-
-	if (m0bs < 1 || m0bs % bsz) {
-		fprintf(stderr, "%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
-			__func__, m0bs, bsz);
-		return -EINVAL;
-	}
+	CHECK_BSZ_ARGS(bsz, m0bs);
 
 	cnt_per_op = m0bs / bsz;
 

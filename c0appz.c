@@ -117,7 +117,8 @@ static uint64_t roundup_power2(uint64_t x)
 /**
  * Calculate the optimal block size for the object store I/O
  */
-uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool)
+uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz,
+		     struct m0_fid *pool)
 {
 	int                     rc;
 	unsigned long           usz; /* unit size */
@@ -127,6 +128,7 @@ uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool)
 	struct m0_reqh         *reqh = &clovis_instance->m0c_reqh;
 	struct m0_pool_version *pver;
 	struct m0_pdclust_attr *pa;
+	struct m0_clovis_obj    obj;
 
 	if (obj_sz > MAX_M0_BUFSZ)
 		obj_sz = MAX_M0_BUFSZ;
@@ -137,7 +139,9 @@ uint64_t c0appz_m0bs(uint64_t obj_sz, struct m0_fid *pool)
 		return 0;
 	}
 
-	if (unit_size)
+	if (c0appz_ex(idhi, idlo, &obj))
+		lid = obj.ob_attr.oa_layout_id;
+	else if (unit_size) /* set explicitly via -u option ? */
 		lid = m0_clovis_layout_id(clovis_instance);
 	else
 		lid = m0_layout_find_by_buffsize(&reqh->rh_ldom, &pver->pv_id,
@@ -224,17 +228,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	double             clovis_bw;
 	struct m0_clovis_obj obj = {};
 
-	if (bsz < 1 || bsz % PAGE_SIZE) {
-		fprintf(stderr, "%s(): bsz(%lu) must be multiple of %luK\n",
-			__func__, m0bs, PAGE_SIZE / 1024);
-		return -EINVAL;
-	}
-
-	if (m0bs < 1 || m0bs % bsz) {
-		fprintf(stderr, "%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
-			__func__, m0bs, bsz);
-		return -EINVAL;
-	}
+	CHECK_BSZ_ARGS(bsz, m0bs);
 
 	cnt_per_op = m0bs / bsz;
 
@@ -330,17 +324,7 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	struct clovis_aio_opgrp   aio_grp;
 	FILE                     *fp;
 
-	if (bsz < 1 || bsz % PAGE_SIZE) {
-		fprintf(stderr, "%s(): bsz(%lu) must be multiple of %luK\n",
-			__func__, m0bs, PAGE_SIZE / 1024);
-		return -EINVAL;
-	}
-
-	if (m0bs < 1 || m0bs % bsz) {
-		fprintf(stderr, "%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
-			__func__, m0bs, bsz);
-		return -EINVAL;
-	}
+	CHECK_BSZ_ARGS(bsz, m0bs);
 
 	cnt_per_op = m0bs / bsz;
 
@@ -445,17 +429,7 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	double             clovis_bw;
 	struct m0_clovis_obj obj = {};
 
-	if (bsz < 1 || bsz % PAGE_SIZE) {
-		fprintf(stderr, "%s(): bsz(%lu) must be multiple of %luK\n",
-			__func__, m0bs, PAGE_SIZE / 1024);
-		return -EINVAL;
-	}
-
-	if (m0bs < 1 || m0bs % bsz) {
-		fprintf(stderr, "%s(): m0bs(%lu) must be multiple of bsz(%lu)\n",
-			__func__, m0bs, bsz);
-		return -EINVAL;
-	}
+	CHECK_BSZ_ARGS(bsz, m0bs);
 
 	cnt_per_op = m0bs / bsz;
 
@@ -795,7 +769,7 @@ void c0appz_isc_req_fini(struct c0appz_isc_req *req)
  * c0appz_ex()
  * object exists test.
  */
-int c0appz_ex(uint64_t idhi,uint64_t idlo)
+int c0appz_ex(uint64_t idhi, uint64_t idlo, struct m0_clovis_obj *obj_out)
 {
 	int                  rc;
 	struct m0_clovis_obj obj = {};
@@ -809,6 +783,8 @@ int c0appz_ex(uint64_t idhi,uint64_t idlo)
 	if (rc != 0)
 		return 0;
 
+	if (obj_out != NULL)
+		*obj_out = obj;
 	/* success */
 	return 1;
 }

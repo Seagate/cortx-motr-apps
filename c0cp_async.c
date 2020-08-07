@@ -146,7 +146,7 @@ int main(int argc, char **argv)
 	ppf("%6s","init");
 	c0appz_timeout(0);
 
-	m0bs = c0appz_m0bs(bsz * cnt, pool_fid);
+	m0bs = c0appz_m0bs(idh, idl, bsz * cnt, pool_fid);
 	if (!m0bs) {
 		fprintf(stderr,"%s(): error: c0appz_m0bs() failed.\n",
 			__func__);

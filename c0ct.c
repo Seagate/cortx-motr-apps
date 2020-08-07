@@ -164,7 +164,7 @@ int main(int argc, char **argv)
 
 	/* init */
 	c0appz_timein();
-	if(c0appz_init(0)!=0){
+	if (c0appz_init(0) != 0) {
 		fprintf(stderr,"error! clovis initialization failed.\n");
 		return 222;
 	}
@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 
 	/* check */
 	c0appz_timein();
-	if(!(c0appz_ex(idh,idl))){
+	if (!c0appz_ex(idh, idl, NULL)) {
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
 		fprintf(stderr,"%s(): object NOT found!!\n",__FUNCTION__);
 		rc = 777;
@@ -182,7 +182,7 @@ int main(int argc, char **argv)
 	ppf("%8s","check");
 	c0appz_timeout(0);
 
-	m0bs = c0appz_m0bs(bsz * cnt, pool_fid);
+	m0bs = c0appz_m0bs(idh, idl, bsz * cnt, pool_fid);
 	if (!m0bs) {
 		fprintf(stderr,"%s(): error: c0appz_m0bs() failed.\n",
 			__func__);
