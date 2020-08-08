@@ -892,6 +892,7 @@ int c0appz_init(int idx)
 	fprintf(stderr,"\n---\n");
 #endif
 
+	m0_trace_set_mmapped_buffer(false);
 	/* clovis instance */
 	rc = m0_clovis_init(&clovis_instance, &clovis_conf, true);
 	if (rc != 0) {
