@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 	uint64_t idl;      /* object id low */
 	uint64_t pos;      /* starting position */
 	uint64_t bsz;      /* block size */
-	uint64_t m0bs;     /* m0 block size */
+	uint64_t m0bs=0;   /* m0 block size */
 	uint64_t cnt;      /* count */
 	uint64_t op_cnt;   /* number of parallel ops */
 	struct stat64 fs;  /* file statistics */
@@ -65,8 +65,11 @@ int main(int argc, char **argv)
 
 	prog = basename(strdup(argv[0]));
 
-	while((opt = getopt(argc, argv, ":pfu:c:"))!=-1){
+	while((opt = getopt(argc, argv, ":apfu:c:"))!=-1){
 		switch(opt){
+		case 'a':
+			m0bs = 1;
+			break;
 		case 'p':
 			perf = 1;
 			break;
@@ -152,7 +155,7 @@ int main(int argc, char **argv)
 	ppf("%6s","init");
 	c0appz_timeout(0);
 
-	m0bs = c0appz_m0bs(idh, idl, bsz * cnt, pool_fid);
+	m0bs = m0bs ? c0appz_m0bs(idh, idl, bsz * cnt, pool_fid) : bsz;
 	if (!m0bs) {
 		fprintf(stderr,"%s(): error: c0appz_m0bs() failed.\n",
 			__func__);

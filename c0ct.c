@@ -57,6 +57,8 @@ bsz - Clovis block size (in KiBs)\n\
 fsz - File size (in bytes)\n\
 \n\
 options are:\n\
+	-a | automatically figure out the optimal bsz for Mero I/O\n\
+	   | (Note: does not work for the composite objects atm.)\n\
 	-p | performance\n\
 	-c | contiguous mode. \n\
 	     -c <n> read <n> contiguous copies of the file. \n\
@@ -85,7 +87,7 @@ int main(int argc, char **argv)
 	uint64_t idh;	/* object id high		*/
 	uint64_t idl;   /* object id low  		*/
 	uint64_t bsz;   /* block size     		*/
-	uint64_t m0bs;  /* m0 block size     		*/
+	uint64_t m0bs=0; /* m0 block size     		*/
 	uint64_t cnt;   /* count          		*/
 	uint64_t pos;	/* starting position	*/
 	uint64_t fsz;   /* file size			*/
@@ -99,8 +101,11 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":pc:v"))!=-1){
+	while((opt = getopt(argc, argv, ":apc:v"))!=-1){
 		switch(opt){
+		case 'a':
+			m0bs = 1;
+			break;
 		case 'p':
 			perf = 1;
 			break;
@@ -188,7 +193,7 @@ int main(int argc, char **argv)
 	ppf("%8s","check");
 	c0appz_timeout(0);
 
-	m0bs = c0appz_m0bs(idh, idl, bsz * cnt, pool_fid);
+	m0bs = m0bs ? c0appz_m0bs(idh, idl, bsz * cnt, pool_fid) : bsz;
 	if (!m0bs) {
 		fprintf(stderr,"%s(): error: c0appz_m0bs() failed.\n",
 			__func__);
