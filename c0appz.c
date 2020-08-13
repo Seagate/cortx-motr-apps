@@ -255,7 +255,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		goto free_vecs;
 	}
 
-	for (; cnt > 0 && rc == 0; cnt -= cnt_per_op) {
+	for (; cnt > 0; cnt -= cnt_per_op) {
 		if (cnt < cnt_per_op)
 			cnt_per_op = cnt;
 
@@ -277,9 +277,10 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		/* Copy data to the object*/
 		st = m0_time_now();
 		rc = write_data_to_object(&obj, &ext, &data, &attr);
-		if (rc != 0)
-			fprintf(stderr, "%s(): writing to object failed\n",
-				__func__);
+		if (rc != 0) {
+			ERR("writing to object failed: rc=%d\n", rc);
+			break;
+		}
 		write_time = m0_time_add(write_time,
 					 m0_time_sub(m0_time_now(), st));
 

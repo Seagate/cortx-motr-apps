@@ -40,42 +40,35 @@ extern uint64_t qos_whgt_served;
 extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
-extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 		*/
+extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
 extern struct m0_fid *pool_fid;
 
 char *prog;
 
 const char *help_c0ct_txt = "\
 Usage:\n\
+  c0ct [-ptv] [-b [sz]] [-c n] idh idl filename bsz fsz\n\
+  c0ct 1234 56789 file 1024 268435456\n\
 \n\
-c0ct [options] idh idl filename bsz fsz\n\
-c0ct 1234 56789 256MiB-file 1024 268435456\n\
+Copy object from the object store into the file (at filename).\n\
 \n\
-idh - Mero fid high\n\
-idl - Mero fid low\n\
-bsz - Clovis block size (in KiBs)\n\
-fsz - File size (in bytes)\n\
+idh - object id high number\n\
+idl - object id low  number\n\
+bsz - block size (in KiBs)\n\
+fsz - file size (in bytes)\n\
 \n\
-options are:\n\
-	-a | automatically figure out the optimal bsz for Mero I/O\n\
-	   | (Note: does not work for the composite objects atm.)\n\
-	-p | performance\n\
-	-c | contiguous mode. \n\
-	     -c <n> read <n> contiguous copies of the file. \n\
-	-t | create m0trace.pid file\n\
-	-v | be more verbose\n\
+  -b [sz] block size for the object store i/o (m0bs);\n\
+            if sz is not specified, automatically figure out the optimal\n\
+            value based on the object size and the pool width (does not\n\
+            work for the composite objects atm); (by default, use bsz)\n\
+  -c n    read n contiguous copies of the file from the object\n\
+  -p      show performance stats\n\
+  -t      create m0trace.pid file\n\
+  -v      be more verbose\n\
 \n\
-The -p option enables performance monitoring. It collects performance stats\n\
-(such as bandwidth) and displays them at the end of the execution. It also\n\
-outputs realtime storage bandwith consumption.\n\
-c0ct -p 1234 56789 256MiB-file 1024 268435456\n\
-\n\
-The -c <n> option takes <n> a positive number as an argument and reads from\n\
-an object with <n> contiguous copies of the same file.\n\
-c0ct -c 10 1234 56789 256MiB-file 1024 268435456\n\
-\n\
-The options can also be combined.\n\
-c0ct 1234 56789 256MiB-file 1024 268435456 -p -c 10";
+Note: in order to get the maximum performance, m0bs should be multiple\n\
+of the data size in the parity group, i.e. multiple of (unit_size * n),\n\
+where n is 2 in 2+1 parity group configuration, 8 in 8+2 and so on.\n";
 
 int help()
 {
@@ -102,10 +95,15 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":apc:tv"))!=-1){
+	while((opt = getopt(argc, argv, ":b:pc:tv"))!=-1){
 		switch(opt){
-		case 'a':
-			m0bs = 1;
+		case 'b':
+			if (sscanf(optarg, "%li", &m0bs) != 1) {
+				/* optarg might contain some other options */
+				optind--; /* rewind */
+				m0bs = 1; /* get automatically */
+			} else
+				m0bs *= 1024;
 			break;
 		case 'p':
 			perf = 1;
@@ -123,8 +121,14 @@ int main(int argc, char **argv)
 			trace_level++;
 			break;
 		case ':':
-			fprintf(stderr,"option needs a value\n");
-			help();
+			switch (optopt) {
+			case 'b':
+				m0bs = 1; /* get automatically */
+				break;
+			default:
+				ERR("option %c needs a value\n", optopt);
+				help();
+			}
 			break;
 		case '?':
 			fprintf(stderr,"unknown option: %c\n", optopt);
@@ -197,12 +201,14 @@ int main(int argc, char **argv)
 	ppf("%8s","check");
 	c0appz_timeout(0);
 
-	m0bs = m0bs ? c0appz_m0bs(idh, idl, bsz * cnt, pool_fid) : bsz;
-	if (!m0bs) {
-		fprintf(stderr,"%s(): error: c0appz_m0bs() failed.\n",
-			__func__);
-		exit(1);
+	if (m0bs == 1) {
+		m0bs = c0appz_m0bs(idh, idl, bsz * cnt, pool_fid);
+		if (!m0bs)
+			LOG("WARNING: failed to figure out the optimal m0bs,"
+			    " will use bsz for m0bs\n");
 	}
+	if (!m0bs)
+		m0bs = bsz;
 	DBG("m0bs=%lu\n", m0bs);
 
 	/* continuous read */

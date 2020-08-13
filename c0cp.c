@@ -50,52 +50,32 @@ char *prog;
 
 const char *help_c0cp_txt = "\
 Usage:\n\
+  c0cp [-fptv] [-x n] [-u sz] [-b [sz]] [-c n] idh idl filename bsz\n\
+  c0cp 1234 56789 file 64\n\
 \n\
-c0cp [options] idh idl filename bsz\n\
-c0cp 1234 56789 256KiB-file 64\n\
+Copy file (at filename) to the object store.\n\
 \n\
-idh - Mero fid high\n\
-idl - Mero fid low\n\
-bsz - Clovis block size (in KiBs)\n\
+idh - object id high number\n\
+idl - object id low  number\n\
+bsz - block size (in KiBs)\n\
 \n\
-options are:\n\
-	-a | automatically figure out the optimal bsz for Mero I/O\n\
-	   | (Note: does not work for the composite objects atm.)\n\
-	-f | force\n\
-	-p | performance\n\
-	-c | contiguous mode\n\
-	   | -c <n> write <n> contiguous copies of the file. \n\
-	-x | pool ID. \n\
-	   | -x <n> creates the object in pool with ID <n>. \n\
-	-u | unit size (in KiBs), must be power of 2, >= 4 and <= 4096.\n\
-           | By default, determined automatically based on the bsz and\n\
-           | parity configuration of the pool.\n\
-        -t | create m0trace.pid file\n\
-        -v | be more verbose\n\
+  -b [sz] block size for the object store i/o (m0bs);\n\
+            if sz is not specified, automatically figure out the optimal\n\
+            value based on the object size and the pool width (does not\n\
+            work for the composite objects atm); (by default, use bsz)\n\
+  -c n    write n contiguous copies of the file into the object\n\
+  -f      force: overwrite an existing object\n\
+  -p      show performance stats\n\
+  -u sz   unit size (in KiBs), must be power of 2, >= 4 and <= 4096;\n\
+            by default, determined automatically for the new objects\n\
+            based on the m0bs and parity configuration of the pool\n\
+  -x id   id of the pool to create the object in\n\
+  -t      create m0trace.pid file\n\
+  -v      be more verbose\n\
 \n\
-The -f option forces rewriting on an object if that object already exists. \n\
-It creates a new object if the object does not exist.\n\
-c0cp -f 1234 56789 256MiB-file 8192 -u 1024\n\
-\n\
-The -p option enables performance monitoring. It collects performance stats\n\
-(such as bandwidth) and displays them at the end of the execution. It also\n\
-outputs realtime storage bandwith consumption.\n\
-c0cp -p 1234 56789 256MiB-file 8192 -u 1024\n\
-\n\
-The -c <n> option takes <n> a positive number as an argument and creates an \n\
-object with <n> contiguous copies of the same file.\n\
-c0cp -c 10 1234 56789 256MiB-file 8192 -u 1024\n\
-\n\
-The -x option takes <n> a positive number as an argument and selects the pool\n\
-with ID <n> for creating the object. Without this option objects are created\n\
-in the default pool.\n\
-c0cp -x 3 1234 56789 256MiB-file 8192 -u 1024\n\
-\n\
-Note: in order to get the maximum performance, block_size should be multiple\n\
-of data units in the parity group, i.e. multiple of unit_size * N, where\n\
-N is the number of data units in the parity group configuration of the pool.\n\
-For example, with 8+2 parity group configuration (8 data + 2 parity units\n\
-in the group) and 1MiB unit size - the block_size should be multiple of 8MiB.";
+Note: in order to get the maximum performance, m0bs should be multiple\n\
+of the data size in the parity group, i.e. multiple of (unit_size * n),\n\
+where n is 2 in 2+1 parity group configuration, 8 in 8+2 and so on.\n";
 
 int help()
 {
@@ -122,16 +102,21 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":apfc:x:u:tv"))!=-1){
-		switch(opt){
-		case 'a':
-			m0bs = 1;
-			break;
+	while ((opt = getopt(argc, argv, ":b:pfc:x:u:tv")) != -1) {
+		switch (opt) {
 		case 'p':
 			perf = 1;
 			break;
 		case 'f':
 			force = 1;
+			break;
+		case 'b':
+			if (sscanf(optarg, "%li", &m0bs) != 1) {
+				/* optarg might contain some other options */
+				optind--; /* rewind */
+				m0bs = 1; /* get automatically */
+			} else
+				m0bs *= 1024;
 			break;
 		case 'c':
 			cont = atoi(optarg);
@@ -156,8 +141,14 @@ int main(int argc, char **argv)
 			trace_level++;
 			break;
 		case ':':
-			fprintf(stderr,"option %c needs a value\n",optopt);
-			help();
+			switch (optopt) {
+			case 'b':
+				m0bs = 1; /* get automatically */
+				break;
+			default:
+				ERR("option %c needs a value\n", optopt);
+				help();
+			}
 			break;
 		case '?':
 			fprintf(stderr,"unknown option: %c\n", optopt);
@@ -227,13 +218,14 @@ int main(int argc, char **argv)
 		c0appz_pool_set(pool-1);
 	}
 
-	m0bs = m0bs ? c0appz_m0bs(idh, idl, bsz * cnt, pool_fid) : bsz;
-	if (!m0bs) {
-		fprintf(stderr,"%s(): error: c0appz_m0bs() failed.\n",
-			__func__);
-		rc = 222;
-		goto end;
+	if (m0bs == 1) {
+		m0bs = c0appz_m0bs(idh, idl, bsz * cnt, pool_fid);
+		if (!m0bs)
+			LOG("WARNING: failed to figure out the optimal m0bs,"
+			    " will use bsz for m0bs\n");
 	}
+	if (!m0bs)
+		m0bs = bsz;
 
 	/* create object */
 	c0appz_timein();
