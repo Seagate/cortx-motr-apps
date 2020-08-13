@@ -97,6 +97,7 @@ extern int qos_total_weight; 		/* total bytes read or written 	*/
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 	*/
 enum {MAX_M0_BUFSZ = 128*1024*1024};    /* max bs for object store I/O  */
 int trace_level=0;
+bool m0trace_on = false;
 
 /*
  ******************************************************************************
@@ -892,7 +893,8 @@ int c0appz_init(int idx)
 	fprintf(stderr,"\n---\n");
 #endif
 
-	m0_trace_set_mmapped_buffer(false);
+	if (!m0trace_on)
+		m0_trace_set_mmapped_buffer(false);
 	/* clovis instance */
 	rc = m0_clovis_init(&clovis_instance, &clovis_conf, true);
 	if (rc != 0) {

@@ -27,6 +27,8 @@
 #include "clovis/clovis.h"
 #include "lib/types.h" /* uint32_t */
 
+extern bool m0trace_on;
+
 int c0appz_init(int idx);
 int c0appz_free(void);
 

@@ -62,6 +62,7 @@ options are:\n\
 	-p | performance\n\
 	-c | contiguous mode. \n\
 	     -c <n> read <n> contiguous copies of the file. \n\
+	-t | create m0trace.pid file\n\
 	-v | be more verbose\n\
 \n\
 The -p option enables performance monitoring. It collects performance stats\n\
@@ -101,7 +102,7 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":apc:v"))!=-1){
+	while((opt = getopt(argc, argv, ":apc:tv"))!=-1){
 		switch(opt){
 		case 'a':
 			m0bs = 1;
@@ -114,6 +115,9 @@ int main(int argc, char **argv)
 			cont = atoi(optarg);
 			if(cont<0) cont=0;
 			if(!cont) help();
+			break;
+		case 't':
+			m0trace_on = true;
 			break;
 		case 'v':
 			trace_level++;

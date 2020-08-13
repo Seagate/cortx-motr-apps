@@ -70,6 +70,7 @@ options are:\n\
 	-u | unit size (in KiBs), must be power of 2, >= 4 and <= 4096.\n\
            | By default, determined automatically based on the bsz and\n\
            | parity configuration of the pool.\n\
+        -t | create m0trace.pid file\n\
         -v | be more verbose\n\
 \n\
 The -f option forces rewriting on an object if that object already exists. \n\
@@ -121,7 +122,7 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":apfc:x:u:v"))!=-1){
+	while((opt = getopt(argc, argv, ":apfc:x:u:tv"))!=-1){
 		switch(opt){
 		case 'a':
 			m0bs = 1;
@@ -147,6 +148,9 @@ int main(int argc, char **argv)
 			pool = atoi(optarg);
 			if(!isdigit(optarg[0])) pool = -1;
 			if((pool<0)||(pool>3)) help();
+			break;
+		case 't':
+			m0trace_on = true;
 			break;
 		case 'v':
 			trace_level++;

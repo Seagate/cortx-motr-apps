@@ -46,6 +46,7 @@ idl - Mero fid low\n\
 option is:\n\
 	-y | yes\n\
 	-p | performance\n\
+	-t | create m0trace.pid file\n\
 		\n\
 The -y option forces deleting an object if that object already exists.\n\
 The -p option enables performance monitoring. It collects performance stats\n\
@@ -72,13 +73,16 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":py"))!=-1){
+	while((opt = getopt(argc, argv, ":pyt"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
 				break;
 			case 'y':
 				yes = 1;
+				break;
+			case 't':
+				m0trace_on = true;
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
