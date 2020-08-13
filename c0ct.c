@@ -47,10 +47,10 @@ char *prog;
 
 const char *help_c0ct_txt = "\
 Usage:\n\
-  c0ct [-ptv] [-b [sz]] [-c n] idh idl filename bsz fsz\n\
+  c0ct [-ptv] [-b [sz]] [-c n] idh idl file bsz fsz\n\
   c0ct 1234 56789 file 1024 268435456\n\
 \n\
-Copy object from the object store into the file (at filename).\n\
+Copy object from the object store into file.\n\
 \n\
 idh - object id high number\n\
 idl - object id low  number\n\
@@ -65,6 +65,7 @@ fsz - file size (in bytes)\n\
   -p      show performance stats\n\
   -t      create m0trace.pid file\n\
   -v      be more verbose\n\
+  -h      print this help\n\
 \n\
 Note: in order to get the maximum performance, m0bs should be multiple\n\
 of the data size in the parity group, i.e. multiple of (unit_size * n),\n\
@@ -95,7 +96,7 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":b:pc:tv"))!=-1){
+	while((opt = getopt(argc, argv, ":b:pc:tvh"))!=-1){
 		switch(opt){
 		case 'b':
 			if (sscanf(optarg, "%li", &m0bs) != 1) {
@@ -120,13 +121,16 @@ int main(int argc, char **argv)
 		case 'v':
 			trace_level++;
 			break;
+		case 'h':
+			help();
+			break;
 		case ':':
 			switch (optopt) {
 			case 'b':
 				m0bs = 1; /* get automatically */
 				break;
 			default:
-				ERR("option %c needs a value\n", optopt);
+				ERR("option -%c needs a value\n", optopt);
 				help();
 			}
 			break;

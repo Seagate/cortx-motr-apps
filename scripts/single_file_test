@@ -30,7 +30,6 @@ c0cp='./c0cp'
 c0rm='./c0rm'
 c0ct='./c0ct'
 fgen='./fgen'
-c0cp_async='./c0cp_async'
 
 #files
 ofp='dwFile'
@@ -102,10 +101,6 @@ test()
     	echo "error! file $fgen is not executable nor found"
     	return 15
 	fi
-	if [[ ! -x "$c0cp_async" ]]; then
-    	echo "error! file $c0cp_async is not executable nor found"
-    	return 16
-	fi
 	
 	echo "bsz = $bsz, fsz = $fsz, fname = $inf"	
 
@@ -169,7 +164,7 @@ test()
 		
 	#c0cp_aync
 	rm -f m0trace.* # clean up  		
-	cmd="$c0cp_async $fid $inf $bsz 8"
+	cmd="$c0cp $fid $inf $bsz -a 8"
 	runc $cmd
 	if [[ $? -ne 0 ]]; then
 		#remove fid if possible

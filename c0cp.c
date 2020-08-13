@@ -50,15 +50,16 @@ char *prog;
 
 const char *help_c0cp_txt = "\
 Usage:\n\
-  c0cp [-fptv] [-x n] [-u sz] [-b [sz]] [-c n] idh idl filename bsz\n\
+  c0cp [-fptv] [-x id] [-u sz] [-b [sz]] [-c n] [-a n] idh idl file bsz\n\
   c0cp 1234 56789 file 64\n\
 \n\
-Copy file (at filename) to the object store.\n\
+Copy file to the object store.\n\
 \n\
 idh - object id high number\n\
 idl - object id low  number\n\
 bsz - block size (in KiBs)\n\
 \n\
+  -a n    async mode: do n object store operations in a batch\n\
   -b [sz] block size for the object store i/o (m0bs);\n\
             if sz is not specified, automatically figure out the optimal\n\
             value based on the object size and the pool width (does not\n\
@@ -69,9 +70,10 @@ bsz - block size (in KiBs)\n\
   -u sz   unit size (in KiBs), must be power of 2, >= 4 and <= 4096;\n\
             by default, determined automatically for the new objects\n\
             based on the m0bs and parity configuration of the pool\n\
-  -x id   id of the pool to create the object in\n\
+  -x id   id of the tier (pool) to create the object in (1,2,3,..)\n\
   -t      create m0trace.pid file\n\
   -v      be more verbose\n\
+  -h      print this help\n\
 \n\
 Note: in order to get the maximum performance, m0bs should be multiple\n\
 of the data size in the parity group, i.e. multiple of (unit_size * n),\n\
@@ -98,17 +100,25 @@ int main(int argc, char **argv)
 	char    *fbuf;       /* file buffer       */
 	int      cont=0;     /* continuous mode   */
 	int      pool=0;     /* default pool ID   */
+	int      op_cnt=0;   /* number of parallel ops */
 
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while ((opt = getopt(argc, argv, ":b:pfc:x:u:tv")) != -1) {
+	while ((opt = getopt(argc, argv, ":a:b:pfc:x:u:tvh")) != -1) {
 		switch (opt) {
 		case 'p':
 			perf = 1;
 			break;
 		case 'f':
 			force = 1;
+			break;
+		case 'a':
+			op_cnt = atoi(optarg);
+			if (op_cnt < 1) {
+				ERR("invalid -a option argument: %s\n", optarg);
+				help();
+			}
 			break;
 		case 'b':
 			if (sscanf(optarg, "%li", &m0bs) != 1) {
@@ -120,19 +130,24 @@ int main(int argc, char **argv)
 			break;
 		case 'c':
 			cont = atoi(optarg);
-			if(cont<0) cont=0;
-			if(!cont) help();
+			if (cont < 1) {
+				ERR("invalid -c option argument: %s\n", optarg);
+				help();
+			}
 			break;
 		case 'u':
 			if (sscanf(optarg, "%i", &unit_size) != 1) {
-				fprintf(stderr, "invalid unit size\n");
+				ERR("invalid unit size: %s\n", optarg);
 				help();
 			}
 			break;
 		case 'x':
 			pool = atoi(optarg);
-			if(!isdigit(optarg[0])) pool = -1;
-			if((pool<0)||(pool>3)) help();
+			if (pool < 1 || pool > 3) {
+				ERR("invalid pool index: %s (allowed \n"
+				    "values are 1, 2 or 3 atm)\n", optarg);
+				help();
+			}
 			break;
 		case 't':
 			m0trace_on = true;
@@ -140,22 +155,25 @@ int main(int argc, char **argv)
 		case 'v':
 			trace_level++;
 			break;
+		case 'h':
+			help();
+			break;
 		case ':':
 			switch (optopt) {
 			case 'b':
 				m0bs = 1; /* get automatically */
 				break;
 			default:
-				ERR("option %c needs a value\n", optopt);
+				ERR("option -%c needs a value\n", optopt);
 				help();
 			}
 			break;
 		case '?':
-			fprintf(stderr,"unknown option: %c\n", optopt);
+			fprintf(stderr, "unknown option: %c\n", optopt);
 			help();
 			break;
 		default:
-			fprintf(stderr,"unknown option: %c\n", optopt);
+			fprintf(stderr, "unknown option: %c\n", optopt);
 			help();
 			break;
 		}
@@ -265,10 +283,12 @@ int main(int argc, char **argv)
 		c0appz_timein();
 
 		for (pos = 0; cont > 0; cont--, pos += cnt * bsz) {
-			rc = c0appz_mw(fbuf, idh, idl, pos, bsz, cnt, m0bs);
+			rc = op_cnt ?
+				c0appz_mw_async(fbuf, idh, idl, pos, bsz, cnt,
+						op_cnt, m0bs) :
+				c0appz_mw(fbuf, idh, idl, pos, bsz, cnt, m0bs);
 			if (rc != 0) {
-				fprintf(stderr, "%s: c0appz_mw() failed"
-					" at pos %lu: %d\n", prog, pos, rc);
+				ERR("copying failed at pos %lu: %d\n", pos, rc);
 				break;
 			}
 			pthread_mutex_lock(&qos_lock);
@@ -294,10 +314,12 @@ int main(int argc, char **argv)
 	c0appz_timein();
 
 	/* copy */
-	rc = c0appz_cp(idh, idl, fname, bsz, cnt, m0bs);
+	if (op_cnt)
+		rc = c0appz_cp_async(idh, idl, fname, bsz, cnt, op_cnt, m0bs);
+	else
+		rc = c0appz_cp(idh, idl, fname, bsz, cnt, m0bs);
 	if (rc != 0) {
-		fprintf(stderr,"%s(): object copying failed: rc=%d\n",
-			__func__, rc);
+		ERR("copying failed: rc=%d\n", rc);
 		rc = 222;
 		goto end;
 	};

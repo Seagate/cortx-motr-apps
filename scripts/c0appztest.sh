@@ -88,24 +88,24 @@ set +x
 echo "Asynchronous Mode!"
 set -x
 #default tier
-./c0cp_async 21 21 $TEST_FILE_1GB 1024 8 -pf
+./c0cp 21 21 $TEST_FILE_1GB 1024 -a 8 -pf
 sleep 10
-./c0cp_async 21 21 $TEST_FILE_1GB 1024 8 -pfc 3
+./c0cp 21 21 $TEST_FILE_1GB 1024 -a 8 -pfc 3
 sleep 10
-./c0cp_async 21 21 $TEST_FILE_256MB 1024 8 -pfc 5
+./c0cp 21 21 $TEST_FILE_256MB 1024 -a 8 -pfc 5
 sleep 10
 #tiers 123 (-x not available currently)
-#./c0cp_async 21 221 $TEST_FILE_1GB 1024 8 -x 1 -p
+#./c0cp 21 221 $TEST_FILE_1GB 1024 -a 8 -x 1 -p
 #sleep 10
-#./c0cp_async 21 222 $TEST_FILE_1GB 1024 8 -x 2 -p
+#./c0cp 21 222 $TEST_FILE_1GB 1024 -a 8 -x 2 -p
 #sleep 10
-#./c0cp_async 21 223 $TEST_FILE_1GB 1024 8 -x 3 -p
+#./c0cp 21 223 $TEST_FILE_1GB 1024 -a 8 -x 3 -p
 #sleep 10
-#./c0cp_async 21 221 $TEST_FILE_1GB 1024 8 -x 1 -pfc 3
+#./c0cp 21 221 $TEST_FILE_1GB 1024 -a 8 -x 1 -pfc 3
 #sleep 10
-#./c0cp_async 21 222 $TEST_FILE_1GB 1024 8 -x 2 -pfc 3
+#./c0cp 21 222 $TEST_FILE_1GB 1024 -a 8 -x 2 -pfc 3
 #sleep 10
-#./c0cp_async 21 223 $TEST_FILE_1GB 1024 8 -x 3 -pfc 3
+#./c0cp 21 223 $TEST_FILE_1GB 1024 -a 8 -x 3 -pfc 3
 set +x
 
 echo "DONE!"

@@ -40,7 +40,6 @@ C0CP = c0cp
 C0CT = c0ct
 C0RM = c0rm
 FGEN = fgen
-C0CP_A = c0cp_async
 
 #isc executables and library
 LIBISC = libdemo.so
@@ -82,10 +81,10 @@ CFLAGS += -I$(M0_SRC_DIR)
 endif
 
 SRC = perf.o buffer.o qos.o c0appz.o pool.o
-SRC_ALL = $(SRC) c0cp.o c0ct.o c0rm.o c0cp_async.o fgen.o \
+SRC_ALL = $(SRC) c0cp.o c0ct.o c0rm.o fgen.o \
 		c0isc_register.o c0isc_demo.o isc_libdemo.o
 
-all: $(C0CP) $(C0CT) $(C0RM) $(C0CP_A) isc-all
+all: $(C0CP) $(C0CT) $(C0RM) isc-all
 .PHONY: all
 
 # Generate automatic dependencies,
@@ -106,10 +105,7 @@ $(C0CT): $(SRC) c0ct.c
 $(C0RM): $(SRC) c0rm.c
 	gcc $(SRC) c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0RM)
 
-$(C0CP_A): $(SRC) c0cp_async.c
-	gcc $(SRC) c0cp_async.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0CP_A)
-
-test: $(C0CP) $(C0CT) $(C0RM) $(C0CP_A)
+test: $(C0CP) $(C0CT) $(C0RM)
 	$(SUDO) ./$(C0RM) 0 1048577 -y
 	sleep 6
 	$(SUDO) ./$(C0RM) 0 1048599 -y
@@ -123,7 +119,7 @@ test: $(C0CP) $(C0CT) $(C0RM) $(C0CP_A)
 	@ls -la $(FILE2)
 	@echo "#####"
 	@ls -la $(FILE1)
-	$(SUDO) ./$(C0CP_A) 0 1048599 $(FILE1) $(BSZ) 8
+	$(SUDO) ./$(C0CP) 0 1048599 $(FILE1) $(BSZ) -a 8
 	@echo "#####"
 	$(SUDO) ./$(C0CT) 0 1048599 $(FILE3) $(BSZ) $(FSZ)
 	@ls -ls $(FILE3)
@@ -158,13 +154,11 @@ vmrcf:
 	mkdir -p .$(C0CP)rc
 	mkdir -p .$(C0CT)rc
 	mkdir -p .$(C0RM)rc
-	mkdir -p .$(C0CP_A)rc
 	mkdir -p .$(ISC_REG)rc
 	mkdir -p .$(ISC_INVK)rc
 	./scripts/c0appzrcgen > ./.$(C0CP)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(C0CT)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(C0RM)rc/$(NODE)
-	./scripts/c0appzrcgen > ./.$(C0CP_A)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(ISC_REG)rc/$(NODE)
 	./scripts/c0appzrcgen > ./.$(ISC_INVK)rc/$(NODE)
 
@@ -172,18 +166,16 @@ sagercf:
 	mkdir -p .${C0CP}rc
 	mkdir -p .${C0CT}rc
 	mkdir -p .${C0RM}rc
-	mkdir -p .${C0CP_A}rc
 	mkdir -p .$(ISC_REG)rc
 	mkdir -p .$(ISC_INVK)rc
 	sage-user-application-assignment ganesan $(C0CP) 172.18.1.${c} > .$(C0CP)rc/client-${c}
 	sage-user-application-assignment ganesan $(C0CT) 172.18.1.${c} > .$(C0CT)rc/client-${c}
 	sage-user-application-assignment ganesan $(C0RM) 172.18.1.${c} > .$(C0RM)rc/client-${c}
-	sage-user-application-assignment ganesan $(C0CP_A) 172.18.1.${c} > .$(C0CP_A)rc/client-${c}
 	sage-user-application-assignment ganesan $(C0CP) 172.18.1.${c} > .$(ISC_REG)rc/client-${c}
 	sage-user-application-assignment ganesan $(C0CT) 172.18.1.${c} > .$(ISC_INVK)rc/client-${c}
 
 clean: isc-clean
-	rm -f $(C0CP) $(C0CT) $(C0RM) $(C0CP_A) m0trace.*
+	rm -f $(C0CP) $(C0CT) $(C0RM) m0trace.*
 	rm -f $(FILE1) $(FILE2) $(FILE3)
 	rm -f $(FGEN)
 	rm -f sfilet-* snodet-* fidout-*

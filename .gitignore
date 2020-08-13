@@ -11,7 +11,6 @@ m0trace.*
 core.*
 .c0*
 c0cp
-c0cp_async
 c0ct
 c0isc_demo
 c0isc_reg
