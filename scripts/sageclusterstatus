@@ -25,6 +25,7 @@
 # 27/02/2020 - paritygroup added
 # 04/03/2020 - usage added
 # 02/08/2020 - visnode added
+# 21/08/2020 - datawarp added
 
 #!/usr/bin/bash
 
@@ -39,7 +40,8 @@ INTERACTIVE=0
 WHOLESYSTEM=1
 CLIENTS=''
 CLIENTS+='client-2[1-8]',
-CLIENTS+='visnode-0[1-4]'
+CLIENTS+='visnode-0[1-4]',
+CLIENTS+='datawarp-0[1-4]'
 SERVERS=''
 SERVERS+='sage-tier1-[1-2]',
 SERVERS+='sage-tier2-[1-4]',
@@ -122,6 +124,7 @@ merostat()
 	echo "-[ Mero status(clients) ]-"
 	ssh -A client-21 hctl mero status | grep client
 	ssh -A client-21 hctl mero status | grep visnode
+	ssh -A client-21 hctl mero status | grep datawarp
 	getchar
 	echo "-[ Mero status(tier nodes) ]-"
 	ssh -A client-21 hctl mero status | grep sage-tier
