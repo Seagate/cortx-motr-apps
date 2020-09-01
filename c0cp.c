@@ -180,9 +180,8 @@ int main(int argc, char **argv)
 	}
 
 	/* check input */
-	if(argc-optind!=4){
+	if (argc - optind != 4)
 		help();
-	}
 
 	/* c0rcfile
 	 * overwrite .cappzrc to a .[app]rc file.

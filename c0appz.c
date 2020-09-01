@@ -188,7 +188,7 @@ int alloc_segs(struct m0_bufvec *data, struct m0_indexvec *ext,
 		attr->ov_vec.v_count[i] = 0; /* no attrs */
 
 	return 0;
-err:
+ err:
 	free_segs(data, ext, attr);
 	return rc;
 }
@@ -274,7 +274,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 
 		off += set_exts(&ext, off, bsz);
 
-		/* Copy data to the object*/
+		/* Copy data to the object */
 		st = m0_time_now();
 		rc = write_data_to_object(&obj, &ext, &data, &attr);
 		if (rc != 0) {
@@ -292,9 +292,9 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	}
 
 	m0_clovis_entity_fini(&obj.ob_entity);
-free_vecs:
+ free_vecs:
 	free_segs(&data, &ext, &attr);
-out:
+ out:
 	fclose(fp);
 
 	if (perf && rc == 0) {
@@ -1100,21 +1100,15 @@ static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data, size_t bsz,
 	return i;
 }
 
-/*
- * write_data_to_object()
- * writes data to an object
- */
-int write_data_to_object(struct m0_clovis_obj *obj,
-			 struct m0_indexvec *ext,
-			 struct m0_bufvec *data,
-			 struct m0_bufvec *attr)
+static int do_io_op(struct m0_clovis_obj *obj, enum m0_clovis_obj_opcode opcode,
+		    struct m0_indexvec *ext, struct m0_bufvec *data,
+		    struct m0_bufvec *attr)
 {
 	int                  rc;
 	struct m0_clovis_op *op = NULL;
 
 	/* Create the write request */
-	m0_clovis_obj_op(obj, M0_CLOVIS_OC_WRITE,
-			 ext, data, attr, 0, &op);
+	m0_clovis_obj_op(obj, opcode, ext, data, attr, 0, &op);
 
 	/* Launch the write request*/
 	m0_clovis_op_launch(&op, 1);
@@ -1131,6 +1125,26 @@ int write_data_to_object(struct m0_clovis_obj *obj,
 		fprintf(stderr,"%s() failed: rc=%d\n", __func__, rc);
 
 	return rc;
+}
+
+/*
+ * write_data_to_object()
+ * writes data to an object
+ */
+int write_data_to_object(struct m0_clovis_obj *obj, struct m0_indexvec *ext,
+			 struct m0_bufvec *data, struct m0_bufvec *attr)
+{
+	return do_io_op(obj, M0_CLOVIS_OC_WRITE, ext, data, attr);
+}
+
+/*
+ * read_data_from_object()
+ * read data from an object
+ */
+int read_data_from_object(struct m0_clovis_obj *obj, struct m0_indexvec *ext,
+			  struct m0_bufvec *data, struct m0_bufvec *attr)
+{
+	return do_io_op(obj, M0_CLOVIS_OC_READ, ext, data, attr);
 }
 
 static void clovis_aio_executed_cb(struct m0_clovis_op *op)
@@ -1196,38 +1210,6 @@ int write_data_to_object_async(struct clovis_aio_op *aio)
 	m0_clovis_op_launch(&aio->cao_op, 1);
 
 	return 0;
-}
-
-/*
- * read_data_from_object()
- * read data from an object
- */
-int read_data_from_object(struct m0_clovis_obj *obj,
-			  struct m0_indexvec *ext,
-			  struct m0_bufvec *data,
-			  struct m0_bufvec *attr)
-{
-	int                  rc;
-	struct m0_clovis_op *op = NULL;
-
-	/* Creat, launch and wait on an READ op. */
-	m0_clovis_obj_op(obj, M0_CLOVIS_OC_READ,
-			 ext, data, attr, 0, &op);
-
-	m0_clovis_op_launch(&op, 1);
-
-	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_FAILED,
-					   M0_CLOVIS_OS_STABLE),
-			       M0_TIME_NEVER) ?: m0_clovis_rc(op);
-
-	/* Finalise and release op. */
-	m0_clovis_op_fini(op);
-	m0_clovis_op_free(op);
-
-	if (rc != 0)
-		fprintf(stderr,"%s() failed: rc=%d\n", __func__, rc);
-
-	return rc;
 }
 
 

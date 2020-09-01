@@ -96,7 +96,7 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":b:pc:tvh"))!=-1){
+	while ((opt = getopt(argc, argv, ":b:pc:tvh")) != -1) {
 		switch(opt){
 		case 'b':
 			if (sscanf(optarg, "%li", &m0bs) != 1) {
@@ -146,9 +146,8 @@ int main(int argc, char **argv)
 	}
 
 	/* check input */
-	if(argc-optind!=5){
+	if (argc-optind != 5)
 		help();
-	}
 
 	/* time in */
 	c0appz_timein();
