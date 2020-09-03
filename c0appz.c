@@ -272,6 +272,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		read_time = m0_time_add(read_time,
 					m0_time_sub(m0_time_now(), st));
 
+		DBG("IO block: off=0x%lx len=0x%lx\n", off, bsz);
 		off += set_exts(&ext, off, bsz);
 
 		/* Copy data to the object */
