@@ -28,6 +28,8 @@
 #define DMPISEQ 0
 #define DCLOVIS 1
 
+char *prog;
+
 /* main */
 int main(int argc, char **argv)
 {
@@ -70,12 +72,9 @@ int main(int argc, char **argv)
 	/* time in */
 	c0appz_timein();
 
-	/* c0rcfile
-	 * overwrite .cappzrc to a .[app]rc file.
-	 */
-	char str[256];
-	sprintf(str,".%src",basename(argv[0]));
-	c0appz_setrc(str);
+	prog = basename(strdup(argv[0]));
+
+	c0appz_setrc(prog);
 	c0appz_putrc();
 
 #if DMPISEQ

@@ -49,14 +49,8 @@ int main(int argc, char **argv)
 	/* time in */
 	c0appz_timein();
 
-	/* c0rcfile
-	 * overwrite .cappzrc to a .[app]rc file.
-	 */
-	char str[256];
-	sprintf(str,"%s/.%src", dirname(argv[0]), prog);
-	c0appz_setrc(str);
+	c0appz_setrc(prog);
 	c0appz_putrc();
-
 
 	/* initialize resources */
 	if (c0appz_init(0) != 0) {

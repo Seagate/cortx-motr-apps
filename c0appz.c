@@ -935,26 +935,19 @@ int c0appz_free(void)
  * c0appz_setrc()
  * set c0apps resource filename
  */
-int c0appz_setrc(char *rcfile)
+int c0appz_setrc(char *prog)
 {
-	char buf1[256];
-	char buf2[256];
+	char hostname[SZC0RCFILE] = {0};
 
 	/* null */
-	if (!rcfile) {
-		fprintf(stderr, "error! null rc filename.\n");
-		return 1;
+	if (!prog) {
+		fprintf(stderr, "error! null progname.\n");
+		return -EINVAL;
 	}
 
-	/* add hostname */
-	memset(buf1, 0x00, 256);
-	memset(buf2, 0x00, 256);
-	gethostname(buf1, 256);
-	sprintf(buf2,"%s/%s", rcfile, buf1);
-
-	/* update rc filename */
-	memset(c0rcfile, 0x00, SZC0RCFILE);
-	strncpy(c0rcfile, buf2, strlen(buf2));
+	gethostname(hostname, SZC0RCFILE);
+	snprintf(c0rcfile, SZC0RCFILE, "%s/.c0appz/%src/%s",
+		 getenv("HOME"), prog, hostname);
 
 	/* success */
 	return 0;
@@ -964,11 +957,11 @@ int c0appz_setrc(char *rcfile)
  * c0appz_putrc()
  * print c0apps resource filename
  */
-int c0appz_putrc(void)
+void c0appz_putrc(void)
 {
 	/* print rc filename */
-	fprintf(stderr, "%s\n", c0rcfile);
-	return 0;
+	if (trace_level > 0)
+		fprintf(stderr, "%s\n", c0rcfile);
 }
 
 /*

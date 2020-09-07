@@ -183,12 +183,7 @@ int main(int argc, char **argv)
 	if (argc - optind != 4)
 		help();
 
-	/* c0rcfile
-	 * overwrite .cappzrc to a .[app]rc file.
-	 */
-	char str[256];
-	sprintf(str,"%s/.%src", dirname(argv[0]), prog);
-	c0appz_setrc(str);
+	c0appz_setrc(prog);
 	c0appz_putrc();
 
 	/* set input */

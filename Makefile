@@ -41,6 +41,9 @@ C0CT = c0ct
 C0RM = c0rm
 FGEN = fgen
 
+RCDIR = $(HOME)/.c0appz
+APPASSIGN = sage-user-application-assignment
+
 #isc executables and library
 LIBISC = libdemo.so
 ISC_REG = c0isc_reg
@@ -163,16 +166,16 @@ vmrcf:
 	./scripts/c0appzrcgen > ./.$(ISC_INVK)rc/$(NODE)
 
 sagercf:
-	mkdir -p .${C0CP}rc
-	mkdir -p .${C0CT}rc
-	mkdir -p .${C0RM}rc
-	mkdir -p .$(ISC_REG)rc
-	mkdir -p .$(ISC_INVK)rc
-	sage-user-application-assignment ganesan $(C0CP) 172.18.1.${c} > .$(C0CP)rc/client-${c}
-	sage-user-application-assignment ganesan $(C0CT) 172.18.1.${c} > .$(C0CT)rc/client-${c}
-	sage-user-application-assignment ganesan $(C0RM) 172.18.1.${c} > .$(C0RM)rc/client-${c}
-	sage-user-application-assignment ganesan $(C0CP) 172.18.1.${c} > .$(ISC_REG)rc/client-${c}
-	sage-user-application-assignment ganesan $(C0CT) 172.18.1.${c} > .$(ISC_INVK)rc/client-${c}
+	mkdir -p $(RCDIR)/${C0CP}rc
+	mkdir -p $(RCDIR)/${C0CT}rc
+	mkdir -p $(RCDIR)/${C0RM}rc
+	mkdir -p $(RCDIR)/$(ISC_REG)rc
+	mkdir -p $(RCDIR)/$(ISC_INVK)rc
+	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(C0CP)rc/client-${c}
+	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(C0CT)rc/client-${c}
+	$(APPASSIGN) ganesan $(C0RM) 172.18.1.${c} > $(RCDIR)/$(C0RM)rc/client-${c}
+	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(ISC_REG)rc/client-${c}
+	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(ISC_INVK)rc/client-${c}
 
 clean: isc-clean
 	rm -f $(C0CP) $(C0CT) $(C0RM) m0trace.*
@@ -219,7 +222,7 @@ mpi-clean:
 
 mpi-sagercf:
 	mkdir -p .${EXE6}rc
-	sage-user-application-assignment ganesan $(EXE6) 172.18.1.${c} > .$(EXE6)rc/client-${c}
+	$(APPASSIGN) ganesan $(EXE6) 172.18.1.${c} > .$(EXE6)rc/client-${c}
 
 #
 #ISC Demo

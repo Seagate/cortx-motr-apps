@@ -9,7 +9,6 @@ help.h
 cscope.*
 m0trace.*
 core.*
-.c0*
 c0cp
 c0ct
 c0isc_demo
