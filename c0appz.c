@@ -58,10 +58,40 @@
 #define DEBUG 0
 #endif
 
-#define MAXC0RC                	4
-#define SZC0RCSTR              	256
-#define SZC0RCFILE             	256
-#define C0RCFLE                 "./.cappzrc"
+const char *c0appz_help_txt = "\
+The utility requires startup configuration file with a few cluster-\n\
+specific parameters which usually don't change until the cluster is\n\
+reconfigured by the system administrator. For example:\n\
+\n\
+$ cat $HOME/.c0appz/c0cprc/client-22\n\
+LOCAL_ENDPOINT_ADDR = 172.18.1.22@o2ib:12345:41:351\n\
+HA_ENDPOINT_ADDR    = 172.18.1.22@o2ib:12345:34:101\n\
+PROFILE_FID         = 0x7000000000000001:0xcfd\n\
+LOCAL_PROC_FID      = 0x7200000000000001:0x645\n\
+M0_POOL_TIER1 = 0x6f00000000000001:0xc74 # tier1-nvme\n\
+M0_POOL_TIER2 = 0x6f00000000000001:0xc8a # tier2-ssd\n\
+M0_POOL_TIER3 = 0x6f00000000000001:0xca5 # tier3-hdd\n\
+\n\
+c0cprc is the utility name (c0cp in this case) + rc suffix.\n\
+client-22 is the client node name where the utility is run.\n\
+LOCAL_ENDPOINT_ADDR is allocated by system administrator for each\n\
+application working with the object store cluster.\n\
+HA_ENDPOINT_ADDR is the address of HA agent running on the node.\n\
+The easiest way to generate this file is like this:\n\
+\n\
+$ cd ~/clovis-sample-apps\n\
+$ make c=22 sagercf\n\
+\n\
+Where 22 is the last byte in the client's node IP address.\n";
+
+
+enum {
+	MAX_M0_BUFSZ = 128*1024*1024, /* max bs for object store I/O  */
+	MAX_POOLS = 16,
+	MAX_RCFILE_NAME_LEN = 256,
+	MAX_CONF_STR_LEN = 128,
+	MAX_CONF_PARAMS = 32,
+};
 
 /* static variables */
 static struct m0_clovis          *clovis_instance = NULL;
@@ -70,20 +100,17 @@ static struct m0_clovis_config    clovis_conf;
 static struct m0_idx_dix_config   dix_conf;
 static struct m0_spiel            spiel_inst;
 
-static char    c0rc[8][SZC0RCSTR];
-static char    c0rcfile[SZC0RCFILE] = C0RCFLE;
+static char c0rcfile[MAX_RCFILE_NAME_LEN] = "./.c0appzrc";
 
 /*
  ******************************************************************************
  * STATIC FUNCTION PROTOTYPES
  ******************************************************************************
  */
-static char *trim(char *str);
 static size_t read_data_from_file(FILE *fp, struct m0_bufvec *data,
 				  size_t bsz, uint32_t cnt);
 static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data,
 				 size_t bsz, uint32_t cnt);
-
 
 /*
  ******************************************************************************
@@ -95,15 +122,97 @@ unsigned unit_size = 0;
 int perf=0;				/* performance option 		*/
 extern int qos_total_weight; 		/* total bytes read or written 	*/
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight 	*/
-enum {MAX_M0_BUFSZ = 128*1024*1024};    /* max bs for object store I/O  */
 int trace_level=0;
 bool m0trace_on = false;
 
+struct param {
+	char name[MAX_CONF_STR_LEN];
+	char value[MAX_CONF_STR_LEN];
+};
+
+static struct m0_fid pools[MAX_POOLS] = {};
+
 /*
  ******************************************************************************
- * EXTERN FUNCTIONS
+ * STATIC FUNCTIONS
  ******************************************************************************
  */
+
+/**
+ * Read parameters into array p[] from file.
+ */
+static int read_params(FILE *in, struct param *p, int max_params)
+{
+	int ln, n=0;
+	char s[MAX_CONF_STR_LEN];
+
+	for (ln=1; max_params > 0 && fgets(s, MAX_CONF_STR_LEN, in); ln++) {
+		if (sscanf(s, " %[#\n\r]", p->name))
+			continue; /* skip emty line or comment */
+		if (sscanf(s, " %[a-z_A-Z0-9] = %[^#\n\r]",
+		           p->name, p->value) < 2) {
+			ERR("error at line %d: %s\n", ln, s);
+			return -1;
+		}
+		DBG("%d: name='%s' value='%s'\n", ln, p->name, p->value);
+		p++, max_params--, n++;
+	}
+
+	return n;
+}
+
+static const char* param_get(const char *name, const struct param p[], int n)
+{
+	while (n-- > 0)
+		if (strcmp(p[n].name, name) == 0)
+			return p[n].value;
+	return NULL;
+}
+
+/**
+ * Set pools fids at pools[] from parameters array p[].
+ */
+static int pools_fids_set(struct param p[], int n)
+{
+	int i;
+	char pname[32];
+	const char *pval;
+
+	for (i = 0; i < MAX_POOLS; i++) {
+		sprintf(pname, "M0_POOL_TIER%d", i + 1);
+		if ((pval = param_get(pname, p, n)) == NULL)
+			break;
+		if (m0_fid_sscanf(pval, pools + i) != 0) {
+			ERR("failed to parse FID of %s\n", pname);
+			return -1;
+		}
+	}
+
+	return i;
+}
+
+/**
+ * Return pool fid from pools[] at tier_idx.
+ */
+static struct m0_fid *tier2pool(uint8_t tier_idx)
+{
+	if (tier_idx < 1 || tier_idx > MAX_POOLS)
+		return NULL;
+	return pools + tier_idx - 1;
+}
+
+/* Warning: non-reentrant. */
+static char* fid2str(const struct m0_fid *fid)
+{
+	static char buf[256];
+
+	if (fid)
+		sprintf(buf, FID_F, FID_P(fid));
+	else
+		sprintf(buf, "%p", fid);
+
+	return buf;
+}
 
 static uint64_t roundup_power2(uint64_t x)
 {
@@ -115,11 +224,16 @@ static uint64_t roundup_power2(uint64_t x)
 	return power;
 }
 
+/*
+ ******************************************************************************
+ * EXTERN FUNCTIONS
+ ******************************************************************************
+ */
+
 /**
  * Calculate the optimal block size for the object store I/O
  */
-uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz,
-		     struct m0_fid *pool)
+uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier)
 {
 	int                     rc;
 	unsigned long           usz; /* unit size */
@@ -129,6 +243,7 @@ uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz,
 	struct m0_reqh         *reqh = &clovis_instance->m0c_reqh;
 	struct m0_pool_version *pver;
 	struct m0_pdclust_attr *pa;
+	struct m0_fid          *pool = tier2pool(tier);
 	struct m0_clovis_obj    obj;
 
 	if (obj_sz > MAX_M0_BUFSZ)
@@ -136,7 +251,8 @@ uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz,
 
 	rc = m0_pool_version_get(reqh->rh_pools, pool, &pver);
 	if (rc != 0) {
-		ERR("m0_pool_version_get() failed: rc=%d\n", rc);
+		ERR("m0_pool_version_get(pool=%s) failed: rc=%d\n",
+		    fid2str(pool), rc);
 		return 0;
 	}
 
@@ -792,75 +908,73 @@ int c0appz_ex(uint64_t idhi, uint64_t idlo, struct m0_clovis_obj *obj_out)
 	return 1;
 }
 
+static int read_conf_params(const struct param params[], int n)
+{
+	int i;
+	struct conf_params_to_read {
+		const char *name;
+		const char **conf_ptr;
+	} p[] = { { "LOCAL_ENDPOINT_ADDR", &clovis_conf.cc_local_addr },
+		  { "HA_ENDPOINT_ADDR",    &clovis_conf.cc_ha_addr },
+		  { "PROFILE_FID",         &clovis_conf.cc_profile },
+		  { "LOCAL_PROC_FID",      &clovis_conf.cc_process_fid }, };
+
+	for (i = 0; i < ARRAY_SIZE(p); i++) {
+		*(p[i].conf_ptr) = param_get(p[i].name, params, n);
+		if (*(p[i].conf_ptr) == NULL) {
+			ERR("%s is not set at %s\n", p[i].name, c0rcfile);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * c0appz_init()
  * init clovis resources.
  */
 int c0appz_init(int idx)
 {
-	int   i;
 	int   rc;
 	int   lid;
+	int   rc_params_nr;
 	FILE *fp;
-	char *str = NULL;
-	char* filename = C0RCFLE;
-	char  buf[SZC0RCSTR];
+	struct param rc_params[MAX_CONF_PARAMS] = {};
 
-	/* read c0rc file */
-	filename = c0rcfile;
-	fp = fopen(filename, "r");
+	fp = fopen(c0rcfile, "r");
 	if (fp == NULL) {
-		fprintf(stderr,"error! could not open resource file %s\n", filename);
-		return 1;
+		ERR("failed to open resource file %s: %s\n", c0rcfile,
+		    strerror(errno));
+		return -errno;
 	}
 
-	/* move fp */
-	i = 0;
-	while ((i != idx * MAXC0RC) && (fgets(buf, SZC0RCSTR, fp) != NULL)) {
-		str = trim(buf);
-		if (str[0] == '#') continue;     /* ignore comments */
-		if (strlen(str) == 0) continue;  /* ignore empty space */
-		i++;
-	}
-
-	/* read c0rc */
-	i = 0;
-	while (fgets(buf, SZC0RCSTR, fp) != NULL) {
-
-#if DEBUG
-	fprintf(stderr,"rd:->%s<-", buf);
-	fprintf(stderr,"\n");
-#endif
-
-	str = trim(buf);
-	if (str[0] == '#') continue;		/* ignore comments */
-	if (strlen(str) == 0) continue;		/* ignore empty space */
-
-	memset(c0rc[i], 0x00, SZC0RCSTR);
-	strncpy(c0rc[i], str, SZC0RCSTR);
-
-#if DEBUG
-	fprintf(stderr,"wr:->%s<-", c0rc[i]);
-	fprintf(stderr,"\n");
-#endif
-
-	i++;
-	if (i == MAXC0RC) break;
-	}
+	rc = read_params(fp, rc_params, ARRAY_SIZE(rc_params));
 	fclose(fp);
+	if (rc < 0) {
+		ERR("failed to read parameters from %s: rc=%d", c0rcfile, rc);
+		return rc;
+	}
+	rc_params_nr = rc;
 
-	/* idx check */
-	if (i != MAXC0RC) {
-		fprintf(stderr,"error! [[ %d ]] wrong resource index.\n", idx);
-		return 2;
+	rc = pools_fids_set(rc_params, rc_params_nr);
+	if (rc <= 0) {
+		if (rc == 0) {
+			ERR("no pools configured at %s\n", c0rcfile);
+		} else {
+			ERR("failed to set pools from %s\n", c0rcfile);
+		}
+		return -EINVAL;
+	}
+
+	rc = read_conf_params(rc_params, rc_params_nr);
+	if (rc != 0) {
+		ERR("failed to read conf parameters from %s\n", c0rcfile);
+		return rc;
 	}
 
 	clovis_conf.cc_is_oostore            = true;
 	clovis_conf.cc_is_read_verify        = false;
-	clovis_conf.cc_local_addr            = c0rc[0];
-	clovis_conf.cc_ha_addr               = c0rc[1];
-	clovis_conf.cc_profile               = c0rc[2];
-	clovis_conf.cc_process_fid           = c0rc[3];
 #if 0
 	/* set to default values */
 	clovis_conf.cc_tm_recv_queue_min_len = M0_NET_TM_RECV_QUEUE_DEF_LEN;
@@ -905,8 +1019,7 @@ int c0appz_init(int idx)
 	}
 
 	/* And finally, clovis root realm */
-	m0_clovis_container_init(&clovis_container,
-				 NULL, &M0_CLOVIS_UBER_REALM,
+	m0_clovis_container_init(&clovis_container, NULL, &M0_CLOVIS_UBER_REALM,
 				 clovis_instance);
 	rc = clovis_container.co_realm.re_entity.en_sm.sm_rc;
 	if (rc != 0) {
@@ -927,7 +1040,6 @@ int c0appz_free(void)
 {
 	m0_clovis_fini(clovis_instance, true);
 	memset(c0rcfile, 0, sizeof(c0rcfile));
-	memset(c0rc, 0, sizeof(c0rc));
 	return 0;
 }
 
@@ -937,7 +1049,7 @@ int c0appz_free(void)
  */
 int c0appz_setrc(char *prog)
 {
-	char hostname[SZC0RCFILE] = {0};
+	char hostname[MAX_RCFILE_NAME_LEN] = {0};
 
 	/* null */
 	if (!prog) {
@@ -945,8 +1057,8 @@ int c0appz_setrc(char *prog)
 		return -EINVAL;
 	}
 
-	gethostname(hostname, SZC0RCFILE);
-	snprintf(c0rcfile, SZC0RCFILE, "%s/.c0appz/%src/%s",
+	gethostname(hostname, MAX_RCFILE_NAME_LEN);
+	snprintf(c0rcfile, MAX_RCFILE_NAME_LEN, "%s/.c0appz/%src/%s",
 		 getenv("HOME"), prog, hostname);
 
 	/* success */
@@ -987,20 +1099,22 @@ int open_entity(struct m0_clovis_entity *entity)
 /**
  * Create clovis object.
  */
-int c0appz_cr(uint64_t idhi, uint64_t idlo, struct m0_fid *pool, uint64_t bsz)
+int c0appz_cr(uint64_t idhi, uint64_t idlo, int tier, uint64_t bsz)
 {
 	int                     rc;
 	unsigned                lid;
 	struct m0_reqh         *reqh = &clovis_instance->m0c_reqh;
 	struct m0_pool_version *pver;
 	struct m0_clovis_op    *op = NULL;
+	struct m0_fid          *pool = tier2pool(tier);
 	struct m0_uint128       id = {idhi, idlo};
 	struct m0_clovis_obj    obj = {};
 
+	DBG("tier=%d pool=%s\n", tier, fid2str(pool));
 	rc = m0_pool_version_get(reqh->rh_pools, pool, &pver);
 	if (rc != 0) {
-		fprintf(stderr, "%s: m0_pool_version_get() failed: rc=%d\n",
-			__func__, rc);
+		ERR("m0_pool_version_get(pool=%s) failed: rc=%d\n",
+		    fid2str(pool), rc);
 		return rc;
 	}
 
@@ -1273,45 +1387,6 @@ void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp)
 		clovis_aio_vec_free(grp->cag_aio_ops + i);
 	m0_free(grp->cag_aio_ops);
 }
-
-/*
- ******************************************************************************
- * UTILITY FUNCTIONS
- ******************************************************************************
- */
-
-/*
- * trim()
- * trim leading/trailing white spaces.
- */
-static char *trim(char *str)
-{
-	char *end;
-
-	/* null */
-	if (!str) return str;
-
-	/* trim leading spaces */
-	while (isspace((unsigned char)*str)) str++;
-
-	/* all spaces */
-	if (*str == 0) return str;
-
-	/* trim trailing spaces, and */
-	/* write new null terminator */
-	end = str + strlen(str) - 1;
-	while (end > str && isspace((unsigned char)*end)) end--;
-	*(end + 1) = 0;
-
-	/* success */
-	return str;
-}
-/*
- ******************************************************************************
- * END
- ******************************************************************************
- */
-
 
 /*
  *  Local variables:

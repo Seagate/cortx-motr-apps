@@ -52,13 +52,13 @@ The -y option forces deleting an object if that object already exists.\n\
 The -p option enables performance monitoring. It collects performance stats\n\
 such as cpu time, wall clock time, bandwidth, etc., and displays them at the\n\
 end of the execution.\n\
-c0rm -p 1234 56789";
+c0rm -p 1234 56789\n";
 
 char *prog;
 
 int help()
 {
-	fprintf(stderr,"%s\n", help_c0rm_txt);
+	fprintf(stderr,"%s\n%s\n", help_c0rm_txt, c0appz_help_txt);
 	exit(1);
 }
 

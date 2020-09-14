@@ -44,7 +44,6 @@ extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
 extern pthread_mutex_t qos_lock;       /* lock  qos_total_weight */
-extern struct m0_fid *pool_fid;
 
 char *prog;
 
@@ -81,7 +80,7 @@ where n is 2 in 2+1 parity group configuration, 8 in 8+2 and so on.\n";
 
 int help()
 {
-	fprintf(stderr, "%s\n", help_c0cp_txt);
+	fprintf(stderr, "%s\n%s\n", help_c0cp_txt, c0appz_help_txt);
 	exit(1);
 }
 
@@ -224,14 +223,8 @@ int main(int argc, char **argv)
 	ppf("%8s","init");
 	c0appz_timeout(0);
 
-	/* pool */
-	if (pool != 0) {
-		c0appz_pool_ini();
-		c0appz_pool_set(pool-1);
-	}
-
 	if (m0bs == 1) {
-		m0bs = c0appz_m0bs(idh, idl, bsz * cnt, pool_fid);
+		m0bs = c0appz_m0bs(idh, idl, bsz * cnt, pool);
 		if (!m0bs)
 			LOG("WARNING: failed to figure out the optimal m0bs,"
 			    " will use bsz for m0bs\n");
@@ -241,7 +234,7 @@ int main(int argc, char **argv)
 
 	/* create object */
 	c0appz_timein();
-	rc = c0appz_cr(idh, idl, pool_fid, m0bs);
+	rc = c0appz_cr(idh, idl, pool, m0bs);
 	if (rc < 0 || (rc != 0 && !force)) {
 		if (rc < 0)
 			fprintf(stderr,"%s(): object create failed: rc=%d\n",

@@ -28,6 +28,7 @@
 #include "lib/types.h" /* uint32_t */
 
 extern bool m0trace_on;
+extern const char *c0appz_help_txt;
 
 int c0appz_init(int idx);
 int c0appz_free(void);
@@ -45,19 +46,18 @@ int open_entity(struct m0_clovis_entity *entity);
  * @param idhi high number of the object id
  * @param idlo low number of the object id
  * @param obj_sz estimated total object size
- * @param pool pool id in the object store
+ * @param tier tier index
  *
  * @retval 0 on error
  */
-uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz,
-		     struct m0_fid *pool);
+uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier);
 
 /**
  * Create object in the object store
  *
  * @param idhi high number of the object id
  * @param idlo low number of the object id
- * @param pool pool id in the object store
+ * @param tier tier index where to create object
  * @param m0bs block size for the object store I/O,
  *             used to set the optimal object's unit size,
  *             refer to c0appz_m0bs()
@@ -66,7 +66,7 @@ uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz,
  * @retval 1 the object already exists
  * @retval <0 error code
  */
-int c0appz_cr(uint64_t idhi, uint64_t idlo, struct m0_fid *pool, uint64_t m0bs);
+int c0appz_cr(uint64_t idhi, uint64_t idlo, int tier, uint64_t m0bs);
 
 /**
  * Remove object
@@ -144,11 +144,6 @@ int qos_pthread_start();
 int qos_pthread_stop();
 int qos_pthread_cond_signal();
 int qos_pthread_cond_wait();
-
-/* pool */
-int c0appz_pool_ini(void);
-int c0appz_pool_set(int pid);
-
 
 int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt);
 int c0appz_fr(char *buf, char *inf, uint64_t bsz, uint64_t cnt);

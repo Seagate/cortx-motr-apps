@@ -83,7 +83,7 @@ LFLAGS += -L$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs -Wl,-rpath,$(M0_SRC_D
 CFLAGS += -I$(M0_SRC_DIR)
 endif
 
-SRC = perf.o buffer.o qos.o c0appz.o pool.o
+SRC = perf.o buffer.o qos.o c0appz.o
 SRC_ALL = $(SRC) c0cp.o c0ct.o c0rm.o fgen.o \
 		c0isc_register.o c0isc_demo.o isc_libdemo.o
 

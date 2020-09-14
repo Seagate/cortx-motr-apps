@@ -41,7 +41,6 @@ extern uint64_t qos_whgt_remain;
 extern uint64_t qos_laps_served;
 extern uint64_t qos_laps_remain;
 extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
-extern struct m0_fid *pool_fid;
 
 char *prog;
 
@@ -73,7 +72,7 @@ where n is 2 in 2+1 parity group configuration, 8 in 8+2 and so on.\n";
 
 int help()
 {
-	fprintf(stderr,"%s\n", help_c0ct_txt);
+	fprintf(stderr,"%s\n%s\n", help_c0ct_txt, c0appz_help_txt);
 	exit(1);
 }
 
@@ -200,7 +199,7 @@ int main(int argc, char **argv)
 	c0appz_timeout(0);
 
 	if (m0bs == 1) {
-		m0bs = c0appz_m0bs(idh, idl, bsz * cnt, pool_fid);
+		m0bs = c0appz_m0bs(idh, idl, bsz * cnt, 0);
 		if (!m0bs)
 			LOG("WARNING: failed to figure out the optimal m0bs,"
 			    " will use bsz for m0bs\n");
