@@ -908,21 +908,23 @@ int c0appz_ex(uint64_t idhi, uint64_t idlo, struct m0_clovis_obj *obj_out)
 	return 1;
 }
 
-static int read_conf_params(const struct param params[], int n)
+static int read_conf_params(int idx, const struct param params[], int n)
 {
 	int i;
 	struct conf_params_to_read {
 		const char *name;
 		const char **conf_ptr;
-	} p[] = { { "LOCAL_ENDPOINT_ADDR", &clovis_conf.cc_local_addr },
-		  { "HA_ENDPOINT_ADDR",    &clovis_conf.cc_ha_addr },
-		  { "PROFILE_FID",         &clovis_conf.cc_profile },
-		  { "LOCAL_PROC_FID",      &clovis_conf.cc_process_fid }, };
+	} p[] = { { "HA_ENDPOINT_ADDR",      &clovis_conf.cc_ha_addr },
+		  { "PROFILE_FID",           &clovis_conf.cc_profile },
+		  { "LOCAL_ENDPOINT_ADDR%d", &clovis_conf.cc_local_addr },
+		  { "LOCAL_PROC_FID%d",      &clovis_conf.cc_process_fid }, };
+	char pname[256];
 
 	for (i = 0; i < ARRAY_SIZE(p); i++) {
-		*(p[i].conf_ptr) = param_get(p[i].name, params, n);
+		sprintf(pname, p[i].name, idx);
+		*(p[i].conf_ptr) = param_get(pname, params, n);
 		if (*(p[i].conf_ptr) == NULL) {
-			ERR("%s is not set at %s\n", p[i].name, c0rcfile);
+			ERR("%s is not set at %s\n", pname, c0rcfile);
 			return -EINVAL;
 		}
 	}
@@ -967,7 +969,7 @@ int c0appz_init(int idx)
 		return -EINVAL;
 	}
 
-	rc = read_conf_params(rc_params, rc_params_nr);
+	rc = read_conf_params(idx, rc_params, rc_params_nr);
 	if (rc != 0) {
 		ERR("failed to read conf parameters from %s\n", c0rcfile);
 		return rc;

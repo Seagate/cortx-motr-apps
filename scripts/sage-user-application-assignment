@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+# 
+# Copyright (c) 2018-2020 Seagate Technology LLC and/or its Affiliates
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# For any questions about this software or licensing,
+# please email opensource@seagate.com or cortx-questions@seagate.com.
+#
+# Original author:  Maxim Medved <max.medved@seagate.com>
+# Original creation date: 31-Jan-2018
+
+import sys
+import json
+import argparse
+import subprocess
+
+
+CONFIG_FILE = "/etc/sage/assignment.conf"
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="SAGE User/Application "
+                                     "Assignment")
+    parser.add_argument('user', action='store', nargs='?', default=None,
+                        type=str, help="user name", metavar='user')
+    parser.add_argument('application', action='store', nargs='?', default=None,
+                        type=str, help="application name",
+                        metavar='application')
+    parser.add_argument('IP', action='store', nargs='?', default=None,
+                        type=str, help="IP address", metavar='IP')
+    parser.add_argument('--no-ssh', action='store_true',
+                        help="run hctl command locally")
+    parser.add_argument('--regenerate', action='store', nargs=1, default=None,
+                        type=str, required=False,
+                        help="regenerate assignments for the tier. "
+                        "Should be done after every tier re-bootstrap",
+                        metavar='tier', dest='tier')
+    parser.add_argument('--json', action='store_const', const=True,
+                        default=False, required=False,
+                        help="json output", metavar='json', dest='json')
+    parser.add_argument('--simple', action='store_const', const=True,
+                        default=False, required=False,
+                        help="simple output", metavar='simple', dest='simple')
+    args = parser.parse_args()
+    # print(args)
+    if len(sys.argv) < 3:
+        parser.print_help()
+        exit()
+    if args.user is not None and args.IP is None:
+        print("Please specify user, application and IP.")
+        print("Current situation: user={0}, application={1}, IP={2}".
+              format(args.user, args.application, args.IP))
+        parser.print_help()
+        exit()
+    return args
+
+
+def read_config():
+    with open(CONFIG_FILE) as f:
+        config_file = f.readlines()
+    user_application_file = config_file[0].rstrip()
+    user_application_db = []
+    offset = 0
+    with open(user_application_file) as f:
+        for line in f.readlines():
+            if line.strip() == "":
+                continue
+            ua = line.split()
+            nr = int(ua[2]) if len(ua) > 2 else 1
+            user_application_db.append({'user': ua[0], 'application': ua[1],
+                                        'nr': nr, 'offset': offset})
+            offset += nr
+    tiers = {}
+    for line in config_file[1:]:
+        tier, client, filename = line.split()
+        tiers[tier] = {'client': client, 'filename': filename}
+    # print(user_application_db)
+    # print(tiers)
+    return user_application_db, tiers
+
+
+def fid2str(fid):
+    return "0x{0:x}:0x{1:x}".format(fid['f_container'], fid['f_key'])
+
+
+def regenerate(tier_name, tier_file, client, no_ssh):
+    # with open('/tmp/tier2.json') as f:
+    #    tier_json = json.load(f)
+    hctl_mero_status = subprocess.check_output(
+        ([] if no_ssh else ["ssh", client]) +
+        "hctl mero status --json".split())
+    tier_json = json.loads(hctl_mero_status)
+    clients = {h[1]['crnProcesses'][0][0]['r_endpoint'].split('@')[0]:
+               h[1]['crnProcesses']
+               for h in tier_json['csrHosts']
+               # for h in tier_json['csrHosts'] if "client" in h[0]
+               }
+    tier_data = {}
+    for ip in clients:
+        profile = tier_json['csrProfile']
+        ha_endpoint = [h[0]['r_endpoint']
+                       for h in clients[ip]
+                       if h[1]['cprType'].strip() == 'halon'][0]
+        applications = sorted([{'endpoint': h[0]['r_endpoint'],
+                                'process_fid': h[0]['r_fid']}
+                               for h in clients[ip]
+                               if h[1]['cprType'] == 'clovis-app'],
+                              key=lambda k: k['endpoint'])
+        tier_data[ip] = {'profile': profile,
+                         'ha': ha_endpoint,
+                         'applications': applications}
+    tier_data['pools'] = tier_json['csrSnsPools']
+    with open(tier_file, 'w') as f:
+        json.dump(tier_data, f)
+
+
+def load_tier_data(tiers):
+    data = {}
+    for t in tiers:
+        with open(tiers[t]['filename']) as f:
+            tier_data = json.load(f)
+            data.update(tier_data)
+    return data
+
+
+def format_simple(args, params):
+    # print("{0} {1}".format(args.user, args.application));
+    for p in params:
+        print("{0} {1} {2} {3}".format(p['endpoint'], p['ha'],
+                                       p['profile'], p['process_fid']))
+
+
+def format_as_needed(args, params):
+    print(f'''#
+# USER: {args.user}
+# Application: {args.application}
+#
+
+HA_ENDPOINT_ADDR    = {params[0]['ha']}
+PROFILE_FID         = {params[0]['profile']}
+''')
+
+    for p in enumerate(params[0]['pools']):
+        print(f'M0_POOL_TIER{p[0]+1} = {p[1][0]} # {p[1][1]}')
+
+    for p in enumerate(params):
+        print(f'''
+LOCAL_ENDPOINT_ADDR{p[0]} = {p[1]['endpoint']}
+LOCAL_PROC_FID{p[0]}      = {p[1]['process_fid']}''')
+
+
+def main():
+    args = parse_args()
+    user_application_db, tiers = read_config()
+    if args.tier is not None:
+        for t in args.tier:
+            regenerate(t, tiers[t]['filename'], tiers[t]['client'],
+                       args.no_ssh)
+        sys.exit(0)
+    data = load_tier_data(tiers)
+    for u in user_application_db:
+        if u['user'] == args.user and u['application'] == args.application:
+            break
+    else:
+        print("No such user='{0}' application='{1}' combination.".
+              format(args.user, args.application))
+        print("This is what we have:")
+        print(user_application_db)
+        exit(1)
+    IPs = sorted([ip for ip in data.keys() if ip != 'pools'])
+    if args.IP not in IPs:
+        print("No such IP the list of available IPs:")
+        print(IPs)
+        exit(1)
+    d = data[args.IP]
+    app_nr_max = len(d['applications'])
+    if app_nr_max < u['offset'] + u['nr']:
+        print("Only {0} applications can be run on the client {1}, but "
+              "user {2} with application {3} has offset {4} and requests {5}".
+              format(app_nr_max, args.IP, args.user, args.application,
+                     u['offset'], u['nr']))
+        exit(1)
+    params = [{'ha': d['ha'],
+               'profile': d['profile'],
+               'endpoint': app['endpoint'],
+               'process_fid': app['process_fid'],
+               'pools': data['pools'],
+               }
+              for app in d['applications'][u['offset']:u['offset'] + u['nr']]]
+    if (args.json):
+        print(json.dumps(params))
+    elif (args.simple):
+        format_simple(args, params)
+    else:
+        format_as_needed(args, params)
+
+
+if __name__ == '__main__':
+    main()
