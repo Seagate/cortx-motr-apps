@@ -64,19 +64,20 @@ specific parameters which usually don't change until the cluster is\n\
 reconfigured by the system administrator. For example:\n\
 \n\
 $ cat $HOME/.c0appz/c0cprc/client-22\n\
-LOCAL_ENDPOINT_ADDR = 172.18.1.22@o2ib:12345:41:351\n\
-HA_ENDPOINT_ADDR    = 172.18.1.22@o2ib:12345:34:101\n\
-PROFILE_FID         = 0x7000000000000001:0xcfd\n\
-LOCAL_PROC_FID      = 0x7200000000000001:0x645\n\
+HA_ENDPOINT_ADDR = 172.18.1.22@o2ib:12345:34:101\n\
+PROFILE_FID   = 0x7000000000000001:0xcfd\n\
 M0_POOL_TIER1 = 0x6f00000000000001:0xc74 # tier1-nvme\n\
 M0_POOL_TIER2 = 0x6f00000000000001:0xc8a # tier2-ssd\n\
 M0_POOL_TIER3 = 0x6f00000000000001:0xca5 # tier3-hdd\n\
+LOCAL_ENDPOINT_ADDR0 = 172.18.1.22@o2ib:12345:41:351\n\
+LOCAL_PROC_FID0      = 0x7200000000000001:0x645\n\
 \n\
 c0cprc is the utility name (c0cp in this case) + rc suffix.\n\
 client-22 is the client node name where the utility is run.\n\
-LOCAL_ENDPOINT_ADDR is allocated by system administrator for each\n\
-application working with the object store cluster.\n\
 HA_ENDPOINT_ADDR is the address of HA agent running on the node.\n\
+LOCAL_ENDPOINT_ADDRx and LOCAL_PROC_FIDx addresses and fids are\n\
+allocated by system administrator for each user's application\n\
+working with the object store cluster.\n\
 The easiest way to generate this file is like this:\n\
 \n\
 $ cd ~/clovis-sample-apps\n\
