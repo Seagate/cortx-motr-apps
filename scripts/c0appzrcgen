@@ -96,24 +96,20 @@ main()
 		proc_nr=$1
 	fi
 	for ((i=0; i < $proc_nr; i++)); do
+
+		echo "HA_ENDPOINT_ADDR"$'\t=' "${IP}:12345:45:1"
+		echo "PROFILE_FID"$'\t\t=' '0x7000000000000001:0'
+		echo
+
+		echo "M0_POOL_TIER1 = 0x6f00000000000001:0xc74"
+		echo
+
 		#	port[$i]=`$base_port + $i`
-		echo '#local address'
 		hint=$(($base_port+$i))
 		unused_port_get "$hint"
-		echo ${IP}:12345:44:$port
-		echo
-
-		echo '#ha address'
-		echo ${IP}:12345:45:1
-		echo
-
-		echo '#profile id'
-		echo '<0x7000000000000001:0>'
-		echo
-
-		echo '#process id'
-		echo '<0x7200000000000000:0>' 
-		echo
+		echo "LOCAL_ENDPOINT_ADDR0"$'\t=' "${IP}:12345:44:$port"
+		echo "LOCAL_PROC_FID0"$'\t\t=' '0x7200000000000000:0' 
+		
 	done
 }
 
