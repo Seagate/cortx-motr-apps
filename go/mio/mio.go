@@ -40,11 +40,12 @@ import "C"
 
 import (
     "fmt"
+    "flag"
     "log"
     "errors"
     "io"
     "os"
-    "flag"
+    "time"
     "sync"
     "unsafe"
 )
@@ -382,9 +383,7 @@ func (mio *Mio) Write(p []byte) (n int, err error) {
     }
     left, off := len(p), 0
     bs, gs := mio.getOptimalBlockSz(left)
-    if verbose {
-        log.Printf("off=%v len=%v bs=%v gs=%v", mio.off, left, bs, gs)
-    }
+    start, bs_saved := time.Now(), bs
     for ; left > 0; left -= bs {
         if left < bs {
             bs = left
@@ -405,8 +404,16 @@ func (mio *Mio) Write(p []byte) (n int, err error) {
         off += bs
         mio.off += uint64(bs)
     }
-
     mio.wg.Wait()
+
+    if verbose {
+        elapsed := time.Now().Sub(start)
+        n := len(p) - left
+        log.Printf("off=%v len=%v bs=%v gs=%v speed=%v (Mbytes/sec)",
+		   mio.off - uint64(n), n, bs_saved, gs,
+		   n / int(elapsed.Milliseconds()) * 1000 / 1024 / 1024)
+    }
+
     return off, err
 }
 
@@ -422,9 +429,7 @@ func (mio *Mio) Read(p []byte) (n int, err error) {
         }
     }
     bs, gs := mio.getOptimalBlockSz(left)
-    if verbose {
-        log.Printf("off=%v len=%v bs=%v gs=%v", mio.off, left, bs, gs)
-    }
+    start, bs_saved := time.Now(), bs
     for ; left > 0 && mio.off < ObjSize; left -= bs {
         if left < bs {
             bs = left
@@ -446,7 +451,15 @@ func (mio *Mio) Read(p []byte) (n int, err error) {
         off += bs
         mio.off += uint64(bs)
     }
-
     mio.wg.Wait()
+
+    if verbose {
+        elapsed := time.Now().Sub(start)
+        n := len(p) - left
+        log.Printf("off=%v len=%v bs=%v gs=%v speed=%v (Mbytes/sec)",
+		   mio.off - uint64(n), n, bs_saved, gs,
+		   n / int(elapsed.Milliseconds()) * 1000 / 1024 / 1024)
+    }
+
     return off, err
 }
