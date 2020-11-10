@@ -24,13 +24,13 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
-#include "clovis/clovis.h"
+#include "motr/client.h"
 
 extern unsigned unit_size; /* in KiBs, default 4 */
-extern struct m0_clovis_realm clovis_uber_realm;
+extern struct m0_realm uber_realm;
 
-struct clovis_aio_op;
-struct clovis_aio_opgrp {
+struct m0_aio_op;
+struct m0_aio_opgrp {
 	struct m0_semaphore   cag_sem;
 	struct m0_mutex       cag_mlock;
 	uint32_t              cag_op_cnt;
@@ -38,33 +38,33 @@ struct clovis_aio_opgrp {
 	uint32_t              cag_blocks_written;
 	int                   cag_rc;
 
-	struct m0_clovis_obj  cag_obj;
-	struct clovis_aio_op *cag_aio_ops;
+	struct m0_obj  cag_obj;
+	struct m0_aio_op *cag_aio_ops;
 };
 
-struct clovis_aio_op {
-	struct clovis_aio_opgrp *cao_grp;
+struct m0_aio_op {
+	struct m0_aio_opgrp *cao_grp;
 
-	struct m0_clovis_op     *cao_op;
+	struct m0_op     *cao_op;
 	struct m0_indexvec       cao_ext;
 	struct m0_bufvec         cao_data;
 	struct m0_bufvec         cao_attr;
 };
 
 
-int write_data_to_object(struct m0_clovis_obj *o, struct m0_indexvec *ext,
+int write_data_to_object(struct m0_obj *o, struct m0_indexvec *ext,
 			 struct m0_bufvec *data, struct m0_bufvec *attr);
-int read_data_from_object(struct m0_clovis_obj *o, struct m0_indexvec *ext,
+int read_data_from_object(struct m0_obj *o, struct m0_indexvec *ext,
 			  struct m0_bufvec *data,struct m0_bufvec *attr);
 
 int ppf(const char *fmt, ...);
 
-int write_data_to_object_async(struct clovis_aio_op *aio);
+int write_data_to_object_async(struct m0_aio_op *aio);
 
-int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp, uint64_t bsz,
+int m0_aio_opgrp_init(struct m0_aio_opgrp *grp, uint64_t bsz,
 			  uint32_t cnt_per_op, uint32_t op_cnt);
-void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp);
-void clovis_aio_op_fini_free(struct clovis_aio_op *aio);
+void m0_aio_opgrp_fini(struct m0_aio_opgrp *grp);
+void m0_aio_op_fini_free(struct m0_aio_op *aio);
 
 int alloc_segs(struct m0_bufvec *data, struct m0_indexvec *ext,
 	       struct m0_bufvec *attr, uint64_t bsz, uint32_t cnt);

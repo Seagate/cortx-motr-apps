@@ -24,7 +24,7 @@
 #define __C0APPZ_H__
 
 #include <stdint.h>
-#include "clovis/clovis.h"
+#include "motr/client.h"
 #include "lib/types.h" /* uint32_t */
 
 extern bool m0trace_on;
@@ -40,11 +40,11 @@ int c0appz_init(int idx);
 int c0appz_free(void);
 
 /**
- * Open Clovis entity (object)
+ * Open m0-entity (object)
  *
  * @retval 0 on success
  */
-int open_entity(struct m0_clovis_entity *entity);
+int open_entity(struct m0_entity *entity);
 
 /**
  * Calculate the optimal block size for the object store I/O
@@ -89,7 +89,7 @@ int c0appz_rm(uint64_t idhi, uint64_t idlo);
  * @retval 1 yes, the object exists
  * @retval 0 no such object
  */
-int c0appz_ex(uint64_t idhi, uint64_t idlo, struct m0_clovis_obj *obj_out);
+int c0appz_ex(uint64_t idhi, uint64_t idlo, struct m0_obj *obj_out);
 
 /**
  * Copy file to the object store
@@ -160,9 +160,9 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 		    uint64_t bsz, uint64_t cnt, uint32_t op_cnt, uint64_t m0bs);
 
-int write_data_to_object(struct m0_clovis_obj *o, struct m0_indexvec *ext,
+int write_data_to_object(struct m0_obj *o, struct m0_indexvec *ext,
 			 struct m0_bufvec *data, struct m0_bufvec *attr);
-int read_data_from_object(struct m0_clovis_obj *o, struct m0_indexvec *ext,
+int read_data_from_object(struct m0_obj *o, struct m0_indexvec *ext,
 			  struct m0_bufvec *data,struct m0_bufvec *attr);
 
 int ppf(const char *fmt, ...);
@@ -196,13 +196,13 @@ int c0appz_put(char* buffer, size_t size, struct m0_uint128* id);
 /* synchronous get a full object */
 int c0appz_get(char* buffer, size_t* size, struct m0_uint128* id);
 /* asynchronous put a full object, allocates op */
-struct m0_clovis_op* c0appz_async_put(char* buffer, size_t size, struct m0_uint128* id);
+struct m0_op* c0appz_async_put(char* buffer, size_t size, struct m0_uint128* id);
 /* asynchronous get a full object, allocates op */
-struct m0_clovis_op* c0appz_async_get(char* buffer, size_t size, struct m0_uint128* id);
+struct m0_op* c0appz_async_get(char* buffer, size_t size, struct m0_uint128* id);
 /* wait for an operation to complete and check status */
-int c0appz_wait(struct m0_clovis_op* op);
+int c0appz_wait(struct m0_op* op);
 /* free ops */
-void c0appz_free_op(struct m0_clovis_op*);
+void c0appz_free_op(struct m0_op*);
 /* flush list of objects */
 int c0appz_flush(struct m0_uint128* id, size_t size);
 #endif

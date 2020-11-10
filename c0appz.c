@@ -35,9 +35,8 @@
 #include <lib/mutex.h>
 #include <sys/user.h>           /* PAGE_SIZE */
 
-#include "clovis/clovis.h"
-#include "clovis/clovis_internal.h"
-#include "clovis/clovis_idx.h"
+#include "motr/client.h"
+#include "motr/client_internal.h"
 #include "conf/confc.h"       /* m0_confc_open_sync */
 #include "conf/dir.h"         /* m0_conf_dir_len */
 #include "conf/helpers.h"     /* m0_confc_root_open */
@@ -95,9 +94,9 @@ enum {
 };
 
 /* static variables */
-static struct m0_clovis          *clovis_instance = NULL;
-static struct m0_clovis_container clovis_container;
-static struct m0_clovis_config    clovis_conf;
+static struct m0_client          *m0_instance = NULL;
+static struct m0_container container;
+static struct m0_config    m0_conf;
 static struct m0_idx_dix_config   dix_conf;
 static struct m0_spiel            spiel_inst;
 
@@ -118,7 +117,7 @@ static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data,
  * GLOBAL VARIABLES
  ******************************************************************************
  */
-struct m0_clovis_realm clovis_uber_realm;
+struct m0_realm uber_realm;
 unsigned unit_size = 0;
 int perf=0;				/* performance option 		*/
 extern int qos_total_weight; 		/* total bytes read or written 	*/
@@ -241,11 +240,11 @@ uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier)
 	unsigned long           gsz; /* data units in parity group */
 	uint64_t                max_bs;
 	unsigned                lid;
-	struct m0_reqh         *reqh = &clovis_instance->m0c_reqh;
+	struct m0_reqh         *reqh = &m0_instance->m0c_reqh;
 	struct m0_pool_version *pver;
 	struct m0_pdclust_attr *pa;
 	struct m0_fid          *pool = tier2pool(tier);
-	struct m0_clovis_obj    obj;
+	struct m0_obj    obj;
 
 	if (obj_sz > MAX_M0_BUFSZ)
 		obj_sz = MAX_M0_BUFSZ;
@@ -260,12 +259,12 @@ uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier)
 	if (c0appz_ex(idhi, idlo, &obj))
 		lid = obj.ob_attr.oa_layout_id;
 	else if (unit_size) /* set explicitly via -u option ? */
-		lid = m0_clovis_layout_id(clovis_instance);
+		lid = m0_client_layout_id(m0_instance);
 	else
 		lid = m0_layout_find_by_buffsize(&reqh->rh_ldom, &pver->pv_id,
 						 obj_sz);
 
-	usz = m0_clovis_obj_layout_id_to_unit_size(lid);
+	usz = m0_obj_layout_id_to_unit_size(lid);
 	pa = &pver->pv_attr;
 	gsz = usz * pa->pa_N;
 	/* max 2-times pool-width deep, otherwise we may get -E2BIG */
@@ -343,8 +342,8 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	m0_time_t          write_time = 0;
 	double             time;
 	double             fs_bw;
-	double             clovis_bw;
-	struct m0_clovis_obj obj = {};
+	double             client_bw;
+	struct m0_obj obj = {};
 
 	CHECK_BSZ_ARGS(bsz, m0bs);
 
@@ -364,7 +363,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		goto out;
 
 	/* Open the object entity we want to write to */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
+	m0_obj_init(&obj, &uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);
 	if (rc != 0) {
 		fprintf(stderr, "%s(): open_entity() failed: rc=%d\n",
@@ -409,7 +408,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		/* END */
 	}
 
-	m0_clovis_entity_fini(&obj.ob_entity);
+	m0_entity_fini(&obj.ob_entity);
  free_vecs:
 	free_segs(&data, &ext, &attr);
  out:
@@ -420,8 +419,8 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 		fs_bw = off / 1000000.0 / time;
 		ppf("Mero I/O[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]",time, fs_bw);
 		time = (double) write_time / M0_TIME_ONE_SECOND;
-		clovis_bw = off / 1000000.0 / time;
-		ppf("[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, clovis_bw);
+		client_bw = off / 1000000.0 / time;
+		ppf("[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, client_bw);
 	}
 
 	return rc;
@@ -440,8 +439,8 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	uint32_t                  cnt_per_op;
 	uint64_t                  off = 0;
 	struct m0_uint128         id = {idhi, idlo};
-	struct clovis_aio_op     *aio;
-	struct clovis_aio_opgrp   aio_grp;
+	struct m0_aio_op     *aio;
+	struct m0_aio_opgrp   aio_grp;
 	FILE                     *fp;
 
 	CHECK_BSZ_ARGS(bsz, m0bs);
@@ -457,12 +456,12 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 	}
 
 	/* Initialise operation group. */
-	rc = clovis_aio_opgrp_init(&aio_grp, bsz, cnt_per_op, op_cnt);
+	rc = m0_aio_opgrp_init(&aio_grp, bsz, cnt_per_op, op_cnt);
 	if (rc != 0)
 		goto out;
 
 	/* Open the object. */
-	m0_clovis_obj_init(&aio_grp.cag_obj, &clovis_uber_realm,
+	m0_obj_init(&aio_grp.cag_obj, &uber_realm,
 			   &id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&aio_grp.cag_obj.ob_entity);
 	if (rc != 0) {
@@ -514,13 +513,13 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 
 		/* Finalise ops. */
 		for (i = 0; i < nr_ops_sent; i++)
-			clovis_aio_op_fini_free(aio_grp.cag_aio_ops + i);
+			m0_aio_op_fini_free(aio_grp.cag_aio_ops + i);
 
 		rc = rc ?: aio_grp.cag_rc;
 	}
  fini:
-	m0_clovis_entity_fini(&aio_grp.cag_obj.ob_entity);
-	clovis_aio_opgrp_fini(&aio_grp);
+	m0_entity_fini(&aio_grp.cag_obj.ob_entity);
+	m0_aio_opgrp_fini(&aio_grp);
  out:
 	fclose(fp);
 	return rc;
@@ -546,8 +545,8 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 	m0_time_t          write_time = 0;
 	double             time;
 	double             fs_bw;
-	double             clovis_bw;
-	struct m0_clovis_obj obj = {};
+	double             client_bw;
+	struct m0_obj obj = {};
 
 	CHECK_BSZ_ARGS(bsz, m0bs);
 
@@ -566,7 +565,7 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 		goto out;
 
 	/* Open object. */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
+	m0_obj_init(&obj, &uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);
 	if (rc != 0) {
 		fprintf(stderr, "%s(): open_entity() failed: rc=%d\n",
@@ -608,7 +607,7 @@ int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
 		/* END */
 	}
 
-	m0_clovis_entity_fini(&obj.ob_entity);
+	m0_entity_fini(&obj.ob_entity);
 free_vecs:
 	free_segs(&data, &ext, &attr);
 out:
@@ -623,8 +622,8 @@ out:
 				 m0_time_sub(m0_time_now(), st));
 	if (perf && rc == 0) {
 		time = (double) read_time / M0_TIME_ONE_SECOND;
-		clovis_bw = off / 1000000.0 / time;
-		ppf("Mero I/O[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]",time, clovis_bw);
+		client_bw = off / 1000000.0 / time;
+		ppf("Mero I/O[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]",time, client_bw);
 		time = (double) write_time / M0_TIME_ONE_SECOND;
 		fs_bw = off / 1000000.0 / time;
 		ppf("[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, fs_bw);
@@ -640,14 +639,14 @@ out:
 int c0appz_rm(uint64_t idhi,uint64_t idlo)
 {
 	int                  rc;
-	struct m0_clovis_obj obj = {};
-	struct m0_clovis_op *op = NULL;
+	struct m0_obj obj = {};
+	struct m0_op *op = NULL;
 	struct m0_uint128    id;
 
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
+	m0_obj_init(&obj, &uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);
 	if (rc < 0) {
 		fprintf(stderr,"error! [%d]\n", rc);
@@ -655,15 +654,15 @@ int c0appz_rm(uint64_t idhi,uint64_t idlo)
 		return rc;
 	}
 
-	m0_clovis_entity_delete(&obj.ob_entity, &op);
-	m0_clovis_op_launch(&op, 1);
-	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_FAILED,
-					   M0_CLOVIS_OS_STABLE),
+	m0_entity_delete(&obj.ob_entity, &op);
+	m0_op_launch(&op, 1);
+	rc = m0_op_wait(op, M0_BITS(M0_OS_FAILED,
+					   M0_OS_STABLE),
 				   M0_TIME_NEVER);
 
-	m0_clovis_op_fini(op);
-	m0_clovis_op_free(op);
-	m0_clovis_entity_fini(&obj.ob_entity);
+	m0_op_fini(op);
+	m0_op_free(op);
+	m0_entity_fini(&obj.ob_entity);
 
 	return rc;
 }
@@ -678,7 +677,7 @@ int c0appz_rmach_bulk_cutoff(struct m0_rpc_link *link, uint32_t *bulk_cutoff)
 
 static int c0appz_spiel_prepare(struct m0_spiel *spiel)
 {
-	struct m0_reqh *reqh = &clovis_instance->m0c_reqh;
+	struct m0_reqh *reqh = &m0_instance->m0c_reqh;
 	int             rc;
 
 	rc = m0_spiel_init(spiel, reqh);
@@ -687,7 +686,7 @@ static int c0appz_spiel_prepare(struct m0_spiel *spiel)
 		return rc;
 	}
 
-	rc = m0_spiel_cmd_profile_set(spiel, clovis_conf.cc_profile);
+	rc = m0_spiel_cmd_profile_set(spiel, m0_conf.mc_profile);
 	if (rc != 0) {
 		fprintf(stderr, "error! spiel initialisation failed.\n");
 		return rc;
@@ -714,7 +713,7 @@ static bool conf_obj_is_svc(const struct m0_conf_obj *obj)
 
 struct m0_rpc_link * c0appz_isc_rpc_link_get(struct m0_fid *svc_fid)
 {
-	struct m0_reqh *reqh = &clovis_instance->m0c_reqh;
+	struct m0_reqh *reqh = &m0_instance->m0c_reqh;
 	struct m0_reqh_service_ctx *ctx;
 	struct m0_pools_common *pc = reqh->rh_pools;
 
@@ -731,7 +730,7 @@ struct m0_rpc_link * c0appz_isc_rpc_link_get(struct m0_fid *svc_fid)
 int c0appz_isc_api_register(const char *libpath)
 {
 	int                     rc;
-	struct m0_reqh         *reqh = &clovis_instance->m0c_reqh;
+	struct m0_reqh         *reqh = &m0_instance->m0c_reqh;
 	struct m0_confc        *confc;
 	struct m0_conf_root    *root;
 	struct m0_conf_process *proc;
@@ -791,7 +790,7 @@ int c0appz_isc_api_register(const char *libpath)
 int c0appz_isc_nxt_svc_get(struct m0_fid *svc_fid, struct m0_fid *nxt_fid,
 			   enum m0_conf_service_type s_type)
 {
-	struct m0_reqh             *reqh       = &clovis_instance->m0c_reqh;
+	struct m0_reqh             *reqh       = &m0_instance->m0c_reqh;
 	struct m0_reqh_service_ctx *ctx;
 	struct m0_pools_common     *pc         = reqh->rh_pools;
 	struct m0_fid               null_fid   = M0_FID0;
@@ -889,16 +888,16 @@ void c0appz_isc_req_fini(struct c0appz_isc_req *req)
  * c0appz_ex()
  * object exists test.
  */
-int c0appz_ex(uint64_t idhi, uint64_t idlo, struct m0_clovis_obj *obj_out)
+int c0appz_ex(uint64_t idhi, uint64_t idlo, struct m0_obj *obj_out)
 {
 	int                  rc;
-	struct m0_clovis_obj obj = {};
+	struct m0_obj obj = {};
 	struct m0_uint128    id;
 
 	id.u_hi = idhi;
 	id.u_lo = idlo;
 
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
+	m0_obj_init(&obj, &uber_realm, &id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);
 	if (rc != 0)
 		return 0;
@@ -915,10 +914,10 @@ static int read_conf_params(int idx, const struct param params[], int n)
 	struct conf_params_to_read {
 		const char *name;
 		const char **conf_ptr;
-	} p[] = { { "HA_ENDPOINT_ADDR",      &clovis_conf.cc_ha_addr },
-		  { "PROFILE_FID",           &clovis_conf.cc_profile },
-		  { "LOCAL_ENDPOINT_ADDR%d", &clovis_conf.cc_local_addr },
-		  { "LOCAL_PROC_FID%d",      &clovis_conf.cc_process_fid }, };
+	} p[] = { { "HA_ENDPOINT_ADDR",      &m0_conf.mc_ha_addr },
+		  { "PROFILE_FID",           &m0_conf.mc_profile },
+		  { "LOCAL_ENDPOINT_ADDR%d", &m0_conf.mc_local_addr },
+		  { "LOCAL_PROC_FID%d",      &m0_conf.mc_process_fid }, };
 	char pname[256];
 
 	for (i = 0; i < ARRAY_SIZE(p); i++) {
@@ -935,7 +934,7 @@ static int read_conf_params(int idx, const struct param params[], int n)
 
 /*
  * c0appz_init()
- * init clovis resources.
+ * init client resources.
  */
 int c0appz_init(int idx)
 {
@@ -976,72 +975,72 @@ int c0appz_init(int idx)
 		return rc;
 	}
 
-	clovis_conf.cc_is_oostore            = true;
-	clovis_conf.cc_is_read_verify        = false;
+	m0_conf.mc_is_oostore            = true;
+	m0_conf.mc_is_read_verify        = false;
 #if 0
 	/* set to default values */
-	clovis_conf.cc_tm_recv_queue_min_len = M0_NET_TM_RECV_QUEUE_DEF_LEN;
-	clovis_conf.cc_max_rpc_msg_size      = M0_RPC_DEF_MAX_RPC_MSG_SIZE;
+	m0_conf.mc_tm_recv_queue_min_len = M0_NET_TM_RECV_QUEUE_DEF_LEN;
+	m0_conf.mc_max_rpc_msg_size      = M0_RPC_DEF_MAX_RPC_MSG_SIZE;
 #endif
 	/* set to Sage cluster specific values */
-	clovis_conf.cc_tm_recv_queue_min_len = 64;
-	clovis_conf.cc_max_rpc_msg_size      = 65536;
-	clovis_conf.cc_layout_id             = 0;
+	m0_conf.mc_tm_recv_queue_min_len = 64;
+	m0_conf.mc_max_rpc_msg_size      = 65536;
+	m0_conf.mc_layout_id             = 0;
 	if (unit_size) {
-		lid = m0_clovis_obj_unit_size_to_layout_id(unit_size * 1024);
+		lid = m0_obj_unit_size_to_layout_id(unit_size * 1024);
 		if (lid == 0) {
 			fprintf(stderr, "invalid unit size %u, it should be: "
 				"power of 2, >= 4 and <= 4096\n", unit_size);
 			return -EINVAL;
 		}
-		clovis_conf.cc_layout_id = lid;
+		m0_conf.mc_layout_id = lid;
 	}
 
 	/* IDX_MERO */
-	clovis_conf.cc_idx_service_id   = M0_CLOVIS_IDX_DIX;
+	m0_conf.mc_idx_service_id   = M0_IDX_DIX;
 	dix_conf.kc_create_meta = false;
-	clovis_conf.cc_idx_service_conf = &dix_conf;
+	m0_conf.mc_idx_service_conf = &dix_conf;
 
 #if DEBUG
 	fprintf(stderr,"\n---\n");
-	fprintf(stderr,"%s,", (char *)clovis_conf.cc_local_addr);
-	fprintf(stderr,"%s,", (char *)clovis_conf.cc_ha_addr);
-	fprintf(stderr,"%s,", (char *)clovis_conf.cc_profile);
-	fprintf(stderr,"%s,", (char *)clovis_conf.cc_process_fid);
-	fprintf(stderr,"%s,", (char *)clovis_conf.cc_idx_service_conf);
+	fprintf(stderr,"%s,", (char *)m0_conf.mc_local_addr);
+	fprintf(stderr,"%s,", (char *)m0_conf.mc_ha_addr);
+	fprintf(stderr,"%s,", (char *)m0_conf.mc_profile);
+	fprintf(stderr,"%s,", (char *)m0_conf.mc_process_fid);
+	fprintf(stderr,"%s,", (char *)m0_conf.mc_idx_service_conf);
 	fprintf(stderr,"\n---\n");
 #endif
 
 	if (!m0trace_on)
 		m0_trace_set_mmapped_buffer(false);
-	/* clovis instance */
-	rc = m0_clovis_init(&clovis_instance, &clovis_conf, true);
+	/* m0_instance */
+	rc = m0_client_init(&m0_instance, &m0_conf, true);
 	if (rc != 0) {
-		fprintf(stderr,"failed to initilise Clovis\n");
+		fprintf(stderr, "failed to initilise the Client API\n");
 		return rc;
 	}
 
-	/* And finally, clovis root realm */
-	m0_clovis_container_init(&clovis_container, NULL, &M0_CLOVIS_UBER_REALM,
-				 clovis_instance);
-	rc = clovis_container.co_realm.re_entity.en_sm.sm_rc;
+	/* And finally, client root realm */
+	m0_container_init(&container, NULL, &M0_UBER_REALM,
+				 m0_instance);
+	rc = container.co_realm.re_entity.en_sm.sm_rc;
 	if (rc != 0) {
 		fprintf(stderr,"failed to open uber realm\n");
 		return rc;
 	}
 
 	/* success */
-	clovis_uber_realm = clovis_container.co_realm;
+	uber_realm = container.co_realm;
 	return 0;
 }
 
 /*
  * c0appz_free()
- * free clovis resources.
+ * free client resources.
  */
 int c0appz_free(void)
 {
-	m0_clovis_fini(clovis_instance, true);
+	m0_client_fini(m0_instance, true);
 	memset(c0rcfile, 0, sizeof(c0rcfile));
 	return 0;
 }
@@ -1081,37 +1080,37 @@ void c0appz_putrc(void)
 
 /*
  * open_entity()
- * open clovis entity.
+ * open m0 entity.
  */
-int open_entity(struct m0_clovis_entity *entity)
+int open_entity(struct m0_entity *entity)
 {
 	int                  rc;
-	struct m0_clovis_op *op = NULL;
+	struct m0_op *op = NULL;
 
-	m0_clovis_entity_open(entity, &op);
-	m0_clovis_op_launch(&op, 1);
-	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_FAILED,
-					       M0_CLOVIS_OS_STABLE),
-			       M0_TIME_NEVER) ?: m0_clovis_rc(op);
-	m0_clovis_op_fini(op);
-	m0_clovis_op_free(op);
+	m0_entity_open(entity, &op);
+	m0_op_launch(&op, 1);
+	rc = m0_op_wait(op, M0_BITS(M0_OS_FAILED,
+					       M0_OS_STABLE),
+			       M0_TIME_NEVER) ?: m0_rc(op);
+	m0_op_fini(op);
+	m0_op_free(op);
 
 	return rc;
 }
 
 /**
- * Create clovis object.
+ * Create m0 object.
  */
 int c0appz_cr(uint64_t idhi, uint64_t idlo, int tier, uint64_t bsz)
 {
 	int                     rc;
 	unsigned                lid;
-	struct m0_reqh         *reqh = &clovis_instance->m0c_reqh;
+	struct m0_reqh         *reqh = &m0_instance->m0c_reqh;
 	struct m0_pool_version *pver;
-	struct m0_clovis_op    *op = NULL;
+	struct m0_op    *op = NULL;
 	struct m0_fid          *pool = tier2pool(tier);
 	struct m0_uint128       id = {idhi, idlo};
-	struct m0_clovis_obj    obj = {};
+	struct m0_obj    obj = {};
 
 	DBG("tier=%d pool=%s\n", tier, fid2str(pool));
 	rc = m0_pool_version_get(reqh->rh_pools, pool, &pver);
@@ -1122,7 +1121,7 @@ int c0appz_cr(uint64_t idhi, uint64_t idlo, int tier, uint64_t bsz)
 	}
 
 	if (unit_size)
-		lid = m0_clovis_layout_id(clovis_instance);
+		lid = m0_client_layout_id(m0_instance);
 	else
 		lid = m0_layout_find_by_buffsize(&reqh->rh_ldom, &pver->pv_id,
 						 bsz);
@@ -1130,9 +1129,9 @@ int c0appz_cr(uint64_t idhi, uint64_t idlo, int tier, uint64_t bsz)
 	DBG("pool="FID_F" width=%u parity=(%u+%u) unit=%dK m0bs=%luK\n",
 	    FID_P(&pver->pv_pool->po_id), pver->pv_attr.pa_P,
 	    pver->pv_attr.pa_N, pver->pv_attr.pa_K,
-	    m0_clovis_obj_layout_id_to_unit_size(lid) / 1024, bsz / 1024);
+	    m0_obj_layout_id_to_unit_size(lid) / 1024, bsz / 1024);
 
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id, lid);
+	m0_obj_init(&obj, &uber_realm, &id, lid);
 
 	rc = open_entity(&obj.ob_entity);
 	if (rc == 0) {
@@ -1141,23 +1140,23 @@ int c0appz_cr(uint64_t idhi, uint64_t idlo, int tier, uint64_t bsz)
 	}
 
 	/* create object */
-	rc = m0_clovis_entity_create(pool, &obj.ob_entity, &op);
+	rc = m0_entity_create(pool, &obj.ob_entity, &op);
 	if (rc != 0) {
 		fprintf(stderr,"%s(): entity_create() failed: rc=%d\n",
 			__func__, rc);
 		goto err;
 	}
 
-	m0_clovis_op_launch(&op, 1);
+	m0_op_launch(&op, 1);
 
-	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_FAILED,
-					   M0_CLOVIS_OS_STABLE),
-			       m0_time_from_now(3,0)) ?: m0_clovis_rc(op);
+	rc = m0_op_wait(op, M0_BITS(M0_OS_FAILED,
+					   M0_OS_STABLE),
+			       m0_time_from_now(3,0)) ?: m0_rc(op);
 
-	m0_clovis_op_fini(op);
-	m0_clovis_op_free(op);
+	m0_op_fini(op);
+	m0_op_free(op);
 err:
-	m0_clovis_entity_fini(&obj.ob_entity);
+	m0_entity_fini(&obj.ob_entity);
 
 	if (rc != 0)
 		fprintf(stderr,"%s() failed: rc=%d, check pool parameters\n",
@@ -1211,26 +1210,26 @@ static size_t write_data_to_file(FILE *fp, struct m0_bufvec *data, size_t bsz,
 	return i;
 }
 
-static int do_io_op(struct m0_clovis_obj *obj, enum m0_clovis_obj_opcode opcode,
+static int do_io_op(struct m0_obj *obj, enum m0_obj_opcode opcode,
 		    struct m0_indexvec *ext, struct m0_bufvec *data,
 		    struct m0_bufvec *attr)
 {
 	int                  rc;
-	struct m0_clovis_op *op = NULL;
+	struct m0_op *op = NULL;
 
 	/* Create the write request */
-	m0_clovis_obj_op(obj, opcode, ext, data, attr, 0, &op);
+	m0_obj_op(obj, opcode, ext, data, attr, 0, 0, &op);
 
 	/* Launch the write request*/
-	m0_clovis_op_launch(&op, 1);
+	m0_op_launch(&op, 1);
 
 	/* wait */
-	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_FAILED,
-					   M0_CLOVIS_OS_STABLE),
-			       M0_TIME_NEVER) ?: m0_clovis_rc(op);
+	rc = m0_op_wait(op, M0_BITS(M0_OS_FAILED,
+					   M0_OS_STABLE),
+			       M0_TIME_NEVER) ?: m0_rc(op);
 
-	m0_clovis_op_fini(op);
-	m0_clovis_op_free(op);
+	m0_op_fini(op);
+	m0_op_free(op);
 
 	if (rc != 0)
 		fprintf(stderr,"%s() failed: rc=%d\n", __func__, rc);
@@ -1242,32 +1241,32 @@ static int do_io_op(struct m0_clovis_obj *obj, enum m0_clovis_obj_opcode opcode,
  * write_data_to_object()
  * writes data to an object
  */
-int write_data_to_object(struct m0_clovis_obj *obj, struct m0_indexvec *ext,
+int write_data_to_object(struct m0_obj *obj, struct m0_indexvec *ext,
 			 struct m0_bufvec *data, struct m0_bufvec *attr)
 {
-	return do_io_op(obj, M0_CLOVIS_OC_WRITE, ext, data, attr);
+	return do_io_op(obj, M0_OC_WRITE, ext, data, attr);
 }
 
 /*
  * read_data_from_object()
  * read data from an object
  */
-int read_data_from_object(struct m0_clovis_obj *obj, struct m0_indexvec *ext,
+int read_data_from_object(struct m0_obj *obj, struct m0_indexvec *ext,
 			  struct m0_bufvec *data, struct m0_bufvec *attr)
 {
-	return do_io_op(obj, M0_CLOVIS_OC_READ, ext, data, attr);
+	return do_io_op(obj, M0_OC_READ, ext, data, attr);
 }
 
-static void clovis_aio_executed_cb(struct m0_clovis_op *op)
+static void m0_aio_executed_cb(struct m0_op *op)
 {
 	/** Stuff to do when OP is in excecuted state */
 }
 
-static void clovis_aio_stable_cb(struct m0_clovis_op *op)
+static void m0_aio_stable_cb(struct m0_op *op)
 {
-	struct clovis_aio_opgrp *grp;
+	struct m0_aio_opgrp *grp;
 
-	grp = ((struct clovis_aio_op *)op->op_datum)->cao_grp;
+	grp = ((struct m0_aio_op *)op->op_datum)->cao_grp;
 	m0_mutex_lock(&grp->cag_mlock);
 	if (op->op_rc == 0) {
 		grp->cag_blocks_written += 0;
@@ -1279,12 +1278,12 @@ static void clovis_aio_stable_cb(struct m0_clovis_op *op)
 	m0_semaphore_up(&grp->cag_sem);
 }
 
-static void clovis_aio_failed_cb(struct m0_clovis_op *op)
+static void m0_aio_failed_cb(struct m0_op *op)
 {
-	struct clovis_aio_opgrp *grp;
+	struct m0_aio_opgrp *grp;
 
 	m0_console_printf("Write operation failed!");
-	grp = ((struct clovis_aio_op *)op->op_datum)->cao_grp;
+	grp = ((struct m0_aio_op *)op->op_datum)->cao_grp;
 	m0_mutex_lock(&grp->cag_mlock);
 	grp->cag_rc = grp->cag_rc ?: op->op_rc;
 	m0_mutex_unlock(&grp->cag_mlock);
@@ -1296,58 +1295,58 @@ static void clovis_aio_failed_cb(struct m0_clovis_op *op)
  * write_data_to_object_async()
  * writes to and object in async manner
  */
-int write_data_to_object_async(struct clovis_aio_op *aio)
+int write_data_to_object_async(struct m0_aio_op *aio)
 {
-	struct m0_clovis_obj    *obj;
-	struct clovis_aio_opgrp *grp;
-	static struct m0_clovis_op_ops op_ops = {
-		.oop_executed = clovis_aio_executed_cb,
-		.oop_stable   = clovis_aio_stable_cb,
-		.oop_failed   = clovis_aio_failed_cb };
+	struct m0_obj    *obj;
+	struct m0_aio_opgrp *grp;
+	static struct m0_op_ops op_ops = {
+		.oop_executed = m0_aio_executed_cb,
+		.oop_stable   = m0_aio_stable_cb,
+		.oop_failed   = m0_aio_failed_cb };
 
 	grp = aio->cao_grp;
 	obj = &grp->cag_obj;
 
 	/* Create an WRITE op. */
-	m0_clovis_obj_op(obj, M0_CLOVIS_OC_WRITE,
+	m0_obj_op(obj, M0_OC_WRITE,
 			 &aio->cao_ext, &aio->cao_data,
-			 &aio->cao_attr, 0, &aio->cao_op);
+			 &aio->cao_attr, 0, 0, &aio->cao_op);
 	aio->cao_op->op_datum = aio;
 
 	/* Set op's Callbacks */
-	m0_clovis_op_setup(aio->cao_op, &op_ops, 0);
+	m0_op_setup(aio->cao_op, &op_ops, 0);
 
 	/* Launch the write request */
-	m0_clovis_op_launch(&aio->cao_op, 1);
+	m0_op_launch(&aio->cao_op, 1);
 
 	return 0;
 }
 
 
-int clovis_aio_vec_alloc(struct clovis_aio_op *aio, uint64_t bsz, uint32_t cnt)
+int m0_aio_vec_alloc(struct m0_aio_op *aio, uint64_t bsz, uint32_t cnt)
 {
 	return alloc_segs(&aio->cao_data, &aio->cao_ext, &aio->cao_attr,
 			  bsz, cnt);
 }
 
-void clovis_aio_vec_free(struct clovis_aio_op *aio)
+void m0_aio_vec_free(struct m0_aio_op *aio)
 {
 	free_segs(&aio->cao_data, &aio->cao_ext, &aio->cao_attr);
 }
 
-void clovis_aio_op_fini_free(struct clovis_aio_op *aio)
+void m0_aio_op_fini_free(struct m0_aio_op *aio)
 {
-	m0_clovis_op_fini(aio->cao_op);
-	m0_clovis_op_free(aio->cao_op);
+	m0_op_fini(aio->cao_op);
+	m0_op_free(aio->cao_op);
 	aio->cao_op = NULL;
 }
 
-int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp, uint64_t bsz,
+int m0_aio_opgrp_init(struct m0_aio_opgrp *grp, uint64_t bsz,
 			  uint32_t cnt_per_op, uint32_t op_cnt)
 {
 	int rc = 0;
 	uint32_t i;
-	struct clovis_aio_op *ops;
+	struct m0_aio_op *ops;
 
 	M0_SET0(grp);
 
@@ -1358,7 +1357,7 @@ int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp, uint64_t bsz,
 	grp->cag_aio_ops = ops;
 	for (i = 0; i < op_cnt; i++) {
 		ops[i].cao_grp = grp;
-		rc = clovis_aio_vec_alloc(ops + i, bsz, cnt_per_op);
+		rc = m0_aio_vec_alloc(ops + i, bsz, cnt_per_op);
 		if (rc != 0)
 			goto err;
 	}
@@ -1372,12 +1371,12 @@ int clovis_aio_opgrp_init(struct clovis_aio_opgrp *grp, uint64_t bsz,
 	return 0;
  err:
 	while (i--)
-		clovis_aio_vec_free(ops + i);
+		m0_aio_vec_free(ops + i);
 	m0_free(grp->cag_aio_ops);
 	return rc;
 }
 
-void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp)
+void m0_aio_opgrp_fini(struct m0_aio_opgrp *grp)
 {
 	uint32_t i = grp->cag_op_cnt;
 
@@ -1387,7 +1386,7 @@ void clovis_aio_opgrp_fini(struct clovis_aio_opgrp *grp)
 	grp->cag_blocks_written = 0;
 
 	while (i--)
-		clovis_aio_vec_free(grp->cag_aio_ops + i);
+		m0_aio_vec_free(grp->cag_aio_ops + i);
 	m0_free(grp->cag_aio_ops);
 }
 

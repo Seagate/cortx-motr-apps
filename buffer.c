@@ -29,8 +29,7 @@
 #include <inttypes.h>
 #include <assert.h>
 
-#include "clovis/clovis.h"
-#include "clovis/clovis_idx.h"
+#include "motr/client.h"
 #include "layout/layout.h"	/* M0_DEFAULT_LAYOUT_ID */
 #include "c0appz.h"
 #include "c0appz_internal.h"
@@ -140,7 +139,7 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	int rc;
 	unsigned cnt_per_op;
 	struct m0_uint128 id = { idhi, idlo };
-	struct m0_clovis_obj obj = { };
+	struct m0_obj obj = { };
 	struct m0_indexvec ext;
 	struct m0_bufvec   data;
 	struct m0_bufvec   attr;
@@ -157,7 +156,7 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	}
 
 	/* Set the object entity we want to write */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
+	m0_obj_init(&obj, &uber_realm, &id,
 			   M0_DEFAULT_LAYOUT_ID);
 
 	rc = open_entity(&obj.ob_entity);
@@ -193,7 +192,7 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	}
  free:
 	free_segs(&data, &ext, &attr);
-	m0_clovis_entity_fini(&obj.ob_entity);
+	m0_entity_fini(&obj.ob_entity);
 
 	return rc;
 }
@@ -210,7 +209,7 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	int rc;
 	unsigned cnt_per_op;
 	struct m0_uint128 id = { idhi, idlo };
-	struct m0_clovis_obj obj = { };
+	struct m0_obj obj = { };
 	struct m0_indexvec ext;
 	struct m0_bufvec   data;
 	struct m0_bufvec   attr;
@@ -227,7 +226,7 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	}
 
 	/* Set the object entity we want to write */
-	m0_clovis_obj_init(&obj, &clovis_uber_realm, &id,
+	m0_obj_init(&obj, &uber_realm, &id,
 			   M0_DEFAULT_LAYOUT_ID);
 
 	rc = open_entity(&obj.ob_entity);
@@ -260,7 +259,7 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	}
  free:
 	free_segs(&data, &ext, &attr);
-	m0_clovis_entity_fini(&obj.ob_entity);
+	m0_entity_fini(&obj.ob_entity);
 
 	return rc;
 }
@@ -268,7 +267,7 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 /*
  * c0appz_mw_async()
  * Writes data from memory buffer to a mero object in async mode op_cnt
- * Clovis operations at a time. Writes cnt number of blocks, each of size
+ * operations at a time. Writes cnt number of blocks, each of size
  * bsz at off (byte) offset of the object.
  */
 int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
@@ -279,23 +278,23 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 	uint32_t                  nr_ops_sent;
 	uint32_t                  cnt_per_op;
 	struct m0_uint128         id = {idhi, idlo};
-	struct clovis_aio_op     *aio;
-	struct clovis_aio_opgrp   aio_grp;
+	struct m0_aio_op     *aio;
+	struct m0_aio_opgrp   aio_grp;
 
 	CHECK_BSZ_ARGS(bsz, m0bs);
 
 	cnt_per_op = m0bs / bsz;
 
 	/* Initialise operation group. */
-	rc = clovis_aio_opgrp_init(&aio_grp, bsz, cnt_per_op, op_cnt);
+	rc = m0_aio_opgrp_init(&aio_grp, bsz, cnt_per_op, op_cnt);
 	if (rc != 0) {
-		fprintf(stderr, "%s(): clovis_aio_opgrp_init() failed: rc=%d\n",
+		fprintf(stderr, "%s(): m0_aio_opgrp_init() failed: rc=%d\n",
 			__func__, rc);
 		return rc;
 	}
 
 	/* Open the object. */
-	m0_clovis_obj_init(&aio_grp.cag_obj, &clovis_uber_realm,
+	m0_obj_init(&aio_grp.cag_obj, &uber_realm,
 			   &id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&aio_grp.cag_obj.ob_entity);
 	if (rc != 0) {
@@ -338,15 +337,15 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 		/* Finalise ops and group. */
 		rc = rc ?: aio_grp.cag_rc;
 		for (i = 0; i < nr_ops_sent; i++)
-			clovis_aio_op_fini_free(aio_grp.cag_aio_ops + i);
+			m0_aio_op_fini_free(aio_grp.cag_aio_ops + i);
 
 		/* Not all ops are launched and executed successfully. */
 		if (rc != 0)
 			break;
 	}
  fini:
-	m0_clovis_entity_fini(&aio_grp.cag_obj.ob_entity);
-	clovis_aio_opgrp_fini(&aio_grp);
+	m0_entity_fini(&aio_grp.cag_obj.ob_entity);
+	m0_aio_opgrp_fini(&aio_grp);
 
 	return rc;
 }

@@ -71,15 +71,15 @@ FSZ := $(shell expr $(DDZ) \* $(CNT) )
 BSZ := 4
 
 #compiler/linker options
-LFLAGS += -lm -lpthread -lrt -lgf_complete -lyaml -luuid -lmero
-CFLAGS += -I/usr/include/mero
+LFLAGS += -lm -lpthread -lrt -lgalois -lyaml -luuid -lmotr
+CFLAGS += -I/usr/include/motr
 CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern
 CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing
 CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
 CFLAGS += -rdynamic
 ifneq ($(M0_SRC_DIR),)
-LFLAGS += -L$(M0_SRC_DIR)/mero/.libs -Wl,-rpath,$(M0_SRC_DIR)/mero/.libs
-LFLAGS += -L$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs -Wl,-rpath,$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs
+LFLAGS += -L$(M0_SRC_DIR)/motr/.libs -Wl,-rpath,$(M0_SRC_DIR)/motr/.libs
+LFLAGS += -L$(M0_SRC_DIR)/extra-libs/galois/src/.libs -Wl,-rpath,$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs
 CFLAGS += -I$(M0_SRC_DIR)
 endif
 
@@ -100,13 +100,13 @@ all: $(C0CP) $(C0CT) $(C0RM) isc-all
 -include $(SRC_ALL:.o=.d)
 
 $(C0CP): $(SRC) c0cp.c
-	gcc $(SRC) c0cp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0CP)
+	gcc $(SRC) c0cp.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0CP)
 
 $(C0CT): $(SRC) c0ct.c
-	gcc $(SRC) c0ct.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0CT)
+	gcc $(SRC) c0ct.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0CT)
 
 $(C0RM): $(SRC) c0rm.c
-	gcc $(SRC) c0rm.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(C0RM)
+	gcc $(SRC) c0rm.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0RM)
 
 test: $(C0CP) $(C0CT) $(C0RM)
 	$(SUDO) ./$(C0RM) 0 1048577 -y
@@ -214,7 +214,7 @@ bigtest:
 EXE6 = mpix
 
 mpix:
-	mpicc c0appz.c mpiapp.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE6)
+	mpicc c0appz.c mpiapp.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(EXE6)
 
 mpi-clean:
 	rm -f m0trace.*
@@ -230,11 +230,11 @@ mpi-sagercf:
 #
 
 $(ISC_REG): $(SRC) c0isc_register.c
-	gcc $(SRC) c0isc_register.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_REG)
+	gcc $(SRC) c0isc_register.c -I/usr/include/motr -g $(CFLAGS) $(LFLAGS) -o $(ISC_REG)
 $(LIBISC): isc_libdemo.c
-	gcc isc_libdemo.c -I/usr/include/mero $(CFLAGS) -fpic -shared -o $(LIBISC)
+	gcc isc_libdemo.c -I/usr/include/motr $(CFLAGS) -fpic -shared -o $(LIBISC)
 $(ISC_INVK): $(SRC) c0isc_demo.c
-	gcc $(SRC) c0isc_demo.c -I/usr/include/mero -g $(CFLAGS) $(LFLAGS) -o $(ISC_INVK)
+	gcc $(SRC) c0isc_demo.c -I/usr/include/motr -g $(CFLAGS) $(LFLAGS) -o $(ISC_INVK)
 isc-all: $(ISC_REG) $(ISC_INVK) $(LIBISC)
 isc-clean:
 	rm -f $(ISC_REG) $(ISC_INVK) $(LIBISC)
@@ -244,7 +244,7 @@ isc-clean:
 #
 
 ecmwf:
-	gcc c0appz.c c0fgen.c ecmwf.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -lssl -lcrypto -o ecmwfx
+	gcc c0appz.c c0fgen.c ecmwf.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -lssl -lcrypto -o ecmwfx
 
 ecmwf-clean:
 	rm -f m0trace.*

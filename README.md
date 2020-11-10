@@ -1,6 +1,9 @@
-# clovis-sample-apps
+# Motr client sample apps
 
-There are three sample applications. A running instance of Mero such as singlenode Mero is a prerequisite for compiling, building and running these clovis applications. 
+There are three sample applications.
+A running instance of Motr such as singlenode Motr is a prerequisite for
+compiling, building and running these applications. 
+
 1. c0cp
 2. c0cat
 3. c0rm
@@ -27,15 +30,29 @@ $ make vmrcf
 ```sh
 make clean
 ```
+
 ### Clean install mero
-The clean install mero script stops currently running m0singlenode, uninstall mero and mero-devel packages, removes all configuration and storage disks. It then installs the new version pointed by directory path, configuraes it as a m0singlenode and starts services.
+
+The clean install mero script stops currently running m0singlenode,
+uninstall mero and mero-devel packages, removes all configuration and
+storage disks. It then installs the new version pointed by directory path,
+configuraes it as a m0singlenode and starts services.
+
 ```sh
 $ ./scripts/clean_install_mero <rpms directory path>
 $ # (example) ./scripts/clean_install_mero ./rpms/jenkins-OSAINT_mero-1400-29-g7a51cbd/
 ```
 
-### Clovis apps resource file <.[app]rc>
-Each Clovis application requires a clovis resource file residing in the same directory where the application is residing. This resource file contains all clovis related resource parameters for running the clovis application on a particular client machine where the application is executed. This file can be generated using the cappsrcgen utility for dev VMs. The name of the file should be .[application name]rc. Replace the application name with your application's basename. A c0cp example is shown below:
+### Apps resource file <.[app]rc>
+Each application requires a resource file residing in the same directory
+where the application is residing. This resource file contains all
+Motr-client related resource parameters for running the application
+on a particular client node where the application is executed.
+This file can be generated using the cappsrcgen utility for dev VMs.
+The name of the file should be .[application name]rc. Replace the
+application name with your application's basename. A c0cp example
+is shown below:
+
 ```sh
 $ ./scripts/c0appzrcgen > .c0cprc  # Generates configuration
 ```
@@ -59,7 +76,12 @@ Containts of `.c0cprc` is as follows
 ```
 
 ### How to generate resource files on the Sage cluster?
-Pre-registration with Sage userID and application names is required. Once registered the sage-user-application-assignment script can be used on the CMU to generate this information.This script takes Username, app name and the client IP as input and outputs the required resource information. See example below:
+
+Pre-registration with Sage userID and application names is required.
+Once registered the sage-user-application-assignment script can be used
+on the CMU node to generate this information. This script takes Username,
+app name and the client IP as input and outputs the required resource
+information. See example below:
 
 ```
 [sage0004@sage-cmu]$ sage-user-application-assignment ganesan c0del 172.18.1.21

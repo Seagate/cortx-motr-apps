@@ -215,9 +215,10 @@ int main(int argc, char **argv)
 
 	/* init */
 	c0appz_timein();
-	if (c0appz_init(0) != 0) {
-		fprintf(stderr,"%s(): error: clovis initialisation failed.\n",
-			__func__);
+	rc = c0appz_init(0);
+	if (rc != 0) {
+		fprintf(stderr,"%s(): error: c0appz_init() failed: %d\n",
+			__func__, rc);
 		return 222;
 	}
 	ppf("%8s","init");

@@ -53,8 +53,9 @@ int main(int argc, char **argv)
 	c0appz_putrc();
 
 	/* initialize resources */
-	if (c0appz_init(0) != 0) {
-		fprintf(stderr,"error! clovis initialization failed.\n");
+	rc = c0appz_init(0);
+	if (rc != 0) {
+		fprintf(stderr,"error! c0appz_init() failed: %d\n", rc);
 		return -2;
 	}
 	rc = c0appz_isc_api_register(argv[1]);

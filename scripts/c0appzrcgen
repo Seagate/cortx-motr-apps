@@ -27,7 +27,7 @@
 # 23/01/2017
 
 # Takes a positive integer as an input and generates those many
-# distinct end-points for concurrent clovis instances. The
+# distinct end-points for concurrent m0_instances. The
 # script assumes the presence of conf.xc in /etc/mero
 #
 # Nachiket Sahasrabudhe <nachiket.sahasrabuddhe@seagate.com>

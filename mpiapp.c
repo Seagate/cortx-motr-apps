@@ -89,8 +89,9 @@ int main(int argc, char **argv)
 #if DCLOVIS
 	fprintf(stderr,"MPI rank [ %d ] c0appz_init(%d) [**]\n",wrank,idx);
 	/* initialize resources */
-	if (c0appz_init(idx) != 0) {
-		fprintf(stderr,"error! clovis initialization failed.\n");
+	rc = c0appz_init(idx);
+	if (rc != 0) {
+		fprintf(stderr,"error! c0appz_init(%i) failed: %d\n", idx, rc);
 		return -2;
 	}
 	fprintf(stderr,"MPI rank [ %d ] c0appz_init(%d) [OK]\n",wrank,idx);

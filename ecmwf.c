@@ -52,12 +52,13 @@ int main(int argc, char **argv)
 	}
 
 	/*
-	 * clovis tests
+	 * Motr client tests
 	 */
 
 	/* initialize resources */
-	if (c0appz_init(0) != 0) {
-		fprintf(stderr,"error! clovis initialization failed.\n");
+	rc = c0appz_init(0);
+	if (rc != 0) {
+		fprintf(stderr,"error! c0appz_init() failed: %d\n", rc);
 		return -2;
 	}
 

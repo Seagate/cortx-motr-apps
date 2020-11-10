@@ -275,5 +275,5 @@ if [[ -n $not_available_pkgs ]]; then
     echo
     echo "$not_available_pkgs"
 else
-    echo 'You now can try to build clovis sample applications'
+    echo 'You now can try to build Motr client sample applications'
 fi

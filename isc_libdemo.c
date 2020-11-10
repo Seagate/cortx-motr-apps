@@ -1,4 +1,4 @@
-#include "lib/misc.h"       /*m0_full_name_hash */
+#include "lib/misc.h"       /* m0_full_name_hash */
 #include "fid/fid.h"        /* m0_fid */
 #include "lib/buf.h"        /* m0_buf */
 #include "lib/string.h"     /* m0_strdup */

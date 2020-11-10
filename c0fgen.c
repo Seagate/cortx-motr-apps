@@ -56,7 +56,7 @@ static int m_addr(char *mbuf, int msz);
 
 /*
  * c0appz_generate_id()
- * generate mero/clovis fids
+ * generate Motr fids
  */
 int c0appz_generate_id(int64_t *idh, int64_t *idl)
 {
