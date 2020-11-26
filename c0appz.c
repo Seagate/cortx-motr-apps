@@ -88,7 +88,7 @@ Where 22 is the last byte in the client's node IP address.\n";
 enum {
 	MAX_M0_BUFSZ = 128*1024*1024, /* max bs for object store I/O  */
 	MAX_POOLS = 16,
-	MAX_RCFILE_NAME_LEN = 256,
+	MAX_RCFILE_NAME_LEN = 512,
 	MAX_CONF_STR_LEN = 128,
 	MAX_CONF_PARAMS = 32,
 };
@@ -1051,7 +1051,7 @@ int c0appz_free(void)
  */
 int c0appz_setrc(char *prog)
 {
-	char hostname[MAX_RCFILE_NAME_LEN] = {0};
+	char hostname[MAX_RCFILE_NAME_LEN / 2] = {0};
 
 	/* null */
 	if (!prog) {
@@ -1059,7 +1059,7 @@ int c0appz_setrc(char *prog)
 		return -EINVAL;
 	}
 
-	gethostname(hostname, MAX_RCFILE_NAME_LEN);
+	gethostname(hostname, MAX_RCFILE_NAME_LEN / 2);
 	snprintf(c0rcfile, MAX_RCFILE_NAME_LEN, "%s/.c0appz/%src/%s",
 		 getenv("HOME"), prog, hostname);
 
