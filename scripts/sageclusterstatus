@@ -69,23 +69,23 @@ sshstat()
 	getchar
 }
 
-merorpms()
+motrrpms()
 {
-	echo "-[ mero rpm ]-"
-	pdsh -w  "$CLIENTS" rpm -qa | grep mero-1.4 | sort
+	echo "-[ motr rpm ]-"
+	pdsh -w  "$CLIENTS" rpm -qa | grep cortx-motr-1 | sort
 	getchar
-	echo "-[ mero rpm ]-"
-	pdsh -w  "$SERVERS" rpm -qa | grep mero-1.4 | sort
+	echo "-[ motr rpm ]-"
+	pdsh -w  "$SERVERS" rpm -qa | grep cortx-motr-1 | sort
 	getchar
 }
 
-halonrpms()
+harerpms()
 {
-	echo "-[ halon rpm ]-"
-	pdsh -w  "$CLIENTS" rpm -qa | grep halon- | sort
+	echo "-[ hare rpm ]-"
+	pdsh -w  "$CLIENTS" rpm -qa | grep cortx-hare-1 | sort
 	getchar
-	echo "-[ halon rpm ]-"
-	pdsh -w  "$SERVERS" rpm -qa | grep halon- | sort
+	echo "-[ hare rpm ]-"
+	pdsh -w  "$SERVERS" rpm -qa | grep cortx-hare-1 | sort
 	getchar
 }
 
@@ -121,16 +121,16 @@ lnetstat()
 
 merostat()
 {
-	echo "-[ Mero status(clients) ]-"
-	ssh -A client-21 hctl mero status | grep client
-	ssh -A client-21 hctl mero status | grep visnode
-	ssh -A client-21 hctl mero status | grep datawarp
+	echo "-[ Motr status(clients) ]-"
+	ssh -A client-21 hctl status | grep client-
+	ssh -A client-21 hctl status | grep visnode-
+	ssh -A client-21 hctl status | grep datawarp-
 	getchar
-	echo "-[ Mero status(tier nodes) ]-"
-	ssh -A client-21 hctl mero status | grep sage-tier
+	echo "-[ Motr status(tier nodes) ]-"
+	ssh -A client-21 hctl status | grep sage-tier
 	getchar
-	echo "-[ Mero status(pools) ]-"
-	ssh -A client-21 hctl mero status | grep pool
+	echo "-[ Motr status(pools) ]-"
+	ssh -A client-21 hctl status | grep -A4 'Data pools'
 }
 
 format()
@@ -216,8 +216,8 @@ while true ;
      	;;
      	-r|--rpms)
        	WHOLESYSTEM=0
-       	merorpms
-       	halonrpms
+       	motrrpms
+       	harerpms
        	lnetrpms
      	shift
       	;;
@@ -255,8 +255,8 @@ while true ;
 # do all if no options
 if [ $WHOLESYSTEM -eq 1 ]; then
 	sshstat
-	merorpms
-	halonrpms
+	motrrpms
+	harerpms
 	lnetrpms
 	lnetstat
 	merostat
