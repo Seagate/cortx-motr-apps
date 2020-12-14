@@ -171,12 +171,13 @@ sagercf:
 	mkdir -p $(RCDIR)/${C0RM}rc
 	mkdir -p $(RCDIR)/$(ISC_REG)rc
 	mkdir -p $(RCDIR)/$(ISC_INVK)rc
-	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(C0CP)rc/client-${c}
-	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(C0CT)rc/client-${c}
-	$(APPASSIGN) ganesan $(C0RM) 172.18.1.${c} > $(RCDIR)/$(C0RM)rc/client-${c}
-	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(ISC_REG)rc/client-${c}
-	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(ISC_INVK)rc/client-${c}
-
+#	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(C0CP)rc/client-${c}
+#	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(C0CT)rc/client-${c}
+#	$(APPASSIGN) ganesan $(C0RM) 172.18.1.${c} > $(RCDIR)/$(C0RM)rc/client-${c}
+#	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(ISC_REG)rc/client-${c}
+#	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(ISC_INVK)rc/client-${c}
+	./scripts/motraddr.sh > out.tx
+	
 clean: isc-clean
 	rm -f $(C0CP) $(C0CT) $(C0RM) m0trace.*
 	rm -f $(FILE1) $(FILE2) $(FILE3)
