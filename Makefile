@@ -176,7 +176,13 @@ sagercf:
 #	$(APPASSIGN) ganesan $(C0RM) 172.18.1.${c} > $(RCDIR)/$(C0RM)rc/client-${c}
 #	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(ISC_REG)rc/client-${c}
 #	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(ISC_INVK)rc/client-${c}
-	./scripts/motraddr.sh > out.tx
+	./scripts/motraddr.sh > out.txt
+	cp out.txt $(RCDIR)/$(C0CP)rc/$(NODE)
+	cp out.txt $(RCDIR)/$(C0CT)rc/$(NODE)
+	cp out.txt $(RCDIR)/$(C0RM)rc/$(NODE)
+	cp out.txt $(RCDIR)/$(ISC_REG)rc/$(NODE)
+	cp out.txt $(RCDIR)/$(ISC_INVK)rc/$(NODE)
+	rm -rf out.txt
 	
 clean: isc-clean
 	rm -f $(C0CP) $(C0CT) $(C0RM) m0trace.*
