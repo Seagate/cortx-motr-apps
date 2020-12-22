@@ -110,7 +110,7 @@ $(C0RM): $(SRC) c0rm.c
 
 test: $(C0CP) $(C0CT) $(C0RM)
 	$(SUDO) ./$(C0RM) 0 1048577 -y
-	sleep 6
+	# sleep 6
 	$(SUDO) ./$(C0RM) 0 1048599 -y
 	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
 	@echo "#####"
@@ -132,7 +132,7 @@ test: $(C0CP) $(C0CT) $(C0RM)
 	cmp $(FILE1) $(FILE3) || echo "ERROR: Async Test Failed !!"
 	@echo "#####"
 	$(SUDO) ./$(C0RM) 0 1048577 -y
-	sleep 6
+	# sleep 6
 	$(SUDO) ./$(C0RM) 0 1048599 -y
 
 #yaml
@@ -177,6 +177,9 @@ sagercf:
 #	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(ISC_REG)rc/client-${c}
 #	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(ISC_INVK)rc/client-${c}
 	./scripts/motraddr.sh > out.txt
+	@echo "#####"
+	cat ./out.txt
+	@echo "#####"
 	cp out.txt $(RCDIR)/$(C0CP)rc/$(NODE)
 	cp out.txt $(RCDIR)/$(C0CT)rc/$(NODE)
 	cp out.txt $(RCDIR)/$(C0RM)rc/$(NODE)
