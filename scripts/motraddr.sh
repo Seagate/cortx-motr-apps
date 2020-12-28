@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 #
-# This script clean install given Mero packages.
-# It should work on Red Hat and Debian based systems.
-#
-# Ganesan Umanesan <ganesan.umanesan@seagate.com>
-# 14/12/2020
-
 # prints out a set of motr parameters for a 
 # single connection.
+#
+# Ganesan Umanesan <ganesan.umanesan@seagate.com>
+# 14/12/2020 - initial script
+# 28/12/2020 - --mio option added
+#
 
 hastatus=$(mktemp --tmpdir hastatus.XXXXXX)
 
@@ -49,6 +48,77 @@ p[5]=$(grep -A$r $c $hastatus | tail -n1 | awk '{print $4}')
 # LOCAL_PROC_FID0
 p[6]=$(grep -A$r $c $hastatus | tail -n1 | awk '{print $3}')
 [[ -z "${p[6]}" ]] && { echo "Error: LOCAL_PROC_FID0 not found"; exit 1; }
+
+usage()
+{
+    cat <<USAGE_END
+Usage: $(basename $0) [-h|--help] [options]
+	
+    -m|--mio	print mio configuration parameters
+
+    -h|--help	Print this help screen.
+USAGE_END
+
+	exit 1
+}
+
+mio()
+{
+	read -r -d '' YAML <<EOF
+# $USER $HOSTNAME
+# MIO configuration Yaml file. 
+#MIO_Config_Sections: [MIO_CONFIG, MOTR_CONFIG]
+MIO_CONFIG:
+  MIO_LOG_FILE:
+  MIO_LOG_LEVEL: MIO_DEBUG 
+  MIO_DRIVER: MOTR
+MOTR_CONFIG:
+  MOTR_USER_GROUP: motr 
+  MOTR_INST_ADDR: ${p[5]}
+  MOTR_HA_ADDR: ${p[0]}
+  MOTR_PROFILE: <${p[1]}>
+  MOTR_PROCESS_FID: <${p[6]}>
+  MOTR_DEFAULT_UNIT_SIZE: 1048576
+  MOTR_IS_OOSTORE: 1
+  MOTR_IS_READ_VERIFY: 0
+  MOTR_TM_RECV_QUEUE_MIN_LEN: 2
+  MOTR_MAX_RPC_MSG_SIZE: 131072
+EOF
+
+	echo "$YAML"
+}
+
+#
+# MAIN
+#
+
+# options
+TEMP=$( getopt -o m --long mio,help -n "$PROG_NAME" -- "$@" )
+[[ $? != 0 ]] && usage
+eval set -- "$TEMP"
+
+while true ; 
+	do
+    case "$1" in
+     	-m|--mio)
+		mio
+		exit 0
+    	shift
+    	;;  	
+     	-h|--help)
+    	usage
+    	shift
+    	;;  	
+		--)     
+       	shift
+     	break 
+     	;;
+    	*)
+      	echo 'getopt: internal error...'
+      	exit 1 
+      	;;
+   	esac
+    done
 
 echo "#"
 echo "# USER: $USER"
