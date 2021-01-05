@@ -68,7 +68,7 @@ FSZ := $(shell expr $(DDZ) \* $(CNT) )
 #valid block sizes are: 4KB ~ 32MB
 #4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
 #1048576, 2097152, 4194304, 8388608, 16777216, 33554432
-BSZ := 4
+BSZ := 64
 
 #compiler/linker options
 LFLAGS += -lm -lpthread -lrt -lgalois -lyaml -luuid -lmotr
@@ -110,21 +110,20 @@ $(C0RM): $(SRC) c0rm.c
 
 test: $(C0CP) $(C0CT) $(C0RM)
 	$(SUDO) ./$(C0RM) 0 1048577 -y
-	# sleep 6
 	$(SUDO) ./$(C0RM) 0 1048599 -y
 	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
 	@echo "#####"
 	@ls -lh $(FILE1)
-	$(SUDO) ./$(C0CP) 0 1048577 $(FILE1) $(BSZ)
+	$(SUDO) ./$(C0CP) 0 1048577 $(FILE1) $(BSZ) -p
 	@echo "#####"
 	@ls -la $(FILE1)
-	$(SUDO) ./$(C0CT) 0 1048577 $(FILE2) $(BSZ) $(FSZ)
+	$(SUDO) ./$(C0CT) 0 1048577 $(FILE2) $(BSZ) $(FSZ) -p
 	@ls -la $(FILE2)
 	@echo "#####"
 	@ls -la $(FILE1)
-	$(SUDO) ./$(C0CP) 0 1048599 $(FILE1) $(BSZ) -a 8
+	$(SUDO) ./$(C0CP) 0 1048599 $(FILE1) $(BSZ) -a 8 -p
 	@echo "#####"
-	$(SUDO) ./$(C0CT) 0 1048599 $(FILE3) $(BSZ) $(FSZ)
+	$(SUDO) ./$(C0CT) 0 1048599 $(FILE3) $(BSZ) $(FSZ) -p
 	@ls -ls $(FILE3)
 	@echo "#####"
 	cmp $(FILE1) $(FILE2) || echo "ERROR: Test Failed !!"
@@ -132,7 +131,6 @@ test: $(C0CP) $(C0CT) $(C0RM)
 	cmp $(FILE1) $(FILE3) || echo "ERROR: Async Test Failed !!"
 	@echo "#####"
 	$(SUDO) ./$(C0RM) 0 1048577 -y
-	# sleep 6
 	$(SUDO) ./$(C0RM) 0 1048599 -y
 
 #yaml
