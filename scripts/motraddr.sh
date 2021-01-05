@@ -5,7 +5,8 @@
 #
 # Ganesan Umanesan <ganesan.umanesan@seagate.com>
 # 14/12/2020 - initial script
-# 28/12/2020 - --mio option added
+# 28/12/2020 - MIO yaml format added
+# 05/01/2021 - Bash export format added 
 #
 
 hastatus=$(mktemp --tmpdir hastatus.XXXXXX)
@@ -56,10 +57,25 @@ Usage: $(basename $0) [-h|--help] [options]
 	
     -m|--mio	print mio configuration parameters
 
+    -e|--exp	print in shell export format
+
     -h|--help	Print this help screen.
 USAGE_END
 
 	exit 1
+}
+
+exp()
+{
+	read -r -d '' BASH <<EOF
+# $USER $HOSTNAME
+# Bash shell export format
+export CLIENT_LADDR="${p[5]}"
+export CLIENT_HA_ADDR="${p[0]}"
+export CLIENT_PROF_OPT="${p[1]}"
+export CLIENT_PROC_FID="${p[6]}"
+EOF
+	echo "$BASH"
 }
 
 mio()
@@ -93,7 +109,7 @@ EOF
 #
 
 # options
-TEMP=$( getopt -o m --long mio,help -n "$PROG_NAME" -- "$@" )
+TEMP=$( getopt -o meh --long mio,exp,help -n "$PROG_NAME" -- "$@" )
 [[ $? != 0 ]] && usage
 eval set -- "$TEMP"
 
@@ -102,6 +118,11 @@ while true ;
     case "$1" in
      	-m|--mio)
 		mio
+		exit 0
+    	shift
+    	;;  	
+     	-e|--exp)
+		exp
 		exit 0
     	shift
     	;;  	
