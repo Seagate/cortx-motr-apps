@@ -19,93 +19,59 @@ echo "Tiers!"
 set -x
 ./c0rm 21 10 -y
 ./c0cp 21 10 $TEST_FILE_256MB 1024 -x 1
-sleep 10
 ./c0rm 21 20 -y
 ./c0cp 21 20 $TEST_FILE_256MB 1024 -x 2
-sleep 10
 ./c0rm 21 30 -y
 ./c0cp 21 30 $TEST_FILE_256MB 1024 -x 3
-sleep 10
 set +x
 
 echo "Contiguous Mode!"
 set -x
 ./c0rm 21 21 -y
 ./c0cp 21 21 $TEST_FILE_256MB 1024 -fc 2
-sleep 10
 ./c0ct 21 21 $TEST_FILE_OUT 1024 $((256*1024*1024)) -c 2
-sleep 10
 ./c0cp 21 21 $TEST_FILE_1GB 1024 -fc 3
-sleep 10
 ./c0ct 21 21 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -c 3
-sleep 10
 set +x
 
 echo "Performance Mode!"
 set -x
 #default tier
 ./c0cp 21 21 $TEST_FILE_256MB 1024 -pfc 5
-sleep 10
 ./c0ct 21 21 $TEST_FILE_OUT 1024 $((256*1024*1024)) -pc 5
-sleep 10
 ./c0cp 21 21 $TEST_FILE_1GB 1024 -pfc 3
-sleep 10
 ./c0ct 21 21 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
-sleep 10
 #tiers 123
 ./c0rm 21 221 -y
-sleep 10
 ./c0rm 21 222 -y
-sleep 10
 ./c0rm 21 223 -y
-sleep 10
 ./c0cp 21 221 $TEST_FILE_1GB 1024 -x 1 -p
-sleep 10
 ./c0cp 21 222 $TEST_FILE_1GB 1024 -x 2 -p
-sleep 10
 ./c0cp 21 223 $TEST_FILE_1GB 1024 -x 3 -p
-sleep 10
 ./c0cp 21 221 $TEST_FILE_1GB 1024 -x 1 -pfc 3
-sleep 10
 ./c0cp 21 222 $TEST_FILE_1GB 1024 -x 2 -pfc 3
-sleep 10
 ./c0cp 21 223 $TEST_FILE_1GB 1024 -x 3 -pfc 3
-sleep 10
 ./c0ct 21 221 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -p
-sleep 10
 ./c0ct 21 222 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -p
-sleep 10
 ./c0ct 21 223 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -p
-sleep 10
 ./c0ct 21 221 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
-sleep 10
 ./c0ct 21 222 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
-sleep 10
 ./c0ct 21 223 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
-sleep 10
 set +x
 
 echo "Asynchronous Mode!"
 set -x
 #default tier
 ./c0cp 21 21 $TEST_FILE_1GB 1024 -a 8 -pf
-sleep 10
 ./c0cp 21 21 $TEST_FILE_1GB 1024 -a 8 -pfc 3
-sleep 10
 ./c0cp 21 21 $TEST_FILE_256MB 1024 -a 8 -pfc 5
-sleep 10
-#tiers 123 (-x not available currently)
-#./c0cp 21 221 $TEST_FILE_1GB 1024 -a 8 -x 1 -p
-#sleep 10
-#./c0cp 21 222 $TEST_FILE_1GB 1024 -a 8 -x 2 -p
-#sleep 10
-#./c0cp 21 223 $TEST_FILE_1GB 1024 -a 8 -x 3 -p
-#sleep 10
-#./c0cp 21 221 $TEST_FILE_1GB 1024 -a 8 -x 1 -pfc 3
-#sleep 10
-#./c0cp 21 222 $TEST_FILE_1GB 1024 -a 8 -x 2 -pfc 3
-#sleep 10
-#./c0cp 21 223 $TEST_FILE_1GB 1024 -a 8 -x 3 -pfc 3
+#tiers 123 
+./c0cp 21 221 $TEST_FILE_1GB 1024 -a 8 -x 1 -p
+./c0cp 21 222 $TEST_FILE_1GB 1024 -a 8 -x 2 -p
+./c0cp 21 223 $TEST_FILE_1GB 1024 -a 8 -x 3 -p
+./c0cp 21 221 $TEST_FILE_1GB 1024 -a 8 -x 1 -pfc 3
+./c0cp 21 222 $TEST_FILE_1GB 1024 -a 8 -x 2 -pfc 3
+./c0cp 21 223 $TEST_FILE_1GB 1024 -a 8 -x 3 -pfc 3
 set +x
 
 echo "DONE!"
