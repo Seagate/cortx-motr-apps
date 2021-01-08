@@ -269,6 +269,7 @@ uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier)
 	gsz = usz * pa->pa_N;
 	/* max 2-times pool-width deep, otherwise we may get -E2BIG */
 	max_bs = usz * 2 * pa->pa_P * pa->pa_N / (pa->pa_N + 2 * pa->pa_K);
+	max_bs = max_bs / gsz * gsz; /* make it multiple of group size */
 
 	DBG("usz=%lu (N,K,P)=(%u,%u,%u) max_bs=%lu\n",
 	    usz, pa->pa_N, pa->pa_K, pa->pa_P, max_bs);
