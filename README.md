@@ -106,3 +106,14 @@ information. See example below:
 #tmp
 /tmp/
 ```
+
+### Quick Start on Sage platform
+
+```
+>> make clean
+>> git pull
+>> make 
+>> make sagercf
+>> make test
+```
+

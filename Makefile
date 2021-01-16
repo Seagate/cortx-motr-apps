@@ -49,7 +49,7 @@ LIBISC = libdemo.so
 ISC_REG = c0isc_reg
 ISC_INVK = c0isc_demo
 
-#archieve/node names
+#archive/node names
 TARF = m0trace_$(shell date +%Y%m%d-%H%M%S).tar.bz2
 TARN = $(shell ls -la m0trace.* &> /dev/null | wc -l)
 NODE = $(shell eval uname -n)
@@ -63,6 +63,8 @@ CNT := $(shell expr 100 + $$RANDOM % 1000)
 #CNT := $(shell expr 1024 \* 16)
 #CNT := 1024
 FSZ := $(shell expr $(DDZ) \* $(CNT) )
+FID1 := $(shell eval $(FGEN))
+FID2 := $(shell eval $(FGEN))
 
 #c0cp block size
 #valid block sizes are: 4KB ~ 32MB
@@ -87,7 +89,7 @@ SRC = perf.o buffer.o qos.o c0appz.o
 SRC_ALL = $(SRC) c0cp.o c0ct.o c0rm.o fgen.o \
 		c0isc_register.o c0isc_demo.o isc_libdemo.o
 
-all: $(C0CP) $(C0CT) $(C0RM) isc-all
+all: $(C0CP) $(C0CT) $(C0RM) $(FGEN) isc-all
 .PHONY: all
 
 # Generate automatic dependencies,
@@ -108,30 +110,31 @@ $(C0CT): $(SRC) c0ct.c
 $(C0RM): $(SRC) c0rm.c
 	gcc $(SRC) c0rm.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0RM)
 
-test: $(C0CP) $(C0CT) $(C0RM)
-	$(SUDO) ./$(C0RM) 0 1048577 -y
-	$(SUDO) ./$(C0RM) 0 1048599 -y
+$(FGEN):
+	gcc -Wall -lssl -lcrypto fgen.c -o $(FGEN)
+
+test: $(C0CP) $(C0CT) $(C0RM) $(FGEN)
 	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
 	@echo "#####"
 	@ls -lh $(FILE1)
-	$(SUDO) ./$(C0CP) 0 1048577 $(FILE1) $(BSZ) -p
+	$(SUDO) ./$(C0CP) $(FID1) $(FILE1) $(BSZ) -p
 	@echo "#####"
 	@ls -la $(FILE1)
-	$(SUDO) ./$(C0CT) 0 1048577 $(FILE2) $(BSZ) $(FSZ) -p
+	$(SUDO) ./$(C0CT) $(FID1) $(FILE2) $(BSZ) $(FSZ) -p
 	@ls -la $(FILE2)
 	@echo "#####"
 	@ls -la $(FILE1)
-	$(SUDO) ./$(C0CP) 0 1048599 $(FILE1) $(BSZ) -a 8 -p
+	$(SUDO) ./$(C0CP) $(FID2) $(FILE1) $(BSZ) -a 8 -p
 	@echo "#####"
-	$(SUDO) ./$(C0CT) 0 1048599 $(FILE3) $(BSZ) $(FSZ) -p
+	$(SUDO) ./$(C0CT) $(FID2) $(FILE3) $(BSZ) $(FSZ) -p
 	@ls -ls $(FILE3)
 	@echo "#####"
 	cmp $(FILE1) $(FILE2) || echo "ERROR: Test Failed !!"
 	@echo "#####"
 	cmp $(FILE1) $(FILE3) || echo "ERROR: Async Test Failed !!"
 	@echo "#####"
-	$(SUDO) ./$(C0RM) 0 1048577 -y
-	$(SUDO) ./$(C0RM) 0 1048599 -y
+	$(SUDO) ./$(C0RM) $(FID1) -y
+	$(SUDO) ./$(C0RM) $(FID2) -y
 
 #yaml
 #bundle trace files for shipment
@@ -147,9 +150,6 @@ yaml:
 	tar -jtvf $(TARF)
 	rm -f m0trace.*.yml
 	ls -lh $(TARF)
-
-fgen:
-	gcc -Wall -lssl -lcrypto fgen.c -o $(FGEN)
 
 vmrcf:
 	mkdir -p $(RCDIR)/${C0CP}rc
