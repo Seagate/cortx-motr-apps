@@ -59,7 +59,7 @@ static void fid_get(const char *f_name, struct m0_fid *fid)
 	m0_fid_set(fid, f_cont, f_key);
 }
 
-static int op_type_get(const char *op_name)
+static int op_type_parse(const char *op_name)
 {
 	if (op_name == NULL)
 		return -EINVAL;
@@ -358,7 +358,7 @@ int main(int argc, char **argv)
 	c0appz_setrc(prog);
 	c0appz_putrc();
 
-	op_type = op_type_get(argv[1]);
+	op_type = op_type_parse(argv[1]);
 	if (op_type == -EINVAL) {
 		usage_print(prog);
 		return -EINVAL;

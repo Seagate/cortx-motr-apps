@@ -726,6 +726,7 @@ struct m0_rpc_link * c0appz_isc_rpc_link_get(struct m0_fid *svc_fid)
 		    m0_fid_eq(&ctx->sc_fid, svc_fid))
 			return &ctx->sc_rlink;
 	} m0_tl_endfor;
+
 	return NULL;
 }
 /*
@@ -788,6 +789,7 @@ int c0appz_isc_api_register(const char *libpath)
 	m0_conf_diter_fini(&it);
 	m0_confc_close(&root->rt_obj);
 	c0appz_spiel_destroy(&spiel_inst);
+
 	return 0;
 }
 
@@ -810,6 +812,7 @@ int c0appz_isc_nxt_svc_get(struct m0_fid *svc_fid, struct m0_fid *nxt_fid,
 			current_fid = null_fid;
 	} m0_tl_endfor;
 	*nxt_fid = M0_FID0;
+
 	return -ENOENT;
 }
 
@@ -852,6 +855,7 @@ int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 		return rc;
 	}
 	m0_fop_init(arg_fop, &m0_fop_isc_fopt, fop_isc, m0_fop_release);
+
 	return rc;
 }
 
@@ -874,6 +878,7 @@ int c0appz_isc_req_send_sync(struct c0appz_isc_req *req)
 			       req->cir_result);
 	if (rc != 0)
 		fprintf(stderr, "\nerror! m0_rpc_at_get returned %d\n", rc);
+
 	return req->cir_rc == 0 ? rc : req->cir_rc;
 }
 
