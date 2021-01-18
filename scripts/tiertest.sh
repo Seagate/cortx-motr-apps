@@ -29,9 +29,9 @@ set -x
 ./c0cp $id2 $FILE1 $bsz -b -pfx2 -c1 -a8
 ./c0cp $id3 $FILE1 $bsz -b -pfx3 -c1 -a8
 # read
-./c0ct $id1 $FILE2 $bsz $fsz -b -p -c1
-./c0ct $id2 $FILE2 $bsz $fsz -b -p -c1
-./c0ct $id3 $FILE2 $bsz $fsz -b -p -c1
+./c0cat $id1 $FILE2 $bsz $fsz -b -p -c1
+./c0cat $id2 $FILE2 $bsz $fsz -b -p -c1
+./c0cat $id3 $FILE2 $bsz $fsz -b -p -c1
 # delete
 ./c0rm $id1 -y 
 ./c0rm $id2 -y 

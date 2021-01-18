@@ -37,7 +37,7 @@ FILE3 = './file3'
 
 #executables
 C0CP = c0cp
-C0CT = c0ct
+C0CT = c0cat
 C0RM = c0rm
 FGEN = fgen
 
@@ -86,7 +86,7 @@ CFLAGS += -I$(M0_SRC_DIR)
 endif
 
 SRC = perf.o buffer.o qos.o c0appz.o
-SRC_ALL = $(SRC) c0cp.o c0ct.o c0rm.o fgen.o \
+SRC_ALL = $(SRC) c0cp.o c0cat.o c0rm.o fgen.o \
 		c0isc_register.o c0isc_demo.o isc_libdemo.o
 
 all: $(C0CP) $(C0CT) $(C0RM) $(FGEN) isc-all
@@ -104,8 +104,8 @@ all: $(C0CP) $(C0CT) $(C0RM) $(FGEN) isc-all
 $(C0CP): $(SRC) c0cp.c
 	gcc $(SRC) c0cp.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0CP)
 
-$(C0CT): $(SRC) c0ct.c
-	gcc $(SRC) c0ct.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0CT)
+$(C0CT): $(SRC) c0cat.c
+	gcc $(SRC) c0cat.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0CT)
 
 $(C0RM): $(SRC) c0rm.c
 	gcc $(SRC) c0rm.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0RM)
