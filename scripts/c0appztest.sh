@@ -29,18 +29,18 @@ echo "Contiguous Mode!"
 set -x
 ./c0rm 21 21 -y
 ./c0cp 21 21 $TEST_FILE_256MB 1024 -fc 2
-./c0ct 21 21 $TEST_FILE_OUT 1024 $((256*1024*1024)) -c 2
+./c0cat 21 21 $TEST_FILE_OUT 1024 $((256*1024*1024)) -c 2
 ./c0cp 21 21 $TEST_FILE_1GB 1024 -fc 3
-./c0ct 21 21 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -c 3
+./c0cat 21 21 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -c 3
 set +x
 
 echo "Performance Mode!"
 set -x
 #default tier
 ./c0cp 21 21 $TEST_FILE_256MB 1024 -pfc 5
-./c0ct 21 21 $TEST_FILE_OUT 1024 $((256*1024*1024)) -pc 5
+./c0cat 21 21 $TEST_FILE_OUT 1024 $((256*1024*1024)) -pc 5
 ./c0cp 21 21 $TEST_FILE_1GB 1024 -pfc 3
-./c0ct 21 21 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
+./c0cat 21 21 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
 #tiers 123
 ./c0rm 21 221 -y
 ./c0rm 21 222 -y
@@ -51,12 +51,12 @@ set -x
 ./c0cp 21 221 $TEST_FILE_1GB 1024 -x 1 -pfc 3
 ./c0cp 21 222 $TEST_FILE_1GB 1024 -x 2 -pfc 3
 ./c0cp 21 223 $TEST_FILE_1GB 1024 -x 3 -pfc 3
-./c0ct 21 221 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -p
-./c0ct 21 222 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -p
-./c0ct 21 223 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -p
-./c0ct 21 221 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
-./c0ct 21 222 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
-./c0ct 21 223 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
+./c0cat 21 221 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -p
+./c0cat 21 222 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -p
+./c0cat 21 223 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -p
+./c0cat 21 221 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
+./c0cat 21 222 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
+./c0cat 21 223 $TEST_FILE_OUT 1024 $((1024*1024*1024)) -pc 3
 set +x
 
 echo "Asynchronous Mode!"

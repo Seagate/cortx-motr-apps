@@ -47,10 +47,10 @@ extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
 
 char *prog;
 
-const char *help_c0ct_txt = "\
+const char *help_c0cat_txt = "\
 Usage:\n\
-  c0ct [-ptv] [-b [sz]] [-c n] idh idl file bsz fsz\n\
-  c0ct 1234 56789 file 1024 268435456\n\
+  c0cat [-ptv] [-b [sz]] [-c n] idh idl file bsz fsz\n\
+  c0cat 1234 56789 file 1024 268435456\n\
 \n\
 Copy object from the object store into file.\n\
 \n\
@@ -75,7 +75,7 @@ where n is 2 in 2+1 parity group configuration, 8 in 8+2 and so on.\n";
 
 int help()
 {
-	fprintf(stderr,"%s\n%s\n", help_c0ct_txt, c0appz_help_txt);
+	fprintf(stderr,"%s\n%s\n", help_c0cat_txt, c0appz_help_txt);
 	exit(1);
 }
 
