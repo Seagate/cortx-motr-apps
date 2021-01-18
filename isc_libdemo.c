@@ -67,22 +67,20 @@ int hello_world(struct m0_buf *in, struct m0_buf *out,
 	return M0_FSO_AGAIN;
 }
 
-int arr_min(struct m0_buf *in, struct m0_buf *out,
-	    struct m0_isc_comp_private *comp_data, int *ret)
+enum op {MIN, MAX};
+
+int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
+	       struct m0_isc_comp_private *comp_data, int *rc)
 {
 	uint32_t          arr_len;
 	uint32_t          i;
 	double           *arr;
 	struct mm_result  curr_min;
 	struct m0_buf     buf_local;
-	int               rc;
-
-	/* The default error code. */
-	*ret = 0;
 
 	if (in->b_nob == 0) {
 		*out = M0_BUF_INIT0;
-		*ret = -EINVAL;
+		*rc = -EINVAL;
 		return M0_FSO_AGAIN;
 	}
 	arr_len = in->b_nob / sizeof arr[0];
@@ -91,54 +89,29 @@ int arr_min(struct m0_buf *in, struct m0_buf *out,
 	curr_min.mr_val = arr[0];
 
 	for (i = 1; i < arr_len; ++i) {
-		if (arr[i] < curr_min.mr_val) {
+		if (op == MIN ? arr[i] < curr_min.mr_val :
+		                arr[i] > curr_min.mr_val) {
 			curr_min.mr_idx = i;
 			curr_min.mr_val = arr[i];
 		}
 	}
 
 	m0_buf_init(&buf_local, &curr_min, sizeof curr_min);
-	rc = m0_buf_copy_aligned(out, &buf_local, M0_0VEC_SHIFT);
-	if (rc != 0)
-		*ret = rc;
+	*rc = m0_buf_copy_aligned(out, &buf_local, M0_0VEC_SHIFT);
+
 	return M0_FSO_AGAIN;
 }
 
-int arr_max(struct m0_buf *in, struct m0_buf *out,
-	    struct m0_isc_comp_private *comp_data, int *ret)
+int arr_min(struct m0_buf *in, struct m0_buf *out,
+	    struct m0_isc_comp_private *comp_data, int *rc)
 {
-	uint32_t          arr_len;
-	uint32_t          i;
-	double           *arr;
-	struct mm_result  curr_max;
-	struct m0_buf     buf_local;
-	int rc;
+	return arr_minmax(MIN, in, out, comp_data, rc);
+}
 
-	/* The default error code. */
-	*ret = 0;
-
-	if (in->b_nob == 0) {
-		*out = M0_BUF_INIT0;
-		*ret = -EINVAL;
-		return M0_FSO_AGAIN;
-	}
-	arr_len = in->b_nob / sizeof arr[0];
-	arr     = in->b_addr;
-	curr_max.mr_idx = 0;
-	curr_max.mr_val = arr[0];
-
-	for (i = 1; i < arr_len; ++i) {
-		if (arr[i] > curr_max.mr_val) {
-			curr_max.mr_idx = i;
-			curr_max.mr_val = arr[i];
-		}
-	}
-
-	m0_buf_init(&buf_local, &curr_max, sizeof curr_max);
-	rc = m0_buf_copy_aligned(out, &buf_local, M0_0VEC_SHIFT);
-	if (rc != 0)
-		*ret = rc;
-	return M0_FSO_AGAIN;
+int arr_max(struct m0_buf *in, struct m0_buf *out,
+	    struct m0_isc_comp_private *comp_data, int *rc)
+{
+	return arr_minmax(MAX, in, out, comp_data, rc);
 }
 
 static void comp_reg(const char *f_name, int (*ftn)(struct m0_buf *arg_in,
