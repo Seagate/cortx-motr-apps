@@ -82,7 +82,7 @@ CFLAGS += -rdynamic
 ifneq ($(M0_SRC_DIR),)
 LFLAGS += -L$(M0_SRC_DIR)/motr/.libs -Wl,-rpath,$(M0_SRC_DIR)/motr/.libs
 LFLAGS += -L$(M0_SRC_DIR)/extra-libs/galois/src/.libs -Wl,-rpath,$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs
-CFLAGS += -I$(M0_SRC_DIR)
+CFLAGS += -I$(M0_SRC_DIR) -I$(M0_SRC_DIR)/extra-libs/galois/include
 endif
 
 SRC = perf.o buffer.o qos.o c0appz.o
