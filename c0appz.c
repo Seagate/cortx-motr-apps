@@ -832,8 +832,8 @@ int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 	fop_isc->fi_comp_id = *comp_fid;
 	req->cir_rpc_link = c0appz_isc_rpc_link_get(svc_fid);
 	if (req->cir_rpc_link == NULL) {
-		fprintf(stderr, "error! isc request can not be prepared for"
-			"process "FID_F, FID_P(svc_fid));
+		fprintf(stderr, "error! cannot find rpc_link for isc service "
+			FID_F, FID_P(svc_fid));
 		return -EINVAL;
 	}
 	link = req->cir_rpc_link;
