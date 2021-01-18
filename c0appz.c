@@ -82,7 +82,7 @@ allocated by system administrator for each user's application\n\
 working with the object store cluster.\n\
 The easiest way to generate this file is like this:\n\
 \n\
-$ cd ~/clovis-sample-apps\n\
+$ cd ~/m0client-sample-apps\n\
 $ make c=22 sagercf\n\
 \n\
 Where 22 is the last byte in the client's node IP address.\n";

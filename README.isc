@@ -25,8 +25,7 @@ mero instances.
 On successful loading of the library the output looks like:
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-[devvm@sherlock clovis-sample-apps]$ ./c0isc_reg $PWD/libdemo.so
-.c0isc_regrc/sherlock
+$ ./c0isc_reg $PWD/libdemo.so
 [ cput: 1.11 s 0.00 Mbs ][ wclk: 7.20 s 0.00 Mbs ]
 c0isc_reg success
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -56,9 +55,7 @@ identifies the min or max depending upon the input option provided. On
 successful completion it shows following output format:
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-[devvm@sherlock clovis-sample-apps]$ ./c0isc_demo min
-.c0isc_demorc/sherlock
-
+$ ./c0isc_demo min
 idx=13val=-14234.430000
 [ cput: 1.07 s 0.00 Mbs ][ wclk: 4.12 s 0.00 Mbs ]
 c0isc_demo success
