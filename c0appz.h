@@ -123,7 +123,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
  *
  * @retval 0 on success
  */
-int c0appz_ct(uint64_t idhi, uint64_t idlo, char *filename,
+int c0appz_cat(uint64_t idhi, uint64_t idlo, char *filename,
 	      uint64_t bsz, uint64_t cnt, uint64_t m0bs);
 
 /**
