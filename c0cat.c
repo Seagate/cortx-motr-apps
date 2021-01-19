@@ -261,7 +261,7 @@ int main(int argc, char **argv)
 	qos_laps_remain=1;
 	qos_pthread_start();
 	c0appz_timein();
-	if (c0appz_ct(idh, idl, fname, bsz, cnt, m0bs) != 0) {
+	if (c0appz_cat(idh, idl, fname, bsz, cnt, m0bs) != 0) {
 		fprintf(stderr,"%s(): error!\n",__FUNCTION__);
 		fprintf(stderr,"%s(): cat object failed!!\n",__FUNCTION__);
 		rc = 555;
