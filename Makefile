@@ -247,13 +247,3 @@ isc-all: $(ISC_REG) $(ISC_INVK) $(LIBISC)
 isc-clean:
 	rm -f $(ISC_REG) $(ISC_INVK) $(LIBISC)
 
-#
-#ECMWF Appz
-#
-
-ecmwf:
-	gcc c0appz.c c0fgen.c ecmwf.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -lssl -lcrypto -o ecmwfx
-
-ecmwf-clean:
-	rm -f m0trace.*
-	rm -f ecmwfx
