@@ -20,7 +20,7 @@
 
 #!/usr/bin/env bash
 #
-# This script clean install given Mero packages.
+# This script clean install given Motr packages.
 # It should work on Red Hat and Debian based systems.
 #
 # Ganesan Umanesan <ganesan.umanesan@seagate.com>
@@ -32,39 +32,39 @@ if [[ "$#" -ne 1 ]]; then
     exit
 fi
 
-RPM1=$1mero-*.rpm
-RPM2=$1mero-devel-*.rpm
+RPM1=$1motr-*.rpm
+RPM2=$1motr-devel-*.rpm
 
-#mero rpm
+#motr rpm
 if [ ! -e $RPM1 ]; then
 	echo $RPM1
-	echo "error! mero rpm does not exist"
+	echo "error! motr rpm does not exist"
 	exit
 fi
 
-#mero-devel rpm
+#motr-devel rpm
 if [ ! -e $RPM2 ]; then
 	echo $RPM2
-	echo "error! mero-devel rpm does not exist"
+	echo "error! motr-devel rpm does not exist"
 	exit
 fi
 
 
-#stop mero
+#stop motr
 sudo m0singlenode stop
 
-#remove existing mero
-sudo yum remove -y mero mero-devel
-sudo rm -rf /etc/mero/ /var/mero
+#remove existing motr
+sudo yum remove -y motr motr-devel
+sudo rm -rf /etc/motr/ /var/motr
 sudo umount /mnt/m0t1fs
 sudo rm -rf /mnt/m0t1fs
 
-#install new mero
+#install new motr
 sudo yum install -y $RPM1 $RPM2
 sudo m0singlenode activate
 sudo m0setup -cv
 sudo m0setup -Mv
 
-#start mero
+#start motr
 sudo m0singlenode start
 

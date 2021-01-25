@@ -20,7 +20,7 @@
 
 #!/usr/bin/env bash
 #
-# This script clean install given Mero packages.
+# This script clean install given Motr packages.
 # It should work on Red Hat and Debian based systems.
 #
 # Ganesan Umanesan <ganesan.umanesan@seagate.com>
@@ -28,14 +28,14 @@
 
 # Takes a positive integer as an input and generates those many
 # distinct end-points for concurrent m0_instances. The
-# script assumes the presence of conf.xc in /etc/mero
+# script assumes the presence of conf.xc in /etc/motr
 #
 # Nachiket Sahasrabudhe <nachiket.sahasrabuddhe@seagate.com>
 # 28/06/2018
 
 
 
-conf="/etc/mero/conf.xc"
+conf="/etc/motr/conf.xc"
 base_port=301
 IP=""
 port=""
@@ -54,7 +54,7 @@ sanity_check()
 {
 	if [ ! -f $conf ]
 	then
-		echo "Configuration file does not exist at /etc/mero"
+		echo "Configuration file does not exist at /etc/motr"
 		return 1
 	fi
 	string=`grep $IP $conf | cut -d'"' -f 2 | cut -d ':' -f 1`
@@ -73,7 +73,7 @@ sanity_check()
 unused_port_get()
 {
 	hint=$1
-	port_list=`grep $IP /etc/mero/conf.xc | cut -d '"' -f 2 | cut -d ':' -f 4`
+	port_list=`grep $IP /etc/motr/conf.xc | cut -d '"' -f 2 | cut -d ':' -f 4`
 	while [[ $port_list = *"$hint"* ]]
 	do
 		hint=$(($hint+1))

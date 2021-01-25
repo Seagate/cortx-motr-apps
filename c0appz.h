@@ -186,7 +186,7 @@ enum m0_conf_service_type;
 /*
  ** ECMWF REQUIREMENTS
  ** synchronous/asynchronous get/put etc.
- ** Note to Nikita: c0appz uses int64_t idhi, int64_t idlo to refer Mero object
+ ** Note to Nikita: c0appz uses int64_t idhi, int64_t idlo to refer Motr object
  ** ids due to popular demand from other Sage developers. Please use the same
  ** convention below. ECMWF has been informed about it.
  */

@@ -119,7 +119,7 @@ lnetstat()
 	getchar
 }
 
-merostat()
+motrstat()
 {
 	echo "-[ Motr status(clients) ]-"
 	ssh -A client-21 hctl status | grep client-
@@ -165,12 +165,12 @@ Usage: $(basename $0) [-h|--help] [options]
     			output uname -r
 
     -r|--rpms   	print installed rpm packages
-    			mero, halon and lnet rpms are printed.
+    			motr, halon and lnet rpms are printed.
 
     -l|--lnet   	print installed rpm packages
-    			mero, halon and lnet rpms are printed.
+    			motr, halon and lnet rpms are printed.
 
-    -m|--mero   	print mero status
+    -m|--motr   	print motr status
     			clients and tier-nodes online statuses are printed.
     			Also printed are pool parameters.
 
@@ -190,7 +190,7 @@ USAGE_END
 # Note that we use `"$@"' to let each command-line parameter expand to a
 # separate word. The quotes around `$@' are essential!
 # We need TEMP as the `eval set --' would nuke the return value of getopt.
-TEMP=$( getopt -o isrlmph --long interactive,ssh,rpms,lnet,mero,paritygroup,help \
+TEMP=$( getopt -o isrlmph --long interactive,ssh,rpms,lnet,motr,paritygroup,help \
         -n "$PROG_NAME" -- "$@" )
 
 [[ $? != 0 ]] && usage
@@ -226,9 +226,9 @@ while true ;
     	lnetstat
      	shift
     	;;
-     	-m|--mero)
+     	-m|--motr)
        	WHOLESYSTEM=0
-    	merostat
+    	motrstat
     	shift
     	;;  	
      	-p|--paritygroup)
@@ -259,7 +259,7 @@ if [ $WHOLESYSTEM -eq 1 ]; then
 	harerpms
 	lnetrpms
 	lnetstat
-	merostat
+	motrstat
 fi
 
 echo '#####'

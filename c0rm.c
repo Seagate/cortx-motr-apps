@@ -44,8 +44,8 @@ c0rm [option] idh idl\n\
 c0rm 1234 56789\n\
 c0rm -y 1234 56789\n\
 \n\
-idh - Mero fid high\n\
-idl - Mero fid low\n\
+idh - Motr fid high\n\
+idl - Motr fid low\n\
 \n\
 option is:\n\
 	-y | yes\n\

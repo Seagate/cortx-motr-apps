@@ -52,9 +52,9 @@ struct c0appz_isc_req {
 int c0appz_rmach_bulk_cutoff(struct m0_rpc_link *link, uint32_t *bulk_cutoff);
 
 /**
- * Loads a library to all Mero instances hosting an ISC service.
+ * Loads a library to all Motr instances hosting an ISC service.
  * It assumes that library is located at identical path on all
- * Mero instances.
+ * Motr instances.
  * */
 int c0appz_isc_api_register(const char *libpath);
 

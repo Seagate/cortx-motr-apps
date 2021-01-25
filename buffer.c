@@ -132,7 +132,7 @@ int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt)
 
 /*
  * c0appz_mr()
- * Reads data from a mero object to memory buffer.
+ * Reads data from a motr object to memory buffer.
  * Reads cnt number of blocks, each of size bsz starting at
  * off (byte) offset of the object.
  */
@@ -202,7 +202,7 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 
 /*
  * c0appz_mw()
- * Writes data from memory buffer to a mero object.
+ * Writes data from memory buffer to a motr object.
  * Writes cnt number of blocks, each of size bsz starting at
  * off (byte) offset of the object.
  */
@@ -269,7 +269,7 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 
 /*
  * c0appz_mw_async()
- * Writes data from memory buffer to a mero object in async mode op_cnt
+ * Writes data from memory buffer to a motr object in async mode op_cnt
  * operations at a time. Writes cnt number of blocks, each of size
  * bsz at off (byte) offset of the object.
  */

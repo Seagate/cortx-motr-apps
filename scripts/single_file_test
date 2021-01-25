@@ -19,7 +19,7 @@
 
 #!/usr/bin/env bash
 #
-# This script clean install given Mero packages.
+# This script clean install given Motr packages.
 # It should work on Red Hat and Debian based systems.
 #
 # Ganesan Umanesan <ganesan.umanesan@seagate.com>

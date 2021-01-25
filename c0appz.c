@@ -421,10 +421,10 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 	if (perf && rc == 0) {
 		time = (double) read_time / M0_TIME_ONE_SECOND;
 		fs_bw = off / 1000000.0 / time;
-		ppf("Mero I/O[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]",time, fs_bw);
+		ppf("Motr I/O[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]",time, fs_bw);
 		time = (double) write_time / M0_TIME_ONE_SECOND;
 		client_bw = off / 1000000.0 / time;
-		ppf("[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, client_bw);
+		ppf("[ \033[0;31mMOTR: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, client_bw);
 	}
 
 	return rc;
@@ -627,7 +627,7 @@ out:
 	if (perf && rc == 0) {
 		time = (double) read_time / M0_TIME_ONE_SECOND;
 		client_bw = off / 1000000.0 / time;
-		ppf("Mero I/O[ \033[0;31mMERO: %10.4lf s %10.4lf MB/s\033[0m ]",time, client_bw);
+		ppf("Motr I/O[ \033[0;31mMOTR: %10.4lf s %10.4lf MB/s\033[0m ]",time, client_bw);
 		time = (double) write_time / M0_TIME_ONE_SECOND;
 		fs_bw = off / 1000000.0 / time;
 		ppf("[ \033[0;31mOSFS: %10.4lf s %10.4lf MB/s\033[0m ]\n",time, fs_bw);
@@ -1005,7 +1005,7 @@ int c0appz_init(int idx)
 		m0_conf.mc_layout_id = lid;
 	}
 
-	/* IDX_MERO */
+	/* IDX_MOTR */
 	m0_conf.mc_idx_service_id   = M0_IDX_DIX;
 	dix_conf.kc_create_meta = false;
 	m0_conf.mc_idx_service_conf = &dix_conf;

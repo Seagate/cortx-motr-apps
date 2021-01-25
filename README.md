@@ -31,16 +31,16 @@ $ make vmrcf
 make clean
 ```
 
-### Clean install mero
+### Clean install motr
 
-The clean install mero script stops currently running m0singlenode,
-uninstall mero and mero-devel packages, removes all configuration and
+The clean install motr script stops currently running m0singlenode,
+uninstall motr and motr-devel packages, removes all configuration and
 storage disks. It then installs the new version pointed by directory path,
 configuraes it as a m0singlenode and starts services.
 
 ```sh
-$ ./scripts/clean_install_mero <rpms directory path>
-$ # (example) ./scripts/clean_install_mero ./rpms/jenkins-OSAINT_mero-1400-29-g7a51cbd/
+$ ./scripts/clean_install_motr <rpms directory path>
+$ # (example) ./scripts/clean_install_motr ./rpms/jenkins-OSAINT_motr-1400-29-g7a51cbd/
 ```
 
 ### Apps resource file <.[app]rc>
