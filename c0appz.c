@@ -882,6 +882,15 @@ int c0appz_isc_req_send_sync(struct c0appz_isc_req *req)
 	return req->cir_rc == 0 ? rc : req->cir_rc;
 }
 
+static void fop_fini_lock(struct m0_fop *fop)
+{
+	struct m0_rpc_machine *mach = m0_fop_rpc_machine(fop);
+
+	m0_rpc_machine_lock(mach);
+	m0_fop_fini(fop);
+	m0_rpc_machine_unlock(mach);
+}
+
 void c0appz_isc_req_fini(struct c0appz_isc_req *req)
 {
 	struct m0_fop *reply_fop;
@@ -889,8 +898,11 @@ void c0appz_isc_req_fini(struct c0appz_isc_req *req)
 	reply_fop = m0_rpc_item_to_fop(req->cir_fop.f_item.ri_reply);
 	if (reply_fop != NULL)
 		m0_fop_put_lock(reply_fop);
+	req->cir_fop.f_item.ri_reply = NULL;
 	m0_rpc_at_fini(&req->cir_isc_fop.fi_args);
 	m0_rpc_at_fini(&req->cir_isc_fop.fi_ret);
+	req->cir_fop.f_data.fd_data = NULL;
+	fop_fini_lock(&req->cir_fop);
 }
 
 /*
