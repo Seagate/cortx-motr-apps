@@ -3,8 +3,8 @@
 Preparing a library
 ===================
 
-APIs from an external library can't be linked directly with a mero instance.
-A library is supposed to have a function named "void mero_lib_init(void)".
+APIs from an external library can't be linked directly with a motr instance.
+A library is supposed to have a function named "void motr_lib_init(void)".
 All APIs from a library shall confine to the following signature:
 
 int comp(struct m0_buf *args, struct m0_buf *out,
@@ -16,11 +16,11 @@ Loading a library
 =================
 
 Using a spiel command (@see "spiel/spiel.h" and "c0appz_isc.h") a library can
-be loaded with any running mero instance. A helper function
+be loaded with any running motr instance. A helper function
 "c0appz_isc_api_register" (c0appz_isc.h) takes a path of the library, which is
-expected to be identical across all the nodes hosting a mero instance. Currently
+expected to be identical across all the nodes hosting a motr instance. Currently
 a utility c0isc_reg takes the path as an input and loads the library with remote
-mero instances.
+motr instances.
 
 On successful loading of the library the output looks like:
 
@@ -44,7 +44,7 @@ The second step builds a library libdemo.so
 
 ping
 ----
-This functionality pings all ISC services present in Mero configuration and
+This functionality pings all ISC services present in Motr configuration and
 returns "Hello-World@<service-fid>" till it encounters a service that's down.
 
 min / max
@@ -68,10 +68,10 @@ c0isc_demo.c contains a code which can be extended to develop any application.
 What's not present ?
 ====================
 
-Data serialisation is necessary for communicating with remote service. Mero
+Data serialisation is necessary for communicating with remote service. Motr
 serialises using gccxml and an internal utility gccxml2xcode. Incorporating
-this utility in Mero rpm is currently scheduled and not part of current
-Mero master. The demo includes a simplistic serialisation technique and
+this utility in Motr rpm is currently scheduled and not part of current
+Motr master. The demo includes a simplistic serialisation technique and
 is not scalable as is.
 
 Async communication with remote services is possible but the demo does not

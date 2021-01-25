@@ -14,9 +14,9 @@ sudo cp /etc/modprobe.d/lnet.conf /etc/modprobe.d/lnet.conf.bak
 
 sudo yum remove lustre-client lustre-client-devel kmod-lustre-client -y
 sudo rm -rf /usr/src/lustre-client-*
-sudo rm -rf /usr/libexec/mero/
-sudo rm -rf /etc/mero/
-sudo rm -rf /var/mero/
+sudo rm -rf /usr/libexec/motr/
+sudo rm -rf /etc/motr/
+sudo rm -rf /var/motr/
 sudo yum install ./lustre-client*.rpm lustre-client-devel*.rpm kmod-lustre-client*.rpm -y
 sudo yum install ./eos-core-*.rpm ./eos-core-devel-*.rpm -y
 

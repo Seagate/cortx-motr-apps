@@ -97,10 +97,10 @@ def fid2str(fid):
 def regenerate(tier_name, tier_file, client, no_ssh):
     # with open('/tmp/tier2.json') as f:
     #    tier_json = json.load(f)
-    hctl_mero_status = subprocess.check_output(
+    hctl_motr_status = subprocess.check_output(
         ([] if no_ssh else ["ssh", client]) +
-        "hctl mero status --json".split())
-    tier_json = json.loads(hctl_mero_status)
+        "hctl motr status --json".split())
+    tier_json = json.loads(hctl_motr_status)
     clients = {h[1]['crnProcesses'][0][0]['r_endpoint'].split('@')[0]:
                h[1]['crnProcesses']
                for h in tier_json['csrHosts']

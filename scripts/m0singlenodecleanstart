@@ -2,7 +2,7 @@
 set -x
 sudo m0singlenode stop
 sudo m0singlenode activate
-sudo rm -rf /etc/mero/ /var/mero
+sudo rm -rf /etc/motr/ /var/motr
 sudo m0singlenode activate
 sudo m0setup -cv
 sudo m0setup -Mv

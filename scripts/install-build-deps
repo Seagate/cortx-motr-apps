@@ -19,7 +19,7 @@
 
 #!/usr/bin/env bash
 #
-# This script installs all packages, which are required to build Mero.
+# This script installs all packages, which are required to build Motr.
 # It should work on Red Hat and Debian based systems.
 #
 # Global vars
@@ -28,8 +28,8 @@
 readonly PROG_NAME=$(basename $0)
 
 declare -rA RPM_PACKAGE=(
-    [mero]='mero'
-    [mero-devel]='mero-devel'
+    [motr]='motr'
+    [motr-devel]='motr-devel'
     [binutils]='binutils'
     [gcc]='gcc'
     [make]='make'
@@ -66,9 +66,9 @@ Usage: $PROG_NAME [-h|--help] [-n|--dry-run]
     -n|--dry-run        Don't perform any action, just show what would be
                         installed.
 
-    -l|--list-all       List all Mero build dependencies
+    -l|--list-all       List all Motr build dependencies
 
-    -m|--list-missing   List Mero build dependencies, which are not currently
+    -m|--list-missing   List Motr build dependencies, which are not currently
                         installed.
 
     -h|--help           Print this help screen.
@@ -264,7 +264,7 @@ if [[ -n $missing_pkgs ]]; then
     fi
 else
     echo '--- Nothing to be done ---'
-    #echo 'Seems that all Mero build dependencies are satisfied.'
+    #echo 'Seems that all Motr build dependencies are satisfied.'
 fi
 
 if [[ -n $not_available_pkgs ]]; then

@@ -130,7 +130,7 @@ static void comp_reg(const char *f_name, int (*ftn)(struct m0_buf *arg_in,
 		fprintf(stderr, "Out of memory");
 }
 
-void mero_lib_init(void)
+void motr_lib_init(void)
 {
 	comp_reg("hello_world", hello_world);
 	comp_reg("arr_min", arr_min);
