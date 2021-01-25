@@ -364,6 +364,8 @@ int main(int argc, char **argv)
 		return -EINVAL;
 	}
 
+	m0trace_on = true;
+
 	/* initialize resources */
 	rc = c0appz_init(0);
 	if (rc != 0) {
