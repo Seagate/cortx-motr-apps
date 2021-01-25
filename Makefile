@@ -55,15 +55,14 @@ TARN = $(shell ls -la m0trace.* &> /dev/null | wc -l)
 NODE = $(shell eval uname -n)
 
 #compiler/linker options
-LFLAGS += -lm -lpthread -lrt -lgalois -lyaml -luuid -lmotr
+LFLAGS += -lm -lpthread -lrt -lyaml -luuid -lmotr
 CFLAGS += -I/usr/include/motr
 CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern
 CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing
 CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
 CFLAGS += -rdynamic
 ifneq ($(M0_SRC_DIR),)
-LFLAGS += -L$(M0_SRC_DIR)/motr/.libs -Wl,-rpath,$(M0_SRC_DIR)/motr/.libs
-LFLAGS += -L$(M0_SRC_DIR)/extra-libs/galois/src/.libs -Wl,-rpath,$(M0_SRC_DIR)/extra-libs/gf-complete/src/.libs
+LFLAGS += -L$(M0_SRC_DIR)/motr/.libs -Wl,-rpath=$(M0_SRC_DIR)/motr/.libs
 CFLAGS += -I$(M0_SRC_DIR) -I$(M0_SRC_DIR)/extra-libs/galois/include
 endif
 
