@@ -37,8 +37,7 @@ Currently we demonstrate three simple computations. The utility c0isc_demo can
 be used to invoke any of the computations supported. Following are the steps
 to view the demo output.
 1. make isc-clean
-2. make isc-lib-clean
-3. make isc-all
+2. make isc-all
 
 The second step builds a library libdemo.so
 
