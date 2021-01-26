@@ -304,7 +304,7 @@ static void* output_process(struct m0_buf *result, void *in_args,
 {
 	switch (type) {
 	case ICT_PING:
-		printf ("\nHello-%s@"FID_F "\n", (char *)result->b_addr,
+		printf ("Hello-%s@"FID_F"\n", (char *)result->b_addr,
 			FID_P((struct m0_fid *)op_args));
 		memset(result->b_addr, 'a', result->b_nob);
 		return NULL;
@@ -392,14 +392,15 @@ int main(int argc, char **argv)
 				   op_type, ip_args);
 		if (rc != 0) {
 			fprintf(stderr,
-				"\nerror! Input preparation failed: %d", rc);
+				"error! Input preparation failed: %d\n", rc);
 			break;
 		}
 		rc = c0appz_isc_req_prepare(&req, &buf, &comp_fid, &result,
 					    &svc_fid, reply_len);
 		if (rc != 0) {
-			fprintf(stderr, "\nerror! request preparation failed:"
-				"%d", rc);
+			m0_buf_free(&buf);
+			fprintf(stderr,
+				"error! request preparation failed: %d\n", rc);
 			goto out;
 		}
 		/*
@@ -431,11 +432,6 @@ int main(int argc, char **argv)
 	/* time out */
 	c0appz_timeout(0);
 
-	/* success */
-	if (rc == 0)
-		fprintf(stderr,"%s success\n", prog);
-	else
-		fprintf(stderr,"%s fail\n", prog);
 	return rc;
 }
 
