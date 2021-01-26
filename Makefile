@@ -94,25 +94,25 @@ $(C0RM): $(SRC) c0rm.c
 $(FGEN):
 	gcc -Wall -lssl -lcrypto fgen.c -o $(FGEN)
 
+#dd block size, count and filesize
+#dd can have any block size and a random
+#number of blocks, making the file size
+#random
+DDZ := 1032
+CNT := $(shell expr 100 + $$RANDOM % 1000)
+#CNT := $(shell expr 1024 \* 16)
+#CNT := 1024
+FSZ := $(shell expr $(DDZ) \* $(CNT))
+
+#c0cp block size
+#valid block sizes are: 4KB ~ 32MB
+#4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
+#1048576, 2097152, 4194304, 8388608, 16777216, 33554432
+BSZ := 64
+
 test: $(C0CP) $(C0CT) $(C0RM) $(FGEN)
-	#dd block size, count and filesize
-	#dd can have any block size and a random
-	#number of blocks, making the file size
-	#random
-	DDZ := 1032
-	CNT := $(shell expr 100 + $$RANDOM % 1000)
-	#CNT := $(shell expr 1024 \* 16)
-	#CNT := 1024
-	FSZ := $(shell expr $(DDZ) \* $(CNT) )
-
-	#c0cp block size
-	#valid block sizes are: 4KB ~ 32MB
-	#4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
-	#1048576, 2097152, 4194304, 8388608, 16777216, 33554432
-	BSZ := 64
-
-	FID1 := $(shell eval ./$(FGEN))
-	FID2 := $(shell eval ./$(FGEN))
+	$(eval FID1 := $(shell eval ./$(FGEN)))
+	$(eval FID2 := $(shell eval ./$(FGEN)))
 
 	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
 	@echo "#####"
