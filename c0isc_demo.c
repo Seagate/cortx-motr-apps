@@ -137,6 +137,8 @@ static int op_init(enum isc_comp_type type, void **ip_args)
 	case ICT_MIN:
 	case ICT_MAX:
 		M0_ALLOC_PTR(in_info);
+		if (in_info == NULL)
+			return -ENOMEM;
 		rc = file_to_array("c0isc_data", (void **)&arr, &arr_len);
 		if (rc != 0)
 			return rc;
@@ -154,19 +156,18 @@ static int op_init(enum isc_comp_type type, void **ip_args)
 	}
 }
 
-static void op_fini(enum isc_comp_type op_type, void *ip_args, void *op_args)
+static void op_fini(enum isc_comp_type op_type, struct mm_args *in_info,
+		    void *op_args)
 {
-	struct mm_args *in_info;
-
 	switch (op_type) {
 	case ICT_PING:
 		break;
 	case ICT_MIN:
 	case ICT_MAX:
-		if (ip_args == NULL)
+		if (in_info == NULL)
 			break;
-		in_info = ip_args;
 		m0_free(in_info->ma_arr);
+		m0_free(in_info);
 		m0_free(op_args);
 	}
 }
