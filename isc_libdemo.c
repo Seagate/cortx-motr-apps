@@ -76,7 +76,6 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 	uint32_t          i;
 	double           *arr;
 	struct mm_result  curr_min;
-	struct m0_buf     buf_local;
 
 	if (in->b_nob == 0) {
 		*out = M0_BUF_INIT0;
@@ -96,8 +95,8 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 		}
 	}
 
-	m0_buf_init(&buf_local, &curr_min, sizeof curr_min);
-	*rc = m0_buf_copy_aligned(out, &buf_local, M0_0VEC_SHIFT);
+	*rc = m0_buf_new_aligned(out, &curr_min, sizeof curr_min,
+				 M0_0VEC_SHIFT);
 
 	return M0_FSO_AGAIN;
 }
