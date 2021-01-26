@@ -45,6 +45,8 @@ struct mm_args {
 	double   *ma_arr;
 	/** Number of isc services. */
 	uint32_t  ma_svc_nr;
+	/** Length of a chunk per service. */
+	uint32_t  ma_chunk_len;
 	/** A service currently fed with input. */
 	uint32_t  ma_curr_svc_id;
 };
@@ -81,7 +83,7 @@ static int file_to_array(const char *file_name, void **arr, uint32_t *arr_len)
 	int       rc;
 	double   *val_arr;
 
-	fd = fopen("c0isc_data", "r");
+	fd = fopen(file_name, "r");
 	if (fd == NULL) {
 		fprintf(stderr, "error! Could not open file c0isc_data\n");
 		return -EINVAL;
@@ -92,8 +94,9 @@ static int file_to_array(const char *file_name, void **arr, uint32_t *arr_len)
 	for (i = 0; i < *arr_len; ++i) {
 		rc = fscanf(fd, "%lf", &val_arr[i]);
 		if (rc == EOF) {
-			fprintf(stderr, "File does not contain specified number"
-					"of elements");
+			fprintf(stderr, "data file (%s) does not contain the "
+				"specified number of elements: %d\n",
+				file_name, *arr_len);
 			m0_free(val_arr);
 			fclose(fd);
 			return -EINVAL;
@@ -141,6 +144,7 @@ static int op_init(enum isc_comp_type type, void **ip_args)
 		in_info->ma_len = arr_len;
 		in_info->ma_curr_svc_id = 0;
 		in_info->ma_svc_nr = isc_services_count();
+		in_info->ma_chunk_len = arr_len / in_info->ma_svc_nr;
 		*ip_args = in_info;
 
 		return 0;
@@ -163,7 +167,6 @@ static void op_fini(enum isc_comp_type op_type, void *ip_args, void *op_args)
 			break;
 		in_info = ip_args;
 		m0_free(in_info->ma_arr);
-		M0_SET0(in_info);
 		m0_free(op_args);
 	}
 }
@@ -173,26 +176,20 @@ static bool is_last_service(struct mm_args *in_info)
 	return in_info->ma_curr_svc_id + 1 == in_info->ma_svc_nr;
 }
 
-static uint32_t buf_len_calc(struct mm_args *in_info)
-{
-	uint32_t chunk_size;
-	uint32_t buf_len;
-
-	/* All services except one get chunk_size of an array. */
-	chunk_size = in_info->ma_len / in_info->ma_svc_nr;
-
-	/* Need to incorporate the remainder into last service. */
-	buf_len = is_last_service(in_info) ?
-		in_info->ma_len - in_info->ma_curr_svc_id * chunk_size :
-		chunk_size;
-
-	return buf_len;
-}
-
 static uint32_t offset_calc(struct mm_args *in_info)
 {
-	return in_info->ma_curr_svc_id *
-		(in_info->ma_len / in_info->ma_svc_nr);
+	return in_info->ma_curr_svc_id * in_info->ma_chunk_len;
+}
+
+static uint32_t buf_len_calc(struct mm_args *in_info)
+{
+	/*
+	 * All services except one get ma_chunk_len of an array.
+	 * Need to incorporate the remainder into last service.
+	 */
+	return is_last_service(in_info) ?
+		in_info->ma_len - offset_calc(in_info) :
+		in_info->ma_chunk_len;
 }
 
 static int minmax_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
@@ -279,17 +276,17 @@ static void *minmax_output_prepare(struct m0_buf *result,
 	if (prev == NULL) {
 		M0_ALLOC_PTR(prev);
 		memcpy(prev, result->b_addr, sizeof prev[0]);
-		++in_info->ma_curr_svc_id;
-		return prev;
+		goto out;
 	}
 	new = result->b_addr;
 	/** Service sent index from sub-array. */
-	new->mr_idx = new->mr_idx + offset_calc(in_info);
+	new->mr_idx += offset_calc(in_info);
 	/* Copy the current optimal value. */
 	*prev =  *op_result(prev, new, type);
+ out:
 	/* Print the output. */
 	if (is_last_service(in_info))
-		fprintf(stderr, "\nidx=%d\tval=%lf\n", prev->mr_idx,
+		fprintf(stderr, "idx=%d val=%lf\n", prev->mr_idx,
 			prev->mr_val);
 	/** Bookkeep the count of services communicated so far. */
 	++in_info->ma_curr_svc_id;
@@ -385,17 +382,16 @@ int main(int argc, char **argv)
 	/* Initialise the  parameters for operation. */
 	rc = op_init(op_type, &ip_args);
 	while (rc == 0) {
+		rc = c0appz_isc_nxt_svc_get(&start_fid, &svc_fid, M0_CST_ISCS);
+		if (rc != 0)
+			break;
+
 		/* Prepare arguments for computation. */
 		rc = input_prepare(&buf, &comp_fid, &reply_len,
 				   op_type, ip_args);
 		if (rc != 0) {
 			fprintf(stderr,
 				"\nerror! Input preparation failed: %d", rc);
-			break;
-		}
-		rc = c0appz_isc_nxt_svc_get(&start_fid, &svc_fid, M0_CST_ISCS);
-		if (rc != 0) {
-			m0_buf_free(&buf);
 			break;
 		}
 		rc = c0appz_isc_req_prepare(&req, &buf, &comp_fid, &result,
@@ -415,9 +411,11 @@ int main(int argc, char **argv)
 				op_args = &svc_fid;
 			op_args = output_process(&result, ip_args, op_args,
 						 op_type);
-		} else
-			fprintf(stderr, "Error %d received\n Check if "
-				"the relevant library is loaded\n", rc);
+		} else {
+			fprintf(stderr, "Error from "FID_F" received: rc=%d\n"
+				"Check if the relevant library is loaded\n",
+				FID_P(&svc_fid), rc);
+		}
 		c0appz_isc_req_fini(&req);
 		start_fid = svc_fid;
 	}
@@ -425,7 +423,7 @@ int main(int argc, char **argv)
 	if (rc == -ENOENT)
 		rc = 0;
 	op_fini(op_type, ip_args, op_args);
-out:
+ out:
 	/* free resources*/
 	c0appz_free();
 
