@@ -98,27 +98,25 @@ main()
 	then
 		proc_nr=$1
 	fi
+	
+	haddr="${IP}:12345:45:1"
+	pfid='0x7000000000000001:0'
+	tier1="0x6f00000000000001:0xc74"
+	echo "HA_ENDPOINT_ADDR"$'\t=' "${haddr}"
+	echo "PROFILE_FID"$'\t\t=' "${pfid}"
+	echo
+	echo "M0_POOL_TIER1 = ${tier1}"
+	echo
+
 	for ((i=0; i < $proc_nr; i++)); do
-		haddr="${IP}:12345:45:1"
-		pfid='0x7000000000000001:0'
-		tier1="0x6f00000000000001:0xc74"
-		#	port[$i]=`$base_port + $i`
 		hint=$(($base_port+$i))
 		unused_port_get "$hint"
 		laddr="${IP}:12345:44:$port"
 		lpid='0x7200000000000000:0' 
+
+		echo "LOCAL_ENDPOINT_ADDR$i"$'\t=' "${laddr}"
+		echo "LOCAL_PROC_FID$i"$'\t\t=' "${lpid}" 
 	done
-		
-	echo "HA_ENDPOINT_ADDR"$'\t=' "${haddr}"
-	echo "PROFILE_FID"$'\t\t=' "${pfid}"
-	echo
-
-	echo "M0_POOL_TIER1 = ${tier1}"
-	echo
-
-	echo "LOCAL_ENDPOINT_ADDR0"$'\t=' "${laddr}"
-	echo "LOCAL_PROC_FID0"$'\t\t=' "${lpid}" 
-	
 }
 
 main $1
