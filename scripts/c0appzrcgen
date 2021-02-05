@@ -84,6 +84,32 @@ unused_port_get()
 	port=$hint
 }
 
+mio()
+{
+	read -r -d '' YAML <<EOF
+# $USER $HOSTNAME
+# MIO configuration Yaml file. 
+#MIO_Config_Sections: [MIO_CONFIG, MOTR_CONFIG]
+MIO_CONFIG:
+  MIO_LOG_FILE:
+  MIO_LOG_LEVEL: MIO_DEBUG 
+  MIO_DRIVER: MOTR
+MOTR_CONFIG:
+  MOTR_USER_GROUP: motr 
+  MOTR_INST_ADDR: $1
+  MOTR_HA_ADDR: $2
+  MOTR_PROFILE: <$3>
+  MOTR_PROCESS_FID: <$4>
+  MOTR_DEFAULT_UNIT_SIZE: 1048576
+  MOTR_IS_OOSTORE: 1
+  MOTR_IS_READ_VERIFY: 0
+  MOTR_TM_RECV_QUEUE_MIN_LEN: 2
+  MOTR_MAX_RPC_MSG_SIZE: 131072
+EOF
+
+	echo "$YAML"
+}
+
 main()
 {
 	ip_generate
@@ -99,9 +125,18 @@ main()
 		proc_nr=$1
 	fi
 	
+	hint=$(($base_port+0))
+	unused_port_get "$hint"
 	haddr="${IP}:12345:45:1"
 	pfid='0x7000000000000001:0'
 	tier1="0x6f00000000000001:0xc74"
+	laddr="${IP}:12345:44:$port"
+	lpid='0x7200000000000000:0' 
+
+	[[ "$1" == "--mio" ]] && 
+		mio "${laddr}" "${haddr}" "${pfid}" "${lpid}" &&
+			exit
+
 	echo "HA_ENDPOINT_ADDR"$'\t=' "${haddr}"
 	echo "PROFILE_FID"$'\t\t=' "${pfid}"
 	echo
