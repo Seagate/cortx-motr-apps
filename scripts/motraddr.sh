@@ -7,13 +7,15 @@
 # 14/12/2020 - initial script
 # 28/12/2020 - MIO yaml format added
 # 05/01/2021 - Bash export format added 
+# 20/02/2021 - hastatus.yaml in /etc/motr
 #
 
-hastatus=$(mktemp --tmpdir hastatus.XXXXXX)
+hastatusetc='/etc/motr/hastatus.yaml'
+hastatustmp=$(mktemp --tmpdir hastatus.XXXXXX)
 
 cleanup()
 {
-        rm -f $hastatus
+        rm -f $hastatustmp
 }
 
 trap cleanup EXIT
@@ -21,7 +23,9 @@ trap cleanup EXIT
 #c="client-22"
 #ssh client-21 hctl status > $hastatus
 c=$HOSTNAME
-hctl status > $hastatus
+
+[[ -f "$hastatusetc" ]] && hastatus=$hastatusetc
+[[ ! -f "$hastatusetc" ]] && hctl status > $hastatustmp && hastatus=$hastatustmp
 
 r=$((3 + $RANDOM % 16))
 p=()
