@@ -219,18 +219,27 @@ bigtest:
 #MPI Appz
 #
 
-EXE6 = mpix
+MPIX = mpix
 
-mpix:
-	mpicc c0appz.c mpiapp.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(EXE6)
+$(MPIX): $(SRC) mpiapp.c
+	mpicc $(SRC) mpiapp.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(MPIX)
 
 mpi-clean:
+	rm -f *.o *.d *.d.*
 	rm -f m0trace.*
-	rm -f $(EXE6)
+	rm -f $(MPIX)
 
 mpi-sagercf:
-	mkdir -p .${EXE6}rc
-	$(APPASSIGN) ganesan $(EXE6) 172.18.1.${c} > .$(EXE6)rc/client-${c}
+	mkdir -p $(RCDIR)/${MPIX}rc
+	./scripts/motraddr.sh > out-$(HOSTNAME).txt
+	@echo "#####"
+	cat ./out-$(HOSTNAME).txt
+	@echo "#####"
+	cp out-$(HOSTNAME).txt $(RCDIR)/$(MPIX)rc/$(NODE)
+	rm -rf out-$(HOSTNAME).txt
+
+mpi-test:
+	mpirun -hosts $(NODE) -np 1 ./$(MPIX)
 
 #
 #ISC Demo

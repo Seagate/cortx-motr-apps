@@ -90,6 +90,7 @@ int main(int argc, char **argv)
 #endif
 
 #if DCLOVIS
+	int rc;
 	fprintf(stderr,"MPI rank [ %d ] c0appz_init(%d) [**]\n",wrank,idx);
 	/* initialize resources */
 	rc = c0appz_init(idx);
