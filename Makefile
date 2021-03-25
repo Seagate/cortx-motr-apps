@@ -231,7 +231,7 @@ mpi-clean:
 
 mpi-sagercf:
 	mkdir -p $(RCDIR)/${MPIX}rc
-	./scripts/motraddr.sh > out-$(HOSTNAME).txt
+	./scripts/motraddr.sh 2 > out-$(HOSTNAME).txt
 	@echo "#####"
 	cat ./out-$(HOSTNAME).txt
 	@echo "#####"
@@ -239,7 +239,7 @@ mpi-sagercf:
 	rm -rf out-$(HOSTNAME).txt
 
 mpi-test:
-	mpirun -hosts $(NODE) -np 1 ./$(MPIX)
+	mpirun -hosts $(NODE) -np 2 ./$(MPIX)
 
 #
 #ISC Demo

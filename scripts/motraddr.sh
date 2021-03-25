@@ -27,7 +27,7 @@ c=$HOSTNAME
 [[ -f "$hastatusetc" ]] && hastatus=$hastatusetc
 [[ ! -f "$hastatusetc" ]] && hctl status > $hastatustmp && hastatus=$hastatustmp
 
-r=$((3 + $RANDOM % 16))
+r=$((0 + $RANDOM % 16))
 p=()
 
 # HA_ENDPOINT_ADDR
@@ -47,11 +47,11 @@ p[4]=$(sed -n '/pools:/,/^[A-Za-z]/p' $hastatus | grep -E 'tier.+p3' | awk '{pri
 [[ -z "${p[4]}" ]] && { echo "Error: M0_POOL_TIER3 not found"; exit 1; }
 
 # LOCAL_ENDPOINT_ADDR0
-p[5]=$(grep -A$r $c $hastatus | tail -n1 | awk '{print $4}')
+p[5]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
 [[ -z "${p[5]}" ]] && { echo "Error: LOCAL_ENDPOINT_ADDR0 not found"; exit 1; }
 
 # LOCAL_PROC_FID0
-p[6]=$(grep -A$r $c $hastatus | tail -n1 | awk '{print $3}')
+p[6]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $3}')
 [[ -z "${p[6]}" ]] && { echo "Error: LOCAL_PROC_FID0 not found"; exit 1; }
 
 usage()
@@ -162,3 +162,16 @@ echo "M0_POOL_TIER3 = ${p[4]}"
 echo
 echo "LOCAL_ENDPOINT_ADDR0 = ${p[5]}"
 echo "LOCAL_PROC_FID0 = ${p[6]}"
+[[ -z "$1" ]] &&  k=1 || k=$1
+for (( i=1; i<$k; i++ ))
+do
+	### local end point
+	str=$(grep -A$((2+($r+$i)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
+	[[ -z "$str" ]] && { echo "Error: LOCAL_ENDPOINT_ADDR0 not found"; exit 1; }
+	echo "LOCAL_ENDPOINT_ADDR$i = $str"
+	### local process fid
+	str=$(grep -A$((2+($r+$i)%16)) $c $hastatus | tail -n1 | awk '{print $3}')
+	[[ -z "$str" ]] && { echo "Error: LOCAL_PROC_FID0 not found"; exit 1; }
+	echo "LOCAL_PROC_FID$i = $str"
+done
+
