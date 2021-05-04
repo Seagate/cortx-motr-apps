@@ -87,11 +87,13 @@ mio()
 	read -r -d '' YAML <<EOF
 # $USER $HOSTNAME
 # MIO configuration Yaml file. 
-#MIO_Config_Sections: [MIO_CONFIG, MOTR_CONFIG]
+# MIO_Config_Sections: [MIO_CONFIG, MOTR_CONFIG]
 MIO_CONFIG:
-  MIO_LOG_FILE:
+  MIO_LOG_DIR:
   MIO_LOG_LEVEL: MIO_DEBUG 
   MIO_DRIVER: MOTR
+  MIO_TELEMETRY_STORE: ADDB
+  
 MOTR_CONFIG:
   MOTR_USER_GROUP: motr 
   MOTR_INST_ADDR: ${p[5]}
@@ -103,6 +105,19 @@ MOTR_CONFIG:
   MOTR_IS_READ_VERIFY: 0
   MOTR_TM_RECV_QUEUE_MIN_LEN: 2
   MOTR_MAX_RPC_MSG_SIZE: 131072
+  MOTR_POOLS:
+     # Set SAGE cluster pools, ranking from high performance to low. 
+     # The pool configuration parameters can be queried using hare.
+     # MOTR_POOL_TYPE currently Only supports HDD, SSD or NVM.
+     - MOTR_POOL_NAME:	Pool1  
+       MOTR_POOL_ID:  	${p[2]}
+       MOTR_POOL_TYPE: 	NVM
+     - MOTR_POOL_NAME: 	Pool2
+       MOTR_POOL_ID:	${p[3]}   
+       MOTR_POOL_TYPE:	SSD
+     - MOTR_POOL_NAME: 	Pool3
+       MOTR_POOL_ID: 	${p[4]}
+       MOTR_POOL_TYPE: 	HDD
 EOF
 
 	echo "$YAML"
