@@ -323,8 +323,9 @@ char *prog;
 
 static void usage_print()
 {
-	fprintf(stderr, "Usage: %s op_name\n", prog);
-	fprintf(stderr, "  supported operations: ping, min, max.\n");
+	fprintf(stderr, "Usage: %s op_name\n\n", prog);
+	fprintf(stderr, "  Supported operations: ping, min, max.\n");
+	fprintf(stderr, "  Refer to README.isc.\n");
 }
 
 int main(int argc, char **argv)
