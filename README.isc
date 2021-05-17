@@ -24,11 +24,10 @@ motr instances.
 
 On successful loading of the library the output looks like:
 
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++
 $ ./c0isc_reg $PWD/libdemo.so
-[ cput: 1.11 s 0.00 Mbs ][ wclk: 7.20 s 0.00 Mbs ]
 c0isc_reg success
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++
 
 Demo computations
 =================
@@ -47,22 +46,30 @@ This functionality pings all ISC services present in Motr configuration and
 returns "Hello-World@<service-fid>" till it encounters a service that's down.
 
 min / max
---------
+---------
 
 This functionality reads a file (c0isc_data) co-located with the utility and
 identifies the min or max depending upon the input option provided. On
 successful completion it shows following output format:
 
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++
 $ ./c0isc_demo min
-idx=13val=-14234.430000
-[ cput: 1.07 s 0.00 Mbs ][ wclk: 4.12 s 0.00 Mbs ]
-c0isc_demo success
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+idx=0 val=1.100000
+$ ./c0isc_demo max
+idx=2 val=3.300000
++++++++++++++++++++++
 
-It assumes the presence of file"c0isc_data" and it prints the index
-of the optimal (min or max) value and its index (indexing starting with 0).
-c0isc_demo.c contains a code which can be extended to develop any application.
+The numbers in c0isc_data file are stored in text format delimited by space
+(or newline): first integer specifies the number of elements followed by
+the floating point elements themselves. For example:
+
++++++++++++++++++++
+$ cat c0isc_data
+3
+1.1
+2.2
+3.3
++++++++++++++++++++
 
 What's not present ?
 ====================
