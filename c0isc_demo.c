@@ -23,12 +23,14 @@
 
 #include <libgen.h>      /* dirname */
 
+#include "xcode/xcode.h"
 #include "conf/schema.h" /* M0_CST_ISCS */
 #include "lib/memory.h"  /* m0_alloc m0_free */
 
 #include "c0appz.h"
 #include "c0appz_isc.h"  /* c0appz_isc_req */
-#include "libdemo.h"     /* mm_result */
+#include "isc/libdemo.h"     /* mm_result */
+#include "isc/libdemo_xc.h"     /* isc_args_xc */
 
 
 enum isc_comp_type {
@@ -182,7 +184,7 @@ static uint32_t offset_calc(struct mm_args *in_info)
 	return in_info->ma_curr_svc_id * in_info->ma_chunk_len;
 }
 
-static uint32_t buf_len_calc(struct mm_args *in_info)
+static uint32_t chunk_len_calc(struct mm_args *in_info)
 {
 	/*
 	 * All services except one get ma_chunk_len of an array.
@@ -197,17 +199,30 @@ static int minmax_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 				uint32_t *reply_len, enum isc_comp_type type,
 				struct mm_args *in_info)
 {
-	uint32_t buf_len = buf_len_calc(in_info);
-	uint32_t offset  = offset_calc(in_info);
+	int           rc;
+	struct m0_buf buf_local = M0_BUF_INIT0;
+	struct isc_args a;
+
+	*buf = M0_BUF_INIT0;
+
+	a.ia_arr = in_info->ma_arr + offset_calc(in_info);
+	a.ia_len = chunk_len_calc(in_info);
+
+	rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(isc_args_xc, &a),
+				     &buf_local.b_addr, &buf_local.b_nob);
+	if (rc != 0)
+		return rc;
+
+	rc = m0_buf_copy_aligned(buf, &buf_local, M0_0VEC_SHIFT);
 
 	if (type == ICT_MIN)
 		fid_get("arr_min", comp_fid);
 	else
 		fid_get("arr_max", comp_fid);
+
 	*reply_len = CBL_DEFAULT_MAX;
 
-	return m0_buf_new_aligned(buf, in_info->ma_arr + offset, buf_len,
-				  M0_0VEC_SHIFT);
+	return rc;
 }
 
 static int ping_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,

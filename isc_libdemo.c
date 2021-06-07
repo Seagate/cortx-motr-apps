@@ -27,7 +27,8 @@
 #include "iscservice/isc.h" /* m0_isc_comp_register */
 #include "fop/fom.h"        /* M0_FSO_AGAIN */
 
-#include "libdemo.h"
+#include "isc/libdemo.h"
+#include "isc/libdemo_xc.h"
 
 static void fid_get(const char *f_name, struct m0_fid *fid)
 {
@@ -75,15 +76,16 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 	uint32_t          arr_len;
 	uint32_t          i;
 	double           *arr;
+	struct isc_args   a;
 	struct mm_result  curr_min;
 
-	if (in->b_nob == 0) {
-		*out = M0_BUF_INIT0;
-		*rc = -EINVAL;
+	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_args_xc, &a),
+				       in->b_addr, in->b_nob);
+	if (*rc != 0)
 		return M0_FSO_AGAIN;
-	}
-	arr_len = in->b_nob / sizeof arr[0];
-	arr     = in->b_addr;
+
+	arr_len = a.ia_len;
+	arr     = a.ia_arr;
 	curr_min.mr_idx = 0;
 	curr_min.mr_val = arr[0];
 

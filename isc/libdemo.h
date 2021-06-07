@@ -21,11 +21,19 @@
  * Original creation date: 06-Sep-2018
  */
 
+#include "lib/types.h"
+#include "xcode/xcode_attr.h"
+
 /** Holds the result of min and max computations. */
 struct mm_result {
 	uint32_t mr_idx;
 	double   mr_val;
 };
+
+struct isc_args {
+	uint32_t ia_len;
+	double  *ia_arr;
+} M0_XCA_SEQUENCE;
 
 /*
  *  Local variables:
