@@ -7,13 +7,15 @@
 # 14/12/2020 - initial script
 # 28/12/2020 - MIO yaml format added
 # 05/01/2021 - Bash export format added 
+# 20/02/2021 - hastatus.yaml in /etc/motr
 #
 
-hastatus=$(mktemp --tmpdir hastatus.XXXXXX)
+hastatusetc='/etc/motr/hastatus.yaml'
+hastatustmp=$(mktemp --tmpdir hastatus.XXXXXX)
 
 cleanup()
 {
-        rm -f $hastatus
+        rm -f $hastatustmp
 }
 
 trap cleanup EXIT
@@ -21,9 +23,11 @@ trap cleanup EXIT
 #c="client-22"
 #ssh client-21 hctl status > $hastatus
 c=$HOSTNAME
-hctl status > $hastatus
 
-r=$((3 + $RANDOM % 16))
+[[ -f "$hastatusetc" ]] && hastatus=$hastatusetc
+[[ ! -f "$hastatusetc" ]] && hctl status > $hastatustmp && hastatus=$hastatustmp
+
+r=$((0 + $RANDOM % 16))
 p=()
 
 # HA_ENDPOINT_ADDR
@@ -43,11 +47,11 @@ p[4]=$(sed -n '/pools:/,/^[A-Za-z]/p' $hastatus | grep -E 'tier.+p3' | awk '{pri
 [[ -z "${p[4]}" ]] && { echo "Error: M0_POOL_TIER3 not found"; exit 1; }
 
 # LOCAL_ENDPOINT_ADDR0
-p[5]=$(grep -A$r $c $hastatus | tail -n1 | awk '{print $4}')
+p[5]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
 [[ -z "${p[5]}" ]] && { echo "Error: LOCAL_ENDPOINT_ADDR0 not found"; exit 1; }
 
 # LOCAL_PROC_FID0
-p[6]=$(grep -A$r $c $hastatus | tail -n1 | awk '{print $3}')
+p[6]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $3}')
 [[ -z "${p[6]}" ]] && { echo "Error: LOCAL_PROC_FID0 not found"; exit 1; }
 
 usage()
@@ -83,11 +87,13 @@ mio()
 	read -r -d '' YAML <<EOF
 # $USER $HOSTNAME
 # MIO configuration Yaml file. 
-#MIO_Config_Sections: [MIO_CONFIG, MOTR_CONFIG]
+# MIO_Config_Sections: [MIO_CONFIG, MOTR_CONFIG]
 MIO_CONFIG:
-  MIO_LOG_FILE:
+  MIO_LOG_DIR:
   MIO_LOG_LEVEL: MIO_DEBUG 
   MIO_DRIVER: MOTR
+  MIO_TELEMETRY_STORE: ADDB
+  
 MOTR_CONFIG:
   MOTR_USER_GROUP: motr 
   MOTR_INST_ADDR: ${p[5]}
@@ -97,8 +103,21 @@ MOTR_CONFIG:
   MOTR_DEFAULT_UNIT_SIZE: 1048576
   MOTR_IS_OOSTORE: 1
   MOTR_IS_READ_VERIFY: 0
-  MOTR_TM_RECV_QUEUE_MIN_LEN: 2
+  MOTR_TM_RECV_QUEUE_MIN_LEN: 64
   MOTR_MAX_RPC_MSG_SIZE: 131072
+  MOTR_POOLS:
+     # Set SAGE cluster pools, ranking from high performance to low. 
+     # The pool configuration parameters can be queried using hare.
+     # MOTR_POOL_TYPE currently Only supports HDD, SSD or NVM.
+     - MOTR_POOL_NAME:	Pool1  
+       MOTR_POOL_ID:  	${p[2]}
+       MOTR_POOL_TYPE: 	NVM
+     - MOTR_POOL_NAME: 	Pool2
+       MOTR_POOL_ID:	${p[3]}   
+       MOTR_POOL_TYPE:	SSD
+     - MOTR_POOL_NAME: 	Pool3
+       MOTR_POOL_ID: 	${p[4]}
+       MOTR_POOL_TYPE: 	HDD
 EOF
 
 	echo "$YAML"
@@ -158,3 +177,16 @@ echo "M0_POOL_TIER3 = ${p[4]}"
 echo
 echo "LOCAL_ENDPOINT_ADDR0 = ${p[5]}"
 echo "LOCAL_PROC_FID0 = ${p[6]}"
+[[ -z "$1" ]] &&  k=1 || k=$1
+for (( i=1; i<$k; i++ ))
+do
+	### local end point
+	str=$(grep -A$((2+($r+$i)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
+	[[ -z "$str" ]] && { echo "Error: LOCAL_ENDPOINT_ADDR0 not found"; exit 1; }
+	echo "LOCAL_ENDPOINT_ADDR$i = $str"
+	### local process fid
+	str=$(grep -A$((2+($r+$i)%16)) $c $hastatus | tail -n1 | awk '{print $3}')
+	[[ -z "$str" ]] && { echo "Error: LOCAL_PROC_FID0 not found"; exit 1; }
+	echo "LOCAL_PROC_FID$i = $str"
+done
+

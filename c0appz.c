@@ -868,16 +868,21 @@ int c0appz_isc_req_send_sync(struct c0appz_isc_req *req)
 	rc = m0_rpc_post_sync(&req->cir_fop, &req->cir_rpc_link->rlk_sess, NULL,
 			      M0_TIME_IMMEDIATELY);
 	if (rc != 0) {
-		fprintf(stderr, "error! request could not be sent");
+		fprintf(stderr, "Failed to send request to "FID_F": rc=%d\n",
+			FID_P(&req->cir_proc), rc);
 		return rc;
 	}
 	reply_fop = m0_rpc_item_to_fop(req->cir_fop.f_item.ri_reply);
 	isc_reply = *(struct m0_fop_isc_rep *)m0_fop_data(reply_fop);
 	req->cir_rc = isc_reply.fir_rc;
+	if (req->cir_rc != 0)
+		fprintf(stderr, "Got error from "FID_F": rc=%d\n",
+			FID_P(&req->cir_proc), rc);
 	rc = m0_rpc_at_rep_get(&req->cir_isc_fop.fi_ret, &isc_reply.fir_ret,
 			       req->cir_result);
 	if (rc != 0)
-		fprintf(stderr, "\nerror! m0_rpc_at_get returned %d\n", rc);
+		fprintf(stderr, "rpc_at_rep_get() from "FID_F" failed: rc=%d\n",
+			FID_P(&req->cir_proc), rc);
 
 	return req->cir_rc == 0 ? rc : req->cir_rc;
 }

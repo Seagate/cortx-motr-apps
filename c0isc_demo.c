@@ -188,36 +188,26 @@ static uint32_t buf_len_calc(struct mm_args *in_info)
 	 * All services except one get ma_chunk_len of an array.
 	 * Need to incorporate the remainder into last service.
 	 */
-	return is_last_service(in_info) ?
+	return (is_last_service(in_info) ?
 		in_info->ma_len - offset_calc(in_info) :
-		in_info->ma_chunk_len;
+		in_info->ma_chunk_len) * sizeof in_info->ma_arr[0];
 }
 
 static int minmax_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 				uint32_t *reply_len, enum isc_comp_type type,
 				struct mm_args *in_info)
 {
-	struct m0_buf buf_local = M0_BUF_INIT0;
-	uint32_t      buf_len;
-	uint32_t      offset;
-	int           rc;
+	uint32_t buf_len = buf_len_calc(in_info);
+	uint32_t offset  = offset_calc(in_info);
 
-	*buf = M0_BUF_INIT0;
-	/** Calculate parameters relevant to array to be communicated. */
-	buf_len = buf_len_calc(in_info);
-	offset  = offset_calc(in_info);
-
-	/** A local buffer pointing to appropriate offset in the array. */
-	m0_buf_init(&buf_local, in_info->ma_arr + offset,
-		    buf_len * sizeof in_info->ma_arr[0]);
-	rc = m0_buf_copy_aligned(buf, &buf_local, M0_0VEC_SHIFT);
 	if (type == ICT_MIN)
 		fid_get("arr_min", comp_fid);
 	else
 		fid_get("arr_max", comp_fid);
 	*reply_len = CBL_DEFAULT_MAX;
 
-	return rc;
+	return m0_buf_new_aligned(buf, in_info->ma_arr + offset, buf_len,
+				  M0_0VEC_SHIFT);
 }
 
 static int ping_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
@@ -227,11 +217,9 @@ static int ping_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 
 	*buf = M0_BUF_INIT0;
 	greeting = m0_strdup("Hello");
-	if (greeting == NULL) {
-		fprintf(stderr, "error! Out of memory for %d",
-			ICT_PING);
+	if (greeting == NULL)
 		return -ENOMEM;
-	}
+
 	m0_buf_init(buf, greeting, strlen(greeting));
 	fid_get("hello_world", comp_fid);
 	*reply_len = CBL_DEFAULT_MAX;
@@ -291,6 +279,7 @@ static void *minmax_output_prepare(struct m0_buf *result,
 			prev->mr_val);
 	/** Bookkeep the count of services communicated so far. */
 	++in_info->ma_curr_svc_id;
+
 	return prev;
 }
 
@@ -323,7 +312,6 @@ static void usage_print()
 	fprintf(stderr, "  Supported operations: ping, min, max.\n");
 	fprintf(stderr, "  Refer to README.isc.\n");
 }
-
 
 int main(int argc, char **argv)
 {
