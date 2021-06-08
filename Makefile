@@ -80,14 +80,14 @@ all: $(C0CP) $(C0CT) $(C0RM) $(FGEN) isc-all
 %.o: %.c
 	gcc -c $(CFLAGS) -o $@ $<
 
-$(C0CP): $(SRC) c0cp.c
-	gcc $(SRC) c0cp.c $(CFLAGS) $(LFLAGS) -o $(C0CP)
+$(C0CP): c0cp.c $(SRC)
+	gcc $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
 
-$(C0CT): $(SRC) c0cat.c
-	gcc $(SRC) c0cat.c $(CFLAGS) $(LFLAGS) -o $(C0CT)
+$(C0CT): c0cat.c $(SRC)
+	gcc $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
 
-$(C0RM): $(SRC) c0rm.c
-	gcc $(SRC) c0rm.c $(CFLAGS) $(LFLAGS) -o $(C0RM)
+$(C0RM): c0rm.c $(SRC)
+	gcc $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
 
 $(FGEN):
 	gcc -lssl -lcrypto fgen.c -o $(FGEN)
@@ -247,11 +247,8 @@ mpi-test:
 $(ISC_REG): c0isc_register.o $(SRC)
 	gcc -g $(LFLAGS) $(SRC) -o $@ $<
 
-$(LIBISC): isc_libdemo.o
-	gcc -shared -o $@ $<
-
-isc_libdemo.o: isc_libdemo.c
-	gcc -c -fpic $(CFLAGS) -o $@ $<
+$(LIBISC): isc_libdemo.c
+	gcc $(CFLAGS) -fpic -shared -o $@ $<
 
 $(ISC_INVK): c0isc_demo.o isc/libdemo_xc.o $(SRC)
 	gcc -g $(LFLAGS) $(SRC) isc/libdemo_xc.o -o $@ $<
