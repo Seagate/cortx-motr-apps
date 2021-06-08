@@ -379,6 +379,8 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
+	m0_xc_isc_libdemo_init();
+
 	op_args = NULL;
 	ip_args = NULL;
 

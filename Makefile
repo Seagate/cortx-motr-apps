@@ -245,13 +245,13 @@ mpi-test:
 #
 
 $(ISC_REG): c0isc_register.o $(SRC)
-	gcc -g $(LFLAGS) $(SRC) -o $@ $<
+	gcc $(LFLAGS) $(SRC) -o $@ $<
 
-$(LIBISC): isc_libdemo.c
-	gcc $(CFLAGS) -fpic -shared -o $@ $<
+$(LIBISC): isc_libdemo.c isc/libdemo_xc.c
+	gcc $(CFLAGS) -fpic -shared -o $@ isc/libdemo_xc.c $<
 
 $(ISC_INVK): c0isc_demo.o isc/libdemo_xc.o $(SRC)
-	gcc -g $(LFLAGS) $(SRC) isc/libdemo_xc.o -o $@ $<
+	gcc $(LFLAGS) $(SRC) isc/libdemo_xc.o -o $@ $<
 
 c0isc_demo.c: isc/libdemo_xc.h
 

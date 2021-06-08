@@ -136,4 +136,5 @@ void motr_lib_init(void)
 	comp_reg("hello_world", hello_world);
 	comp_reg("arr_min", arr_min);
 	comp_reg("arr_max", arr_max);
+	m0_xc_isc_libdemo_init();
 }
