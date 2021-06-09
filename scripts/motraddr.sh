@@ -31,7 +31,8 @@ r=$((0 + $RANDOM % 16))
 p=()
 
 # HA_ENDPOINT_ADDR
-p[0]=$(grep -A1 client-21 $hastatus | tail -n1 | awk '{print $4}')
+# p[0]=$(grep -A1 client-21 $hastatus | tail -n1 | awk '{print $4}')
+p[0]=$(grep -A1 $c $hastatus | tail -n1 | awk '{print $4}')
 [[ -z "${p[0]}" ]] && { echo "Error: HA_ENDPOINT_ADDR not found"; exit 1; }
 
 # PROFILE_FID
@@ -76,7 +77,7 @@ exp()
 # Bash shell export format
 export CLIENT_LADDR="${p[5]}"
 export CLIENT_HA_ADDR="${p[0]}"
-export CLIENT_PROF_OPT="${p[1]}"
+export CLIENT_PROFILE="${p[1]}"
 export CLIENT_PROC_FID="${p[6]}"
 EOF
 	echo "$BASH"
