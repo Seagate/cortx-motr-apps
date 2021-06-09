@@ -63,9 +63,13 @@ CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
 CFLAGS += -rdynamic
 # generate .d dependencies automatically
 CFLAGS += -MP -MD
+IQUOTEDIR := /usr/include/motr
+M0GCCXML2XCODE := m0gccxml2xcode
 ifneq ($(M0_SRC_DIR),)
 LFLAGS += -L$(M0_SRC_DIR)/motr/.libs -Wl,-rpath=$(M0_SRC_DIR)/motr/.libs
 CFLAGS += -I$(M0_SRC_DIR) -I$(M0_SRC_DIR)/extra-libs/galois/include
+IQUOTEDIR := $(M0_SRC_DIR)
+M0GCCXML2XCODE := $(M0_SRC_DIR)/xcode/m0gccxml2xcode
 endif
 
 SRC = perf.o buffer.o qos.o c0appz.o
@@ -257,10 +261,11 @@ c0isc_demo.c: isc/libdemo_xc.h
 
 CXXXML_FLAGS := -DGCC_VERSION=4002
 CXXXML_UNSUPPORTED_CFLAGS := -Wno-unused-but-set-variable -Werror -Wno-trampolines -rdynamic --coverage -pipe -Wp,-D_FORTIFY_SOURCE=2 --param=ssp-buffer-size=4 -grecord-gcc-switches -fstack-protector-strong -fstack-clash-protection -MD -MP
-CXXXML_CFLAGS := $(filter-out $(CXXXML_UNSUPPORTED_CFLAGS), $(CFLAGS)) -iquote'$(M0_SRC_DIR)' -include'config.h'
+CXXXML_CFLAGS := $(filter-out $(CXXXML_UNSUPPORTED_CFLAGS), $(CFLAGS)) -iquote'$(IQUOTEDIR)' -include'config.h'
+
 %_xc.h %_xc.c: %.h
 	gccxml $(CXXXML_FLAGS) $(CXXXML_CFLAGS) -fxml=$(<:.h=.gccxml) $<
-	$(M0_SRC_DIR)/xcode/m0gccxml2xcode -i $(<:.h=.gccxml)
+	$(M0GCCXML2XCODE) -i $(<:.h=.gccxml)
 
 isc-all: $(ISC_REG) $(ISC_INVK) $(LIBISC)
 isc-clean:
