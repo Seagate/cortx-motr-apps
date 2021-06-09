@@ -23,12 +23,14 @@
 
 #include <libgen.h>      /* dirname */
 
+#include "xcode/xcode.h"
 #include "conf/schema.h" /* M0_CST_ISCS */
 #include "lib/memory.h"  /* m0_alloc m0_free */
 
 #include "c0appz.h"
 #include "c0appz_isc.h"  /* c0appz_isc_req */
-#include "libdemo.h"     /* mm_result */
+#include "isc/libdemo.h"     /* mm_result */
+#include "isc/libdemo_xc.h"     /* isc_args_xc */
 
 
 enum isc_comp_type {
@@ -182,32 +184,47 @@ static uint32_t offset_calc(struct mm_args *in_info)
 	return in_info->ma_curr_svc_id * in_info->ma_chunk_len;
 }
 
-static uint32_t buf_len_calc(struct mm_args *in_info)
+static uint32_t chunk_len_calc(struct mm_args *in_info)
 {
 	/*
 	 * All services except one get ma_chunk_len of an array.
 	 * Need to incorporate the remainder into last service.
 	 */
-	return (is_last_service(in_info) ?
+	return is_last_service(in_info) ?
 		in_info->ma_len - offset_calc(in_info) :
-		in_info->ma_chunk_len) * sizeof in_info->ma_arr[0];
+		in_info->ma_chunk_len;
 }
 
-static int minmax_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
+static int minmax_input_prepare(struct m0_buf *out, struct m0_fid *comp_fid,
 				uint32_t *reply_len, enum isc_comp_type type,
 				struct mm_args *in_info)
 {
-	uint32_t buf_len = buf_len_calc(in_info);
-	uint32_t offset  = offset_calc(in_info);
+	int           rc;
+	struct m0_buf buf = M0_BUF_INIT0;
+	struct isc_args a;
+
+	*out = M0_BUF_INIT0;
+
+	a.ia_arr = in_info->ma_arr + offset_calc(in_info);
+	a.ia_len = chunk_len_calc(in_info);
+
+	rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(isc_args_xc, &a),
+				     &buf.b_addr, &buf.b_nob);
+	if (rc != 0)
+		return rc;
+
+	printf("array of %u elements\n", a.ia_len);
+	rc = m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
+	m0_buf_free(&buf);
 
 	if (type == ICT_MIN)
 		fid_get("arr_min", comp_fid);
 	else
 		fid_get("arr_max", comp_fid);
+
 	*reply_len = CBL_DEFAULT_MAX;
 
-	return m0_buf_new_aligned(buf, in_info->ma_arr + offset, buf_len,
-				  M0_0VEC_SHIFT);
+	return rc;
 }
 
 static int ping_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
@@ -260,24 +277,30 @@ static void *minmax_output_prepare(struct m0_buf *result,
 				   struct mm_result *prev,
 				   enum isc_comp_type type)
 {
-	struct mm_result *new;
+	int              rc;
+	struct mm_result new = {};
 
-	if (prev == NULL) {
-		M0_ALLOC_PTR(prev);
-		memcpy(prev, result->b_addr, sizeof prev[0]);
+	rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(mm_result_xc, &new),
+				       result->b_addr, result->b_nob);
+	if (rc != 0) {
+		fprintf(stderr, "failed to parse result: rc=%d", rc);
 		goto out;
 	}
-	new = result->b_addr;
-	/** Service sent index from sub-array. */
-	new->mr_idx += offset_calc(in_info);
-	/* Copy the current optimal value. */
-	*prev =  *op_result(prev, new, type);
+	if (prev == NULL) {
+		M0_ALLOC_PTR(prev);
+		*prev = new;
+		goto out;
+	}
+	/* Service sent index from sub-array. */
+	new.mr_idx += offset_calc(in_info);
+	/* Copy the current resulting value. */
+	*prev = *op_result(prev, &new, type);
  out:
 	/* Print the output. */
 	if (is_last_service(in_info))
 		fprintf(stderr, "idx=%d val=%lf\n", prev->mr_idx,
 			prev->mr_val);
-	/** Bookkeep the count of services communicated so far. */
+	/* Bookkeep the count of services communicated so far. */
 	++in_info->ma_curr_svc_id;
 
 	return prev;
@@ -308,8 +331,9 @@ char *prog;
 
 static void usage_print()
 {
-	fprintf(stderr, "Usage: %s op_name\n", prog);
-	fprintf(stderr, "  supported operations: ping, min, max.\n");
+	fprintf(stderr, "Usage: %s op_name\n\n", prog);
+	fprintf(stderr, "  Supported operations: ping, min, max.\n");
+	fprintf(stderr, "  Refer to README.isc.\n");
 }
 
 int main(int argc, char **argv)
@@ -362,6 +386,8 @@ int main(int argc, char **argv)
 		rc = -EINVAL;
 		goto out;
 	}
+
+	m0_xc_isc_libdemo_init();
 
 	op_args = NULL;
 	ip_args = NULL;

@@ -56,11 +56,13 @@ NODE = $(shell eval uname -n)
 
 #compiler/linker options
 LFLAGS += -lm -lpthread -lrt -lyaml -luuid -lmotr
-CFLAGS += -I/usr/include/motr
+CFLAGS += -I. -I/usr/include/motr
 CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern
 CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing
 CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
 CFLAGS += -rdynamic
+# generate .d dependencies automatically
+CFLAGS += -MP -MD
 ifneq ($(M0_SRC_DIR),)
 LFLAGS += -L$(M0_SRC_DIR)/motr/.libs -Wl,-rpath=$(M0_SRC_DIR)/motr/.libs
 CFLAGS += -I$(M0_SRC_DIR) -I$(M0_SRC_DIR)/extra-libs/galois/include
@@ -73,26 +75,22 @@ SRC_ALL = $(SRC) c0cp.o c0cat.o c0rm.o fgen.o \
 all: $(C0CP) $(C0CT) $(C0RM) $(FGEN) isc-all
 .PHONY: all
 
-# Generate automatic dependencies,
-# see https://www.gnu.org/software/make/manual/html_node/Automatic-Prerequisites.html
-%.d: %.c
-	@set -e; rm -f $@; \
-		$(CC) -MM $(CFLAGS) $< > $@.$$$$; \
-		sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-		rm -f $@.$$$$
 -include $(SRC_ALL:.o=.d)
 
-$(C0CP): $(SRC) c0cp.c
-	gcc $(SRC) c0cp.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0CP)
+%.o: %.c
+	gcc -c $(CFLAGS) -o $@ $<
 
-$(C0CT): $(SRC) c0cat.c
-	gcc $(SRC) c0cat.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0CT)
+$(C0CP): c0cp.c $(SRC)
+	gcc $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
 
-$(C0RM): $(SRC) c0rm.c
-	gcc $(SRC) c0rm.c -I/usr/include/motr $(CFLAGS) $(LFLAGS) -o $(C0RM)
+$(C0CT): c0cat.c $(SRC)
+	gcc $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
+
+$(C0RM): c0rm.c $(SRC)
+	gcc $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
 
 $(FGEN):
-	gcc -Wall -lssl -lcrypto fgen.c -o $(FGEN)
+	gcc -lssl -lcrypto fgen.c -o $(FGEN)
 
 #dd block size, count and filesize
 #dd can have any block size and a random
@@ -246,13 +244,24 @@ mpi-test:
 #Sage Function Shipping
 #
 
-$(ISC_REG): $(SRC) c0isc_register.c
-	gcc $(SRC) c0isc_register.c -I/usr/include/motr -g $(CFLAGS) $(LFLAGS) -o $(ISC_REG)
-$(LIBISC): isc_libdemo.c
-	gcc isc_libdemo.c -I/usr/include/motr $(CFLAGS) -fpic -shared -o $(LIBISC)
-$(ISC_INVK): $(SRC) c0isc_demo.c
-	gcc $(SRC) c0isc_demo.c -I/usr/include/motr -g $(CFLAGS) $(LFLAGS) -o $(ISC_INVK)
+$(ISC_REG): c0isc_register.o $(SRC)
+	gcc $(LFLAGS) $(SRC) -o $@ $<
+
+$(LIBISC): isc_libdemo.c isc/libdemo_xc.c
+	gcc $(CFLAGS) -fpic -shared -o $@ isc/libdemo_xc.c $<
+
+$(ISC_INVK): c0isc_demo.o isc/libdemo_xc.o $(SRC)
+	gcc $(LFLAGS) $(SRC) isc/libdemo_xc.o -o $@ $<
+
+c0isc_demo.c: isc/libdemo_xc.h
+
+CXXXML_FLAGS := -DGCC_VERSION=4002
+CXXXML_UNSUPPORTED_CFLAGS := -Wno-unused-but-set-variable -Werror -Wno-trampolines -rdynamic --coverage -pipe -Wp,-D_FORTIFY_SOURCE=2 --param=ssp-buffer-size=4 -grecord-gcc-switches -fstack-protector-strong -fstack-clash-protection -MD -MP
+CXXXML_CFLAGS := $(filter-out $(CXXXML_UNSUPPORTED_CFLAGS), $(CFLAGS)) -iquote'$(M0_SRC_DIR)' -include'config.h'
+%_xc.h %_xc.c: %.h
+	gccxml $(CXXXML_FLAGS) $(CXXXML_CFLAGS) -fxml=$(<:.h=.gccxml) $<
+	$(M0_SRC_DIR)/xcode/m0gccxml2xcode -i $(<:.h=.gccxml)
+
 isc-all: $(ISC_REG) $(ISC_INVK) $(LIBISC)
 isc-clean:
-	rm -f $(ISC_REG) $(ISC_INVK) $(LIBISC)
-
+	rm -f $(ISC_REG) $(ISC_INVK) $(LIBISC) isc/{*_xc.*,*.gccxml}
