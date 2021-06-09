@@ -78,19 +78,14 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 	uint32_t          arr_len;
 	uint32_t          i;
 	double           *arr;
-	struct isc_args   a;
+	struct isc_args   a = {};
 	struct mm_result  curr_min;
 
-	a.ia_arr = m0_alloc(in->b_nob);
-	if (a.ia_arr == NULL) {
-		*rc = M0_ERR(-ENOMEM);
-		return M0_FSO_AGAIN;
-	}
 	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_args_xc, &a),
 					in->b_addr, in->b_nob);
 	if (*rc != 0) {
 		M0_LOG(M0_ERROR, "failed to xdecode args: rc=%d", *rc);
-		goto err;
+		return M0_FSO_AGAIN;
 	}
 
 	M0_LOG(M0_DEBUG, "array len=%d", a.ia_len);
@@ -110,8 +105,9 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 
 	*rc = m0_buf_new_aligned(out, &curr_min, sizeof curr_min,
 				 M0_0VEC_SHIFT);
- err:
-	m0_free(a.ia_arr);
+
+	m0_free(arr);
+
 	return M0_FSO_AGAIN;
 }
 

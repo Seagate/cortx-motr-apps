@@ -257,7 +257,7 @@ c0isc_demo.c: isc/libdemo_xc.h
 
 CXXXML_FLAGS := -DGCC_VERSION=4002
 CXXXML_UNSUPPORTED_CFLAGS := -Wno-unused-but-set-variable -Werror -Wno-trampolines -rdynamic --coverage -pipe -Wp,-D_FORTIFY_SOURCE=2 --param=ssp-buffer-size=4 -grecord-gcc-switches -fstack-protector-strong -fstack-clash-protection -MD -MP
-CXXXML_CFLAGS := $(filter-out $(CXXXML_UNSUPPORTED_CFLAGS), $(CFLAGS)) -iquote'/home/ant/motr' -include'config.h'
+CXXXML_CFLAGS := $(filter-out $(CXXXML_UNSUPPORTED_CFLAGS), $(CFLAGS)) -iquote'$(M0_SRC_DIR)' -include'config.h'
 %_xc.h %_xc.c: %.h
 	gccxml $(CXXXML_FLAGS) $(CXXXML_CFLAGS) -fxml=$(<:.h=.gccxml) $<
 	$(M0_SRC_DIR)/xcode/m0gccxml2xcode -i $(<:.h=.gccxml)
