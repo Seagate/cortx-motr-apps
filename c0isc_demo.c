@@ -190,9 +190,9 @@ static uint32_t chunk_len_calc(struct mm_args *in_info)
 	 * All services except one get ma_chunk_len of an array.
 	 * Need to incorporate the remainder into last service.
 	 */
-	return (is_last_service(in_info) ?
+	return is_last_service(in_info) ?
 		in_info->ma_len - offset_calc(in_info) :
-		in_info->ma_chunk_len) * sizeof in_info->ma_arr[0];
+		in_info->ma_chunk_len;
 }
 
 static int minmax_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
@@ -213,7 +213,10 @@ static int minmax_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 	if (rc != 0)
 		return rc;
 
+	printf("debug - encoded %d args, buf_len=%d\n",
+	       a.ia_len, (int)buf_local.b_nob);
 	rc = m0_buf_copy_aligned(buf, &buf_local, M0_0VEC_SHIFT);
+	m0_buf_free(&buf_local);
 
 	if (type == ICT_MIN)
 		fid_get("arr_min", comp_fid);
