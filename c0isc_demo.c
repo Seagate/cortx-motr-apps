@@ -213,7 +213,7 @@ static int minmax_input_prepare(struct m0_buf *out, struct m0_fid *comp_fid,
 	if (rc != 0)
 		return rc;
 
-	printf("array of %d elements\n", a.ia_len);
+	printf("array of %u elements\n", a.ia_len);
 	rc = m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
 	m0_buf_free(&buf);
 
