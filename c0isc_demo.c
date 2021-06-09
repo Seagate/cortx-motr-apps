@@ -195,28 +195,27 @@ static uint32_t chunk_len_calc(struct mm_args *in_info)
 		in_info->ma_chunk_len;
 }
 
-static int minmax_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
+static int minmax_input_prepare(struct m0_buf *out, struct m0_fid *comp_fid,
 				uint32_t *reply_len, enum isc_comp_type type,
 				struct mm_args *in_info)
 {
 	int           rc;
-	struct m0_buf buf_local = M0_BUF_INIT0;
+	struct m0_buf buf = M0_BUF_INIT0;
 	struct isc_args a;
 
-	*buf = M0_BUF_INIT0;
+	*out = M0_BUF_INIT0;
 
 	a.ia_arr = in_info->ma_arr + offset_calc(in_info);
 	a.ia_len = chunk_len_calc(in_info);
 
 	rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(isc_args_xc, &a),
-				     &buf_local.b_addr, &buf_local.b_nob);
+				     &buf.b_addr, &buf.b_nob);
 	if (rc != 0)
 		return rc;
 
-	printf("debug - encoded %d args, buf_len=%d\n",
-	       a.ia_len, (int)buf_local.b_nob);
-	rc = m0_buf_copy_aligned(buf, &buf_local, M0_0VEC_SHIFT);
-	m0_buf_free(&buf_local);
+	printf("array of %d elements\n", a.ia_len);
+	rc = m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
+	m0_buf_free(&buf);
 
 	if (type == ICT_MIN)
 		fid_get("arr_min", comp_fid);
@@ -278,24 +277,30 @@ static void *minmax_output_prepare(struct m0_buf *result,
 				   struct mm_result *prev,
 				   enum isc_comp_type type)
 {
-	struct mm_result *new;
+	int              rc;
+	struct mm_result new = {};
 
-	if (prev == NULL) {
-		M0_ALLOC_PTR(prev);
-		memcpy(prev, result->b_addr, sizeof prev[0]);
+	rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(mm_result_xc, &new),
+				       result->b_addr, result->b_nob);
+	if (rc != 0) {
+		fprintf(stderr, "failed to parse result: rc=%d", rc);
 		goto out;
 	}
-	new = result->b_addr;
-	/** Service sent index from sub-array. */
-	new->mr_idx += offset_calc(in_info);
-	/* Copy the current optimal value. */
-	*prev =  *op_result(prev, new, type);
+	if (prev == NULL) {
+		M0_ALLOC_PTR(prev);
+		*prev = new;
+		goto out;
+	}
+	/* Service sent index from sub-array. */
+	new.mr_idx += offset_calc(in_info);
+	/* Copy the current resulting value. */
+	*prev = *op_result(prev, &new, type);
  out:
 	/* Print the output. */
 	if (is_last_service(in_info))
 		fprintf(stderr, "idx=%d val=%lf\n", prev->mr_idx,
 			prev->mr_val);
-	/** Bookkeep the count of services communicated so far. */
+	/* Bookkeep the count of services communicated so far. */
 	++in_info->ma_curr_svc_id;
 
 	return prev;

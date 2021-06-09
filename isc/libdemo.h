@@ -28,7 +28,7 @@
 struct mm_result {
 	uint32_t mr_idx;
 	double   mr_val;
-};
+} M0_XCA_RECORD;
 
 struct isc_args {
 	uint32_t ia_len;

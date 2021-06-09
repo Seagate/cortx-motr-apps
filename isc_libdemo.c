@@ -80,6 +80,7 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 	double           *arr;
 	struct isc_args   a = {};
 	struct mm_result  curr_min;
+	struct m0_buf     buf = M0_BUF_INIT0;
 
 	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_args_xc, &a),
 					in->b_addr, in->b_nob);
@@ -103,8 +104,9 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 		}
 	}
 
-	*rc = m0_buf_new_aligned(out, &curr_min, sizeof curr_min,
-				 M0_0VEC_SHIFT);
+	*rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(mm_result_xc, &curr_min),
+				      &buf.b_addr, &buf.b_nob) ?:
+	      m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
 
 	m0_free(arr);
 
