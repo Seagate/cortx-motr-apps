@@ -20,6 +20,8 @@
  * Original creation date: 06-Sep-2018
  */
 
+#include "lib/trace.h"      /* M0_LOG */
+#include "lib/memory.h"     /* m0_alloc */
 #include "lib/misc.h"       /* m0_full_name_hash */
 #include "fid/fid.h"        /* m0_fid */
 #include "lib/buf.h"        /* m0_buf */
@@ -79,10 +81,19 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 	struct isc_args   a;
 	struct mm_result  curr_min;
 
-	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_args_xc, &a),
-				       in->b_addr, in->b_nob);
-	if (*rc != 0)
+	a.ia_arr = m0_alloc(in->b_nob);
+	if (a.ia_arr == NULL) {
+		*rc = M0_ERR(-ENOMEM);
 		return M0_FSO_AGAIN;
+	}
+	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_args_xc, &a),
+					in->b_addr, in->b_nob);
+	if (*rc != 0) {
+		M0_LOG(M0_ERROR, "failed to xdecode args: rc=%d", *rc);
+		goto err;
+	}
+
+	M0_LOG(M0_DEBUG, "array len=%d", a.ia_len);
 
 	arr_len = a.ia_len;
 	arr     = a.ia_arr;
@@ -99,7 +110,8 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 
 	*rc = m0_buf_new_aligned(out, &curr_min, sizeof curr_min,
 				 M0_0VEC_SHIFT);
-
+ err:
+	m0_free(a.ia_arr);
 	return M0_FSO_AGAIN;
 }
 
