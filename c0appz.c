@@ -546,7 +546,7 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
  * cat object.
  */
 int c0appz_cat(uint64_t idhi, uint64_t idlo, char *filename,
-	      uint64_t bsz, uint64_t cnt, uint64_t m0bs)
+	       uint64_t bsz, uint64_t cnt, uint64_t m0bs)
 {
 	int                rc=0;
 	uint32_t           cnt_per_op;
@@ -808,23 +808,22 @@ int c0appz_isc_api_register(const char *libpath)
 int c0appz_isc_nxt_svc_get(struct m0_fid *svc_fid, struct m0_fid *nxt_fid,
 			   enum m0_conf_service_type s_type)
 {
-	struct m0_reqh             *reqh       = &m0_instance->m0c_reqh;
 	struct m0_reqh_service_ctx *ctx;
-	struct m0_pools_common     *pc         = reqh->rh_pools;
-	struct m0_fid               null_fid   = M0_FID0;
+	struct m0_reqh             *reqh = &m0_instance->m0c_reqh;
+	struct m0_pools_common     *pc = reqh->rh_pools;
 	struct m0_fid               current_fid = *svc_fid;
 
 	m0_tl_for(pools_common_svc_ctx, &pc->pc_svc_ctxs, ctx) {
-		if (ctx->sc_type == s_type && m0_fid_eq(&current_fid,
-							&null_fid)) {
-			*nxt_fid = ctx->sc_fid;
-			return 0;
-		} else if (ctx->sc_type == s_type &&
-		           m0_fid_eq(svc_fid, &ctx->sc_fid))
-			current_fid = null_fid;
+		if (ctx->sc_type == s_type) {
+			if (m0_fid_eq(&current_fid, &M0_FID0)) {
+				*nxt_fid = ctx->sc_fid;
+				return 0;
+			} else if (m0_fid_eq(svc_fid, &ctx->sc_fid))
+				current_fid = M0_FID0;
+		}
 	} m0_tl_endfor;
-	*nxt_fid = M0_FID0;
 
+	*nxt_fid = M0_FID0;
 	return -ENOENT;
 }
 
@@ -1262,9 +1261,8 @@ static int do_io_op(struct m0_obj *obj, enum m0_obj_opcode opcode,
 	m0_op_launch(&op, 1);
 
 	/* wait */
-	rc = m0_op_wait(op, M0_BITS(M0_OS_FAILED,
-					   M0_OS_STABLE),
-			       M0_TIME_NEVER) ?: m0_rc(op);
+	rc = m0_op_wait(op, M0_BITS(M0_OS_FAILED, M0_OS_STABLE),
+			M0_TIME_NEVER) ?: m0_rc(op);
 
 	m0_op_fini(op);
 	m0_op_free(op);
