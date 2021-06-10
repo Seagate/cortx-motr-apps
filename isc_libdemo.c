@@ -78,21 +78,22 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 	uint32_t          arr_len;
 	uint32_t          i;
 	double           *arr;
-	struct isc_args   a = {};
+	struct isc_targs  ta = {};
+	struct isc_arr   *a = &ta.ist_arr;
 	struct mm_result  curr_min;
 	struct m0_buf     buf = M0_BUF_INIT0;
 
-	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_args_xc, &a),
+	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_targs_xc, &ta),
 					in->b_addr, in->b_nob);
 	if (*rc != 0) {
 		M0_LOG(M0_ERROR, "failed to xdecode args: rc=%d", *rc);
 		return M0_FSO_AGAIN;
 	}
 
-	M0_LOG(M0_DEBUG, "array len=%d", a.ia_len);
+	M0_LOG(M0_DEBUG, "array len=%d", a->ia_len);
 
-	arr_len = a.ia_len;
-	arr     = a.ia_arr;
+	arr_len = a->ia_len;
+	arr     = a->ia_arr;
 	curr_min.mr_idx = 0;
 	curr_min.mr_val = arr[0];
 

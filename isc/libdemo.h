@@ -22,6 +22,8 @@
  */
 
 #include "lib/types.h"
+#include "fid/fid.h"
+#include "fid/fid_xc.h"
 #include "xcode/xcode_attr.h"
 
 /** Holds the result of min and max computations. */
@@ -30,10 +32,16 @@ struct mm_result {
 	double   mr_val;
 } M0_XCA_RECORD;
 
-struct isc_args {
+struct isc_arr {
 	uint32_t ia_len;
 	double  *ia_arr;
 } M0_XCA_SEQUENCE;
+
+/** Arguments to the target ISC service. */
+struct isc_targs {
+	struct m0_fid  ist_cob;
+	struct isc_arr ist_arr;
+} M0_XCA_RECORD;
 
 /*
  *  Local variables:

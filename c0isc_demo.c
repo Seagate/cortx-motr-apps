@@ -26,8 +26,11 @@
 #include "xcode/xcode.h"
 #include "conf/schema.h" /* M0_CST_ISCS */
 #include "lib/memory.h"  /* m0_alloc m0_free */
+#include "layout/layout.h"  /* M0_DEFAULT_LAYOUT_ID */
+#include "layout/plan.h"  /* m0_layout_plan_build */
 
 #include "c0appz.h"
+#include "c0appz_internal.h" /* uber_realm */
 #include "c0appz_isc.h"  /* c0appz_isc_req */
 #include "isc/libdemo.h"     /* mm_result */
 #include "isc/libdemo_xc.h"     /* isc_args_xc */
@@ -126,7 +129,7 @@ static uint32_t isc_services_count(void)
 	return svc_nr;
 }
 
-static int op_init(enum isc_comp_type type, void **ip_args)
+static int op_init(enum isc_comp_type type, void **inp_args)
 {
 	struct mm_args *in_info;
 	double         *arr;
@@ -149,7 +152,7 @@ static int op_init(enum isc_comp_type type, void **ip_args)
 		in_info->ma_curr_svc_id = 0;
 		in_info->ma_svc_nr = isc_services_count();
 		in_info->ma_chunk_len = arr_len / in_info->ma_svc_nr;
-		*ip_args = in_info;
+		*inp_args = in_info;
 
 		return 0;
 	default:
@@ -159,7 +162,7 @@ static int op_init(enum isc_comp_type type, void **ip_args)
 }
 
 static void op_fini(enum isc_comp_type op_type, struct mm_args *in_info,
-		    void *op_args)
+		    void *out_args)
 {
 	switch (op_type) {
 	case ICT_PING:
@@ -170,7 +173,7 @@ static void op_fini(enum isc_comp_type op_type, struct mm_args *in_info,
 			break;
 		m0_free(in_info->ma_arr);
 		m0_free(in_info);
-		m0_free(op_args);
+		m0_free(out_args);
 	}
 }
 
@@ -201,19 +204,20 @@ static int minmax_input_prepare(struct m0_buf *out, struct m0_fid *comp_fid,
 {
 	int           rc;
 	struct m0_buf buf = M0_BUF_INIT0;
-	struct isc_args a;
+	struct isc_targs ta;
+	struct isc_arr *a = &ta.ist_arr;
 
 	*out = M0_BUF_INIT0;
 
-	a.ia_arr = in_info->ma_arr + offset_calc(in_info);
-	a.ia_len = chunk_len_calc(in_info);
+	a->ia_arr = in_info->ma_arr + offset_calc(in_info);
+	a->ia_len = chunk_len_calc(in_info);
 
-	rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(isc_args_xc, &a),
+	rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(isc_targs_xc, &ta),
 				     &buf.b_addr, &buf.b_nob);
 	if (rc != 0)
 		return rc;
 
-	printf("array of %u elements\n", a.ia_len);
+	printf("array of %u elements\n", a->ia_len);
 	rc = m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
 	m0_buf_free(&buf);
 
@@ -246,7 +250,7 @@ static int ping_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 
 static int input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 			 uint32_t *reply_len, enum isc_comp_type type,
-			 void *ip_args)
+			 void *inp_args)
 {
 	switch (type) {
 	case ICT_PING:
@@ -254,7 +258,7 @@ static int input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 	case ICT_MIN:
 	case ICT_MAX:
 		return minmax_input_prepare(buf, comp_fid, reply_len, type,
-					    ip_args);
+					    inp_args);
 	}
 	return -EINVAL;
 }
@@ -312,88 +316,139 @@ static void *minmax_output_prepare(struct m0_buf *result,
  * and return the same.
  */
 static void* output_process(struct m0_buf *result, void *in_args,
-			    void *op_args, enum isc_comp_type type)
+			    void *out_args, enum isc_comp_type type)
 {
 	switch (type) {
 	case ICT_PING:
 		printf ("Hello-%s@"FID_F"\n", (char *)result->b_addr,
-			FID_P((struct m0_fid *)op_args));
+			FID_P((struct m0_fid *)out_args));
 		memset(result->b_addr, 'a', result->b_nob);
 		return NULL;
 	case ICT_MIN:
 	case ICT_MAX:
-		return minmax_output_prepare(result, in_args, op_args, type);
+		return minmax_output_prepare(result, in_args, out_args, type);
 	}
 	return NULL;
 }
 
 char *prog;
 
-static void usage_print()
+const char *help_str = "\
+Usage: %s op_name [obj_id]\n\
+\n\
+  Supported operations: ping, min, max.\n\
+  For min/max operations obj_id (hi:lo) must be provided.\n\
+\n\
+  Refer to README.isc for more usage details.\n";
+
+static void usage()
 {
-	fprintf(stderr, "Usage: %s op_name\n\n", prog);
-	fprintf(stderr, "  Supported operations: ping, min, max.\n");
-	fprintf(stderr, "  Refer to README.isc.\n");
+	fprintf(stderr, help_str, prog);
+	exit(1);
+}
+
+/**
+ * Read obj id in the format [hi:]lo.
+ * Return how many numbers were read.
+ */
+int read_id(const char *s, struct m0_uint128 *id)
+{
+	int res;
+	long long hi, lo;
+
+	res = sscanf(s, "%lli:%lli", &hi, &lo);
+	if (res == 1) {
+		id->u_hi = 0;
+		id->u_lo = hi;
+	} else if (res == 2) {
+		id->u_hi = hi;
+		id->u_lo = lo;
+	}
+
+	return res;
 }
 
 int main(int argc, char **argv)
 {
+	int                    rc;
+	struct m0_op          *op = NULL;
+	void                  *inp_args; /* computation-specific input args */
+	void                  *out_args; /* output specific to a computation. */
+	struct m0_layout_plan *plan;
 	struct m0_buf          buf;
 	struct m0_buf          result;
 	struct m0_fid          comp_fid;
 	struct c0appz_isc_req  req;
-	/* Holds arguments specific to an operation. */
-	void                  *ip_args;
-	/* Holds output specific to a computation. */
-	void                  *op_args;
 	struct m0_fid          svc_fid;
 	struct m0_fid          start_fid = M0_FID0;
+	struct m0_uint128      obj_id;
+	struct m0_indexvec     ext;
+	struct m0_bufvec       data;
+	struct m0_bufvec       attr;
 	uint32_t               reply_len;
 	int                    op_type;
-	int                    rc;
+	struct m0_obj          obj = {};
 
 	prog = basename(strdup(argv[0]));
 
-	/* check input */
-	if (argc != 2) {
-		usage_print();
-		return -1;
-	}
+	if (argc < 2)
+		usage();
 
-	/* time in */
 	c0appz_timein();
 
 	c0appz_setrc(prog);
 	c0appz_putrc();
 
 	op_type = op_type_parse(argv[1]);
-	if (op_type == -EINVAL) {
-		usage_print(prog);
-		return -EINVAL;
-	}
+	if (op_type == -EINVAL)
+		usage();
+	if (op_type == ICT_MIN || op_type == ICT_MAX)
+		if (argc < 3)
+			usage();
+	if (read_id(argv[2], &obj_id) < 1)
+		usage();
 
 	m0trace_on = true;
 
-	/* initialize resources */
 	rc = c0appz_init(0);
 	if (rc != 0) {
-		fprintf(stderr,"error! c0appz_init() failed: %d\n", rc);
-		return -2;
+		fprintf(stderr,"c0appz_init() failed: %d\n", rc);
+		usage();
 	}
 
 	if (isc_services_count() == 0) {
-		fprintf(stderr, "\nISC services are not started\n");
-		rc = -EINVAL;
-		goto out;
+		fprintf(stderr, "ISC services are not started\n");
+		usage();
 	}
 
 	m0_xc_isc_libdemo_init();
 
-	op_args = NULL;
-	ip_args = NULL;
+	rc = alloc_segs(&data, &ext, &attr, 4096, 1);
+	if (rc != 0) {
+		fprintf(stderr, "failed to alloc_segs: rc=%d\n", rc);
+		usage();
+	}
+
+	m0_obj_init(&obj, &uber_realm, &obj_id, M0_DEFAULT_LAYOUT_ID);
+	rc = open_entity(&obj.ob_entity);
+	if (rc != 0) {
+		fprintf(stderr, "failed to open object: rc=%d\n", rc);
+		usage();
+	}
+
+	m0_obj_op(&obj, M0_OC_READ, &ext, &data, &attr, 0, 0, &op);
+
+	plan = m0_layout_plan_build(op);
+	if (plan == NULL) {
+		fprintf(stderr, "failed to build access plan\n");
+		usage();
+	}
+
+	out_args = NULL;
+	inp_args = NULL;
 
 	/* Initialise the  parameters for operation. */
-	rc = op_init(op_type, &ip_args);
+	rc = op_init(op_type, &inp_args);
 	while (rc == 0) {
 		rc = c0appz_isc_nxt_svc_get(&start_fid, &svc_fid, M0_CST_ISCS);
 		if (rc != 0)
@@ -401,7 +456,7 @@ int main(int argc, char **argv)
 
 		/* Prepare arguments for computation. */
 		rc = input_prepare(&buf, &comp_fid, &reply_len,
-				   op_type, ip_args);
+				   op_type, inp_args);
 		if (rc != 0) {
 			fprintf(stderr,
 				"error! Input preparation failed: %d\n", rc);
@@ -422,8 +477,8 @@ int main(int argc, char **argv)
 		rc = c0appz_isc_req_send_sync(&req);
 		if (rc == 0) {
 			if (op_type == ICT_PING)
-				op_args = &svc_fid;
-			op_args = output_process(&result, ip_args, op_args,
+				out_args = &svc_fid;
+			out_args = output_process(&result, inp_args, out_args,
 						 op_type);
 		} else {
 			fprintf(stderr, "Error from "FID_F" received: rc=%d\n"
@@ -436,7 +491,7 @@ int main(int argc, char **argv)
 	/* Ignore the case when all services are iterated. */
 	if (rc == -ENOENT)
 		rc = 0;
-	op_fini(op_type, ip_args, op_args);
+	op_fini(op_type, inp_args, out_args);
  out:
 	/* free resources*/
 	c0appz_free();
