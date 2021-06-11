@@ -727,15 +727,14 @@ static bool conf_obj_is_svc(const struct m0_conf_obj *obj)
 	return m0_conf_obj_type(obj) == &M0_CONF_SERVICE_TYPE;
 }
 
-struct m0_rpc_link * c0appz_isc_rpc_link_get(struct m0_fid *svc_fid)
+struct m0_rpc_link * c0appz_svc_rpc_link_get(struct m0_fid *svc_fid)
 {
 	struct m0_reqh *reqh = &m0_instance->m0c_reqh;
 	struct m0_reqh_service_ctx *ctx;
 	struct m0_pools_common *pc = reqh->rh_pools;
 
 	m0_tl_for(pools_common_svc_ctx, &pc->pc_svc_ctxs, ctx) {
-		if (ctx->sc_type == M0_CST_ISCS &&
-		    m0_fid_eq(&ctx->sc_fid, svc_fid))
+		if (m0_fid_eq(&ctx->sc_fid, svc_fid))
 			return &ctx->sc_rlink;
 	} m0_tl_endfor;
 
@@ -829,27 +828,19 @@ int c0appz_isc_nxt_svc_get(struct m0_fid *svc_fid, struct m0_fid *nxt_fid,
 
 int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 			   const struct m0_fid *comp_fid,
-			   struct m0_buf *reply_buf, struct m0_fid *svc_fid,
-			   uint32_t reply_len)
+			   struct m0_buf *reply_buf,
+			   struct m0_rpc_session *sess, uint32_t reply_len)
 {
 
 	struct m0_fop_isc  *fop_isc = &req->cir_isc_fop;
 	struct m0_fop      *arg_fop = &req->cir_fop;
-	struct m0_rpc_link *link;
 	int                 rc;
 
 	req->cir_args = args;
 	req->cir_result = reply_buf;
 	fop_isc->fi_comp_id = *comp_fid;
-	req->cir_rpc_link = c0appz_isc_rpc_link_get(svc_fid);
-	if (req->cir_rpc_link == NULL) {
-		fprintf(stderr, "error! cannot find rpc_link for isc service "
-			FID_F, FID_P(svc_fid));
-		return -EINVAL;
-	}
-	link = req->cir_rpc_link;
 	m0_rpc_at_init(&fop_isc->fi_args);
-	rc = m0_rpc_at_add(&fop_isc->fi_args, args, &link->rlk_conn);
+	rc = m0_rpc_at_add(&fop_isc->fi_args, args, sess->s_conn);
 	if (rc != 0) {
 		m0_rpc_at_fini(&fop_isc->fi_args);
 		fprintf(stderr, "error! m0_rpc_at_add() failed with %d\n", rc);
@@ -857,8 +848,7 @@ int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 	}
 	/* Initialise the reply RPC AT buffer to be received.*/
 	m0_rpc_at_init(&fop_isc->fi_ret);
-	rc = m0_rpc_at_recv(&fop_isc->fi_ret, &link->rlk_conn,
-			    reply_len, false);
+	rc = m0_rpc_at_recv(&fop_isc->fi_ret, sess->s_conn, reply_len, false);
 	if (rc != 0) {
 		m0_rpc_at_fini(&fop_isc->fi_args);
 		m0_rpc_at_fini(&fop_isc->fi_ret);

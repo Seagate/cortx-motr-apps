@@ -61,12 +61,13 @@ int hello_world(struct m0_buf *in, struct m0_buf *out,
 		 */
 		out_str = m0_strdup("world");
 		if (out_str != NULL)
-			m0_buf_init(out, (void *)out_str, strlen(out_str));
+			m0_buf_init(out, out_str, strlen(out_str));
 		else
 			*rc = -ENOMEM;
 		*rc = 0;
 	} else
 		*rc = -EINVAL;
+
 	return M0_FSO_AGAIN;
 }
 

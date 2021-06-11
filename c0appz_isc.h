@@ -86,7 +86,7 @@ int c0appz_isc_nxt_svc_get(struct m0_fid *svcc_fid, struct m0_fid *nxt_fid,
  */
 int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 			   const struct m0_fid *comp_fid,
-			   struct m0_buf *reply_buf, struct m0_fid *proc_fid,
+			   struct m0_buf *reply_buf, struct m0_rpc_session*,
 			   uint32_t reply_len);
 
 /**

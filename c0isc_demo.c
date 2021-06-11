@@ -23,9 +23,11 @@
 
 #include <libgen.h>      /* dirname */
 
+#include "lib/memory.h"  /* m0_alloc m0_free */
+#include "rpc/conn.h"    /* m0_rpc_conn_addr */
+#include "rpc/session.h"    /* iop_session */
 #include "xcode/xcode.h"
 #include "conf/schema.h" /* M0_CST_ISCS */
-#include "lib/memory.h"  /* m0_alloc m0_free */
 #include "layout/layout.h"  /* M0_DEFAULT_LAYOUT_ID */
 #include "layout/plan.h"  /* m0_layout_plan_build */
 
@@ -315,18 +317,17 @@ static void *minmax_output_prepare(struct m0_buf *result,
  * a structure relevant to the result of invoked computation.
  * and return the same.
  */
-static void* output_process(struct m0_buf *result, void *in_args,
-			    void *out_args, enum isc_comp_type type)
+static void* output_process(struct m0_buf *result, void *in,
+			    void *out, enum isc_comp_type type)
 {
 	switch (type) {
 	case ICT_PING:
-		printf ("Hello-%s@"FID_F"\n", (char *)result->b_addr,
-			FID_P((struct m0_fid *)out_args));
+		printf ("Hello-%s @%s\n", (char*)result->b_addr, (char*)out);
 		memset(result->b_addr, 'a', result->b_nob);
 		return NULL;
 	case ICT_MIN:
 	case ICT_MAX:
-		return minmax_output_prepare(result, in_args, out_args, type);
+		return minmax_output_prepare(result, in, out, type);
 	}
 	return NULL;
 }
@@ -375,12 +376,13 @@ int main(int argc, char **argv)
 	void                  *inp_args; /* computation-specific input args */
 	void                  *out_args; /* output specific to a computation. */
 	struct m0_layout_plan *plan;
+	struct m0_layout_plop *plop;
+	struct m0_layout_io_plop *iopl;
+	const char            *conn_addr;
 	struct m0_buf          buf;
 	struct m0_buf          result;
 	struct m0_fid          comp_fid;
 	struct c0appz_isc_req  req;
-	struct m0_fid          svc_fid;
-	struct m0_fid          start_fid = M0_FID0;
 	struct m0_uint128      obj_id;
 	struct m0_indexvec     ext;
 	struct m0_bufvec       data;
@@ -436,7 +438,11 @@ int main(int argc, char **argv)
 		usage();
 	}
 
-	m0_obj_op(&obj, M0_OC_READ, &ext, &data, &attr, 0, 0, &op);
+	rc = m0_obj_op(&obj, M0_OC_READ, &ext, &data, &attr, 0, 0, &op);
+	if (rc != 0) {
+		fprintf(stderr, "failed to create op: rc=%d\n", rc);
+		usage();
+	}
 
 	plan = m0_layout_plan_build(op);
 	if (plan == NULL) {
@@ -450,9 +456,20 @@ int main(int argc, char **argv)
 	/* Initialise the  parameters for operation. */
 	rc = op_init(op_type, &inp_args);
 	while (rc == 0) {
-		rc = c0appz_isc_nxt_svc_get(&start_fid, &svc_fid, M0_CST_ISCS);
-		if (rc != 0)
+		rc = m0_layout_plan_get(plan, 0, &plop);
+		if (rc != 0) {
+			fprintf(stderr, "failed to get plop: rc=%d\n", rc);
+			usage();
+		}
+
+		if (plop->pl_type == M0_LAT_DONE)
 			break;
+		if (plop->pl_type == M0_LAT_OUT_READ)
+			continue;
+
+		M0_ASSERT(plop->pl_type == M0_LAT_READ); /* XXX for now */
+
+		iopl = container_of(plop, struct m0_layout_io_plop, iop_base);
 
 		/* Prepare arguments for computation. */
 		rc = input_prepare(&buf, &comp_fid, &reply_len,
@@ -463,7 +480,7 @@ int main(int argc, char **argv)
 			break;
 		}
 		rc = c0appz_isc_req_prepare(&req, &buf, &comp_fid, &result,
-					    &svc_fid, reply_len);
+					    iopl->iop_session, reply_len);
 		if (rc != 0) {
 			m0_buf_free(&buf);
 			fprintf(stderr,
@@ -475,18 +492,18 @@ int main(int argc, char **argv)
 		 * this to async.
 		 */
 		rc = c0appz_isc_req_send_sync(&req);
+		conn_addr = m0_rpc_conn_addr(iopl->iop_session->s_conn);
 		if (rc == 0) {
 			if (op_type == ICT_PING)
-				out_args = &svc_fid;
+				out_args = (void*)conn_addr;
 			out_args = output_process(&result, inp_args, out_args,
-						 op_type);
+						  op_type);
 		} else {
-			fprintf(stderr, "Error from "FID_F" received: rc=%d\n"
+			fprintf(stderr, "Error from %s received: rc=%d\n"
 				"Check if the relevant library is loaded\n",
-				FID_P(&svc_fid), rc);
+				conn_addr, rc);
 		}
 		c0appz_isc_req_fini(&req);
-		start_fid = svc_fid;
 	}
 	/* Ignore the case when all services are iterated. */
 	if (rc == -ENOENT)
