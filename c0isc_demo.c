@@ -335,10 +335,10 @@ static void* output_process(struct m0_buf *result, void *in,
 char *prog;
 
 const char *help_str = "\
-Usage: %s op_name [obj_id]\n\
+Usage: %s op_name obj_id\n\
 \n\
   Supported operations: ping, min, max.\n\
-  For min/max operations obj_id (hi:lo) must be provided.\n\
+  obj_id is two uint64 numbers in format: hi:lo.\n\
 \n\
   Refer to README.isc for more usage details.\n";
 
@@ -404,9 +404,8 @@ int main(int argc, char **argv)
 	op_type = op_type_parse(argv[1]);
 	if (op_type == -EINVAL)
 		usage();
-	if (op_type == ICT_MIN || op_type == ICT_MAX)
-		if (argc < 3)
-			usage();
+	if (argc < 3)
+		usage();
 	if (read_id(argv[2], &obj_id) < 1)
 		usage();
 
@@ -430,6 +429,8 @@ int main(int argc, char **argv)
 		fprintf(stderr, "failed to alloc_segs: rc=%d\n", rc);
 		usage();
 	}
+	ext.iv_index[0] = 0;
+	ext.iv_vec.v_count[0] = 4096;
 
 	m0_obj_init(&obj, &uber_realm, &obj_id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);

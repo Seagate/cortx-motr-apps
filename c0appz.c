@@ -856,6 +856,7 @@ int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 		return rc;
 	}
 	m0_fop_init(arg_fop, &m0_fop_isc_fopt, fop_isc, m0_fop_release);
+	req->cir_rpc_sess = sess;
 
 	return rc;
 }
@@ -866,24 +867,24 @@ int c0appz_isc_req_send_sync(struct c0appz_isc_req *req)
 	struct m0_fop_isc_rep  isc_reply;
 	int                    rc;
 
-	rc = m0_rpc_post_sync(&req->cir_fop, &req->cir_rpc_link->rlk_sess, NULL,
+	rc = m0_rpc_post_sync(&req->cir_fop, req->cir_rpc_sess, NULL,
 			      M0_TIME_IMMEDIATELY);
 	if (rc != 0) {
-		fprintf(stderr, "Failed to send request to "FID_F": rc=%d\n",
-			FID_P(&req->cir_proc), rc);
+		fprintf(stderr, "Failed to send request to %s: rc=%d\n",
+			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
 		return rc;
 	}
 	reply_fop = m0_rpc_item_to_fop(req->cir_fop.f_item.ri_reply);
 	isc_reply = *(struct m0_fop_isc_rep *)m0_fop_data(reply_fop);
-	req->cir_rc = isc_reply.fir_rc;
-	if (req->cir_rc != 0)
-		fprintf(stderr, "Got error from "FID_F": rc=%d\n",
-			FID_P(&req->cir_proc), rc);
+	rc = req->cir_rc = isc_reply.fir_rc;
+	if (rc != 0)
+		fprintf(stderr, "Got error from %s: rc=%d\n",
+			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
 	rc = m0_rpc_at_rep_get(&req->cir_isc_fop.fi_ret, &isc_reply.fir_ret,
 			       req->cir_result);
 	if (rc != 0)
-		fprintf(stderr, "rpc_at_rep_get() from "FID_F" failed: rc=%d\n",
-			FID_P(&req->cir_proc), rc);
+		fprintf(stderr, "rpc_at_rep_get() from %s failed: rc=%d\n",
+			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
 
 	return req->cir_rc == 0 ? rc : req->cir_rc;
 }

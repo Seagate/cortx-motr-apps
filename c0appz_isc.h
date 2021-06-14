@@ -33,19 +33,17 @@ enum c0appz_buffer_len {
 /** A request holding all parameters relevant to a computation. */
 struct c0appz_isc_req {
 	/** Arguments for computation. */
-	struct m0_buf      *cir_args;
+	struct m0_buf         *cir_args;
 	/** Buffer to store returned result. */
-	struct m0_buf      *cir_result;
+	struct m0_buf         *cir_result;
 	/** Error code for the computation. */
-	int                 cir_rc;
+	int                    cir_rc;
+	/** RPC session of the ISC service. */
+	struct m0_rpc_session *cir_rpc_sess;
 	/** FOP for ISC service. */
-	struct m0_fop_isc   cir_isc_fop;
+	struct m0_fop_isc      cir_isc_fop;
 	/** A generic fop for ISC service. */
-	struct m0_fop       cir_fop;
-	/** Unique fid of process hosting ISC service. */
-	struct m0_fid       cir_proc;
-	/** RPC link for ISC service. */
-	struct m0_rpc_link *cir_rpc_link;
+	struct m0_fop          cir_fop;
 };
 
 /** Returns the cut-off of message size beyond which RPC bulk is used. */
