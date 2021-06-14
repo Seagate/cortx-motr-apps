@@ -76,12 +76,13 @@ enum op {MIN, MAX};
 int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 	       struct m0_isc_comp_private *comp_data, int *rc)
 {
+#if 0
 	uint32_t          arr_len;
 	uint32_t          i;
 	double           *arr;
+#endif
 	struct isc_targs  ta = {};
-	struct isc_arr   *a = &ta.ist_arr;
-	struct mm_result  curr_min;
+	struct mm_result  curr;
 	struct m0_buf     buf = M0_BUF_INIT0;
 
 	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_targs_xc, &ta),
@@ -91,26 +92,26 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 		return M0_FSO_AGAIN;
 	}
 
-	M0_LOG(M0_DEBUG, "array len=%d", a->ia_len);
-
-	arr_len = a->ia_len;
-	arr     = a->ia_arr;
-	curr_min.mr_idx = 0;
-	curr_min.mr_val = arr[0];
+#if 0
+	curr.mr_idx = 0;
+	curr.mr_val = arr[0];
 
 	for (i = 1; i < arr_len; ++i) {
-		if (op == MIN ? arr[i] < curr_min.mr_val :
-		                arr[i] > curr_min.mr_val) {
-			curr_min.mr_idx = i;
-			curr_min.mr_val = arr[i];
+		if (op == MIN ? arr[i] < curr.mr_val :
+		                arr[i] > curr.mr_val) {
+			curr.mr_idx = i;
+			curr.mr_val = arr[i];
 		}
 	}
+#endif
+	curr.mr_idx = ta.ist_cob.f_key;
 
-	*rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(mm_result_xc, &curr_min),
+	*rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(mm_result_xc, &curr),
 				      &buf.b_addr, &buf.b_nob) ?:
 	      m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
 
-	m0_free(arr);
+	m0_free(ta.ist_arr.ia_arr);
+	m0_buf_free(&buf);
 
 	return M0_FSO_AGAIN;
 }

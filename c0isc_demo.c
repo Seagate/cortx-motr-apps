@@ -179,47 +179,20 @@ static void op_fini(enum isc_comp_type op_type, struct mm_args *in_info,
 	}
 }
 
-static bool is_last_service(struct mm_args *in_info)
-{
-	return in_info->ma_curr_svc_id + 1 == in_info->ma_svc_nr;
-}
-
-static uint32_t offset_calc(struct mm_args *in_info)
-{
-	return in_info->ma_curr_svc_id * in_info->ma_chunk_len;
-}
-
-static uint32_t chunk_len_calc(struct mm_args *in_info)
-{
-	/*
-	 * All services except one get ma_chunk_len of an array.
-	 * Need to incorporate the remainder into last service.
-	 */
-	return is_last_service(in_info) ?
-		in_info->ma_len - offset_calc(in_info) :
-		in_info->ma_chunk_len;
-}
-
 static int minmax_input_prepare(struct m0_buf *out, struct m0_fid *comp_fid,
-				uint32_t *reply_len, enum isc_comp_type type,
-				struct mm_args *in_info)
+				 struct m0_fid *cob, uint32_t *reply_len,
+				 enum isc_comp_type type)
 {
 	int           rc;
 	struct m0_buf buf = M0_BUF_INIT0;
-	struct isc_targs ta;
-	struct isc_arr *a = &ta.ist_arr;
+	struct isc_targs ta = {};
 
-	*out = M0_BUF_INIT0;
-
-	a->ia_arr = in_info->ma_arr + offset_calc(in_info);
-	a->ia_len = chunk_len_calc(in_info);
-
+	ta.ist_cob = *cob;
 	rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(isc_targs_xc, &ta),
 				     &buf.b_addr, &buf.b_nob);
 	if (rc != 0)
 		return rc;
 
-	printf("array of %u elements\n", a->ia_len);
 	rc = m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
 	m0_buf_free(&buf);
 
@@ -251,16 +224,16 @@ static int ping_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 }
 
 static int input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
-			 uint32_t *reply_len, enum isc_comp_type type,
-			 void *inp_args)
+			 struct m0_fid *cob, uint32_t *reply_len,
+			 enum isc_comp_type type)
 {
 	switch (type) {
 	case ICT_PING:
 		return ping_input_prepare(buf, comp_fid, reply_len, type);
 	case ICT_MIN:
 	case ICT_MAX:
-		return minmax_input_prepare(buf, comp_fid, reply_len, type,
-					    inp_args);
+		return minmax_input_prepare(buf, comp_fid, cob,
+					    reply_len, type);
 	}
 	return -EINVAL;
 }
@@ -279,7 +252,7 @@ struct mm_result *op_result(struct mm_result *x, struct mm_result *y,
 }
 
 static void *minmax_output_prepare(struct m0_buf *result,
-				   struct mm_args *in_info,
+				   bool last_unit,
 				   struct mm_result *prev,
 				   enum isc_comp_type type)
 {
@@ -297,17 +270,12 @@ static void *minmax_output_prepare(struct m0_buf *result,
 		*prev = new;
 		goto out;
 	}
-	/* Service sent index from sub-array. */
-	new.mr_idx += offset_calc(in_info);
 	/* Copy the current resulting value. */
 	*prev = *op_result(prev, &new, type);
  out:
 	/* Print the output. */
-	if (is_last_service(in_info))
-		fprintf(stderr, "idx=%d val=%lf\n", prev->mr_idx,
-			prev->mr_val);
-	/* Bookkeep the count of services communicated so far. */
-	++in_info->ma_curr_svc_id;
+	if (last_unit)
+		fprintf(stderr, "idx=%d val=%lf\n", prev->mr_idx, prev->mr_val);
 
 	return prev;
 }
@@ -317,7 +285,7 @@ static void *minmax_output_prepare(struct m0_buf *result,
  * a structure relevant to the result of invoked computation.
  * and return the same.
  */
-static void* output_process(struct m0_buf *result, void *in,
+static void* output_process(struct m0_buf *result, bool last,
 			    void *out, enum isc_comp_type type)
 {
 	switch (type) {
@@ -327,7 +295,7 @@ static void* output_process(struct m0_buf *result, void *in,
 		return NULL;
 	case ICT_MIN:
 	case ICT_MAX:
-		return minmax_output_prepare(result, in, out, type);
+		return minmax_output_prepare(result, last, out, type);
 	}
 	return NULL;
 }
@@ -338,6 +306,7 @@ const char *help_str = "\
 Usage: %s op_name obj_id\n\
 \n\
   Supported operations: ping, min, max.\n\
+\n\
   obj_id is two uint64 numbers in format: hi:lo.\n\
 \n\
   Refer to README.isc for more usage details.\n";
@@ -473,8 +442,8 @@ int main(int argc, char **argv)
 		iopl = container_of(plop, struct m0_layout_io_plop, iop_base);
 
 		/* Prepare arguments for computation. */
-		rc = input_prepare(&buf, &comp_fid, &reply_len,
-				   op_type, inp_args);
+		rc = input_prepare(&buf, &comp_fid, &iopl->iop_base.pl_ent,
+				   &reply_len, op_type);
 		if (rc != 0) {
 			fprintf(stderr,
 				"error! Input preparation failed: %d\n", rc);
@@ -497,8 +466,8 @@ int main(int argc, char **argv)
 		if (rc == 0) {
 			if (op_type == ICT_PING)
 				out_args = (void*)conn_addr;
-			out_args = output_process(&result, inp_args, out_args,
-						  op_type);
+			out_args = output_process(&result, true,
+						  out_args, op_type);
 		} else {
 			fprintf(stderr, "Error from %s received: rc=%d\n"
 				"Check if the relevant library is loaded\n",
