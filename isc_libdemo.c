@@ -28,6 +28,10 @@
 #include "lib/string.h"     /* m0_strdup */
 #include "iscservice/isc.h" /* m0_isc_comp_register */
 #include "fop/fom.h"        /* M0_FSO_AGAIN */
+#include "stob/io.h"        /* m0_stob_io_init */
+#include "ioservice/fid_convert.h" /* m0_fid_convert_cob2stob */
+#include "ioservice/storage_dev.h" /* m0_storage_dev_stob_find */
+#include "motr/setup.h"     /* m0_cs_storage_devs_get */
 
 #include "isc/libdemo.h"
 #include "isc/libdemo_xc.h"
@@ -73,17 +77,14 @@ int hello_world(struct m0_buf *in, struct m0_buf *out,
 
 enum op {MIN, MAX};
 
-int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
-	       struct m0_isc_comp_private *comp_data, int *rc)
+int launch_stob_io(struct m0_isc_comp_private *pdata,
+		   struct m0_buf *in, int *rc)
 {
-#if 0
-	uint32_t          arr_len;
-	uint32_t          i;
-	double           *arr;
-#endif
-	struct isc_targs  ta = {};
-	struct mm_result  curr;
-	struct m0_buf     buf = M0_BUF_INIT0;
+	struct m0_stob_io *stio = (struct m0_stob_io *)pdata->icp_data;
+	struct m0_fom     *fom = pdata->icp_fom;
+	struct isc_targs   ta = {};
+	struct m0_stob_id  stob_id;
+	struct m0_stob    *stob;
 
 	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_targs_xc, &ta),
 					in->b_addr, in->b_nob);
@@ -91,6 +92,68 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 		M0_LOG(M0_ERROR, "failed to xdecode args: rc=%d", *rc);
 		return M0_FSO_AGAIN;
 	}
+
+	m0_stob_io_init(stio);
+	stio->si_opcode = SIO_READ;
+
+	m0_fid_convert_cob2stob(&ta.ist_cob, &stob_id);
+	*rc = m0_storage_dev_stob_find(m0_cs_storage_devs_get(),
+				       &stob_id, &stob);
+	if (*rc != 0) {
+		M0_LOG(M0_ERROR, "failed to find stob by cob="FID_F": rc=%d",
+		       FID_P(&ta.ist_cob), *rc);
+		goto err;
+	}
+
+	*rc = m0_stob_io_private_setup(stio, stob);
+	if (*rc != 0) {
+		M0_LOG(M0_ERROR, "failed to setup adio for stob="FID_F": rc=%d",
+		       FID_P(&stob->so_id.si_fid), *rc);
+		goto err;
+	}
+
+	m0_mutex_lock(&stio->si_mutex);
+	m0_fom_wait_on(fom, &stio->si_wait, &fom->fo_cb);
+	m0_mutex_unlock(&stio->si_mutex);
+
+	*rc = m0_stob_io_prepare_and_launch(stio, stob, NULL, NULL);
+	if (*rc != 0) {
+		M0_LOG(M0_ERROR, "failed to launch io for stob="FID_F": rc=%d",
+		       FID_P(&stob->so_id.si_fid), *rc);
+		goto err;
+	}
+ err:
+	m0_free(ta.ist_arr.ia_arr);
+	if (*rc != 0) {
+		m0_mutex_lock(&stio->si_mutex);
+		m0_fom_callback_cancel(&fom->fo_cb);
+		m0_mutex_unlock(&stio->si_mutex);
+		m0_stob_io_fini(stio);
+		m0_storage_dev_stob_put(m0_cs_storage_devs_get(), stob);
+		/*
+		 * EAGAIN has a special meaning in the calling isc code,
+		 * so make sure we don't return it by accident.
+		 */
+		if (*rc == -EAGAIN)
+			*rc = -EBUSY;
+		return M0_FSO_AGAIN;
+	}
+
+	*rc = -EAGAIN; /* Wait for the I/O result. */
+	return M0_FSO_WAIT;
+}
+
+int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
+		   struct m0_buf *out, int *rc)
+{
+#if 0
+	uint32_t          arr_len;
+	uint32_t          i;
+	double           *arr;
+#endif
+	struct mm_result  curr;
+	struct m0_buf     buf = M0_BUF_INIT0;
+	//struct m0_stob_io *stio = (struct m0_stob_io *)pdata->icp_data;
 
 #if 0
 	curr.mr_idx = 0;
@@ -104,16 +167,38 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 		}
 	}
 #endif
-	curr.mr_idx = ta.ist_cob.f_key;
 
 	*rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(mm_result_xc, &curr),
 				      &buf.b_addr, &buf.b_nob) ?:
 	      m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
 
-	m0_free(ta.ist_arr.ia_arr);
 	m0_buf_free(&buf);
 
 	return M0_FSO_AGAIN;
+}
+
+int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
+	       struct m0_isc_comp_private *data, int *rc)
+{
+	int                res;
+	struct m0_stob_io *stio = (struct m0_stob_io *)data->icp_data;
+
+	if (stio == NULL) {
+		M0_ALLOC_PTR(stio);
+		if (stio == NULL) {
+			*rc = -ENOMEM;
+			return M0_FSO_AGAIN;
+		}
+		data->icp_data = stio;
+		res = launch_stob_io(data, in, rc);
+		if (*rc != -EAGAIN)
+			m0_free(stio);
+	} else {
+		res = compute_minmax(op, data, out, rc);
+		m0_free(stio);
+	}
+
+	return res;
 }
 
 int arr_min(struct m0_buf *in, struct m0_buf *out,
