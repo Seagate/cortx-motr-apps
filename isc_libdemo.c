@@ -148,17 +148,15 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 	}
 
 	ioseg = ta.ist_ioiv.ci_iosegs;
-	M0_LOG(M0_DEBUG, "cob="FID_F" off=%lu len=%lu", FID_P(&ta.ist_cob),
-	       ioseg->ci_index, ioseg->ci_count);
+	shift = m0_stob_block_shift(stob);
 
 	*rc = m0_indexvec_wire2mem(&ta.ist_ioiv, ta.ist_ioiv.ci_nr,
-				   m0_stob_block_shift(stob), &stio->si_stob);
+				   shift, &stio->si_stob);
 	if (*rc != 0) {
 		M0_LOG(M0_ERROR, "failed to make cob ivec: rc=%d", *rc);
 		goto err;
 	}
 
-	shift = m0_stob_block_shift(stob);
 	*rc = m0_bufvec_alloc_aligned(&stio->si_user, ta.ist_ioiv.ci_nr,
 				      ioseg->ci_count, shift);
 	if (*rc != 0) {

@@ -200,6 +200,7 @@ static int minmax_input_prepare(struct m0_buf *out, struct m0_fid *comp_fid,
 	if (rc != 0)
 		return rc;
 
+	*out = M0_BUF_INIT0; /* to avoid panic */
 	rc = m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
 	m0_buf_free(&buf);
 
@@ -365,6 +366,7 @@ int main(int argc, char **argv)
 	struct m0_bufvec       attr;
 	uint32_t               reply_len;
 	int                    op_type;
+	int                    segs_nr = 2;
 	struct m0_obj          obj = {};
 
 	prog = basename(strdup(argv[0]));
@@ -400,13 +402,12 @@ int main(int argc, char **argv)
 
 	m0_xc_isc_libdemo_init();
 
-	rc = alloc_segs(&data, &ext, &attr, 4096, 1);
+	rc = alloc_segs(&data, &ext, &attr, 4096, segs_nr);
 	if (rc != 0) {
 		fprintf(stderr, "failed to alloc_segs: rc=%d\n", rc);
 		usage();
 	}
-	ext.iv_index[0] = 0;
-	ext.iv_vec.v_count[0] = 4096;
+	set_exts(&ext, 0, 4096);
 
 	m0_obj_init(&obj, &uber_realm, &obj_id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);
@@ -478,7 +479,8 @@ int main(int argc, char **argv)
 		if (rc == 0) {
 			if (op_type == ICT_PING)
 				out_args = (void*)conn_addr;
-			out_args = output_process(&result, true,
+			out_args = output_process(&result,
+						  --segs_nr == 0 ? true : false,
 						  out_args, op_type);
 		} else {
 			fprintf(stderr, "Error from %s received: rc=%d\n"
