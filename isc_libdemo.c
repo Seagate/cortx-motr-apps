@@ -77,20 +77,62 @@ int hello_world(struct m0_buf *in, struct m0_buf *out,
 
 enum op {MIN, MAX};
 
+static void stio_fini(struct m0_stob_io *stio, struct m0_stob *stob)
+{
+	m0_indexvec_free(&stio->si_stob);
+	m0_bufvec_free(&stio->si_user);
+	m0_stob_io_fini(stio);
+	m0_storage_dev_stob_put(m0_cs_storage_devs_get(), stob);
+}
+
+static void bufvec_pack(struct m0_bufvec *bv, uint32_t shift)
+{
+	uint32_t i;
+
+	for (i = 0; i < bv->ov_vec.v_nr; i++) {
+		bv->ov_vec.v_count[i] >>= shift;
+		bv->ov_buf[i] = m0_stob_addr_pack(bv->ov_buf[i], shift);
+	}
+}
+
+static void bufvec_open(struct m0_bufvec *bv, uint32_t shift)
+{
+	uint32_t i;
+
+	for (i = 0; i < bv->ov_vec.v_nr; i++) {
+		bv->ov_vec.v_count[0] <<= shift;
+		bv->ov_buf[0] = m0_stob_addr_open(bv->ov_buf[0], shift);
+	}
+}
+
 int launch_stob_io(struct m0_isc_comp_private *pdata,
 		   struct m0_buf *in, int *rc)
 {
+	uint32_t           shift;
 	struct m0_stob_io *stio = (struct m0_stob_io *)pdata->icp_data;
 	struct m0_fom     *fom = pdata->icp_fom;
 	struct isc_targs   ta = {};
 	struct m0_stob_id  stob_id;
-	struct m0_stob    *stob;
+	struct m0_stob    *stob = NULL;
+	struct m0_ioseg   *ioseg;
 
 	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_targs_xc, &ta),
 					in->b_addr, in->b_nob);
 	if (*rc != 0) {
 		M0_LOG(M0_ERROR, "failed to xdecode args: rc=%d", *rc);
 		return M0_FSO_AGAIN;
+	}
+
+	if (ta.ist_ioiv.ci_nr == 0) {
+		M0_LOG(M0_ERROR, "no io segments given");
+		*rc = -EINVAL;
+		goto err;
+	}
+
+	if (ta.ist_ioiv.ci_nr > 1) {
+		M0_LOG(M0_ERROR, "only one segment for now");
+		*rc = -EINVAL;
+		goto err;
 	}
 
 	m0_stob_io_init(stio);
@@ -105,6 +147,26 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 		goto err;
 	}
 
+	ioseg = ta.ist_ioiv.ci_iosegs;
+	M0_LOG(M0_DEBUG, "cob="FID_F" off=%lu len=%lu", FID_P(&ta.ist_cob),
+	       ioseg->ci_index, ioseg->ci_count);
+
+	*rc = m0_indexvec_wire2mem(&ta.ist_ioiv, ta.ist_ioiv.ci_nr,
+				   m0_stob_block_shift(stob), &stio->si_stob);
+	if (*rc != 0) {
+		M0_LOG(M0_ERROR, "failed to make cob ivec: rc=%d", *rc);
+		goto err;
+	}
+
+	shift = m0_stob_block_shift(stob);
+	*rc = m0_bufvec_alloc_aligned(&stio->si_user, ta.ist_ioiv.ci_nr,
+				      ioseg->ci_count, shift);
+	if (*rc != 0) {
+		M0_LOG(M0_ERROR, "failed to make bufvec: rc=%d", *rc);
+		goto err;
+	}
+	bufvec_pack(&stio->si_user, shift);
+
 	*rc = m0_stob_io_private_setup(stio, stob);
 	if (*rc != 0) {
 		M0_LOG(M0_ERROR, "failed to setup adio for stob="FID_F": rc=%d",
@@ -112,6 +174,7 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 		goto err;
 	}
 
+	/* make sure the fom is waked up on I/O completion */
 	m0_mutex_lock(&stio->si_mutex);
 	m0_fom_wait_on(fom, &stio->si_wait, &fom->fo_cb);
 	m0_mutex_unlock(&stio->si_mutex);
@@ -120,16 +183,15 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 	if (*rc != 0) {
 		M0_LOG(M0_ERROR, "failed to launch io for stob="FID_F": rc=%d",
 		       FID_P(&stob->so_id.si_fid), *rc);
-		goto err;
+		m0_mutex_lock(&stio->si_mutex);
+		m0_fom_callback_cancel(&fom->fo_cb);
+		m0_mutex_unlock(&stio->si_mutex);
 	}
  err:
 	m0_free(ta.ist_arr.ia_arr);
 	if (*rc != 0) {
-		m0_mutex_lock(&stio->si_mutex);
-		m0_fom_callback_cancel(&fom->fo_cb);
-		m0_mutex_unlock(&stio->si_mutex);
-		m0_stob_io_fini(stio);
-		m0_storage_dev_stob_put(m0_cs_storage_devs_get(), stob);
+		if (stob != NULL)
+			stio_fini(stio, stob);
 		/*
 		 * EAGAIN has a special meaning in the calling isc code,
 		 * so make sure we don't return it by accident.
@@ -143,19 +205,56 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 	return M0_FSO_WAIT;
 }
 
+static int buf_to_array(const char *buf, double **arr)
+{
+	int       i;
+	int       n;
+	int       rc;
+	int       arr_len;
+	double   *val_arr;
+
+	rc = sscanf(buf, "%d\n%n", &arr_len, &n);
+	if (rc < 1)
+		return M0_ERR(-EINVAL);
+	buf += n;
+
+	M0_ALLOC_ARR(val_arr, arr_len);
+	if (val_arr == NULL)
+		return M0_ERR(-ENOMEM);
+
+	for (i = 0; i < arr_len; ++i) {
+		rc = sscanf(buf, "%lf\n%n", &val_arr[i], &n);
+		if (rc < 1) {
+			M0_LOG(M0_ERROR, "failed to read %d element of %d",
+				i, arr_len);
+			m0_free(val_arr);
+			return -EINVAL;
+		}
+		buf += n;
+	}
+
+	*arr = val_arr;
+	return i;
+}
+
 int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 		   struct m0_buf *out, int *rc)
 {
-#if 0
-	uint32_t          arr_len;
-	uint32_t          i;
+	int               i;
+	int               arr_len;
 	double           *arr;
-#endif
 	struct mm_result  curr;
 	struct m0_buf     buf = M0_BUF_INIT0;
-	//struct m0_stob_io *stio = (struct m0_stob_io *)pdata->icp_data;
+	struct m0_stob_io *stio = (struct m0_stob_io *)pdata->icp_data;
 
-#if 0
+	bufvec_open(&stio->si_user, m0_stob_block_shift(stio->si_obj));
+
+	arr_len = buf_to_array(stio->si_user.ov_buf[0], &arr);
+	if (arr_len < 0) {
+		*rc = arr_len;
+		return M0_FSO_AGAIN;
+	}
+
 	curr.mr_idx = 0;
 	curr.mr_val = arr[0];
 
@@ -166,7 +265,6 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 			curr.mr_val = arr[i];
 		}
 	}
-#endif
 
 	*rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(mm_result_xc, &curr),
 				      &buf.b_addr, &buf.b_nob) ?:
@@ -195,6 +293,7 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 			m0_free(stio);
 	} else {
 		res = compute_minmax(op, data, out, rc);
+		stio_fini(stio, stio->si_obj);
 		m0_free(stio);
 	}
 

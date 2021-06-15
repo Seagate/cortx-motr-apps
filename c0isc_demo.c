@@ -180,14 +180,21 @@ static void op_fini(enum isc_comp_type op_type, struct mm_args *in_info,
 }
 
 static int minmax_input_prepare(struct m0_buf *out, struct m0_fid *comp_fid,
-				 struct m0_fid *cob, uint32_t *reply_len,
-				 enum isc_comp_type type)
+				struct m0_layout_io_plop *iop,
+				uint32_t *reply_len, enum isc_comp_type type)
 {
 	int           rc;
 	struct m0_buf buf = M0_BUF_INIT0;
 	struct isc_targs ta = {};
 
-	ta.ist_cob = *cob;
+	if (iop->iop_ext.iv_vec.v_nr > 1) {
+		fprintf(stderr, "no more than 1 segment for now\n");
+		return -EINVAL;
+	}
+	ta.ist_cob = iop->iop_base.pl_ent;
+	rc = m0_indexvec_mem2wire(&iop->iop_ext, 1, 0, &ta.ist_ioiv);
+	if (rc != 0)
+		return rc;
 	rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(isc_targs_xc, &ta),
 				     &buf.b_addr, &buf.b_nob);
 	if (rc != 0)
@@ -224,7 +231,7 @@ static int ping_input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 }
 
 static int input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
-			 struct m0_fid *cob, uint32_t *reply_len,
+			 struct m0_layout_io_plop *iop, uint32_t *reply_len,
 			 enum isc_comp_type type)
 {
 	switch (type) {
@@ -232,7 +239,7 @@ static int input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 		return ping_input_prepare(buf, comp_fid, reply_len, type);
 	case ICT_MIN:
 	case ICT_MAX:
-		return minmax_input_prepare(buf, comp_fid, cob,
+		return minmax_input_prepare(buf, comp_fid, iop,
 					    reply_len, type);
 	}
 	return -EINVAL;
@@ -432,19 +439,23 @@ int main(int argc, char **argv)
 			usage();
 		}
 
-		if (plop->pl_type == M0_LAT_DONE)
+		if (plop->pl_type == M0_LAT_DONE) {
+			m0_layout_plop_done(plop);
 			break;
-		if (plop->pl_type == M0_LAT_OUT_READ)
+		}
+		if (plop->pl_type == M0_LAT_OUT_READ) {
+			m0_layout_plop_done(plop);
 			continue;
+		}
 
 		M0_ASSERT(plop->pl_type == M0_LAT_READ); /* XXX for now */
 
 		iopl = container_of(plop, struct m0_layout_io_plop, iop_base);
 
 		/* Prepare arguments for computation. */
-		rc = input_prepare(&buf, &comp_fid, &iopl->iop_base.pl_ent,
-				   &reply_len, op_type);
+		rc = input_prepare(&buf, &comp_fid, iopl, &reply_len, op_type);
 		if (rc != 0) {
+			m0_layout_plop_done(plop);
 			fprintf(stderr,
 				"error! Input preparation failed: %d\n", rc);
 			break;
@@ -453,6 +464,7 @@ int main(int argc, char **argv)
 					    iopl->iop_session, reply_len);
 		if (rc != 0) {
 			m0_buf_free(&buf);
+			m0_layout_plop_done(plop);
 			fprintf(stderr,
 				"error! request preparation failed: %d\n", rc);
 			goto out;
@@ -474,6 +486,7 @@ int main(int argc, char **argv)
 				conn_addr, rc);
 		}
 		c0appz_isc_req_fini(&req);
+		m0_layout_plop_done(plop);
 	}
 	/* Ignore the case when all services are iterated. */
 	if (rc == -ENOENT)

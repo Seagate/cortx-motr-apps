@@ -24,6 +24,8 @@
 #include "lib/types.h"
 #include "fid/fid.h"
 #include "fid/fid_xc.h"
+#include "lib/vec.h"
+#include "lib/vec_xc.h"
 #include "xcode/xcode_attr.h"
 
 /** Holds the result of min and max computations. */
@@ -39,8 +41,9 @@ struct isc_arr {
 
 /** Arguments to the target ISC service. */
 struct isc_targs {
-	struct m0_fid  ist_cob;
-	struct isc_arr ist_arr;
+	struct m0_fid         ist_cob;
+	struct m0_io_indexvec ist_ioiv;
+	struct isc_arr        ist_arr;
 } M0_XCA_RECORD;
 
 /*
