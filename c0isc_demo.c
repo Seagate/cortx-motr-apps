@@ -274,13 +274,20 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 		return NULL;
 	}
 
-	printf("buf=%s x_rval=%lf\n", buf, x_rval);
+	y->mr_idx     += x->mr_idx_max;
+	y->mr_idx_max += x->mr_idx_max;
+
+	//printf("buf=%s x_rval=%lf\n", buf, x_rval);
 
 	rc = sscanf(buf + len, "%lf", &y_lval);
-	if (rc < 1)
+	if (rc < 1) {
 		y_lval = x_rval;
+	} else {
+		y->mr_idx++;
+		y->mr_idx_max++;
+	}
 
-	printf("y_lval=%lf\n", y_lval);
+	//printf("y_lval=%lf\n", y_lval);
 
 	switch (op_type) {
 	case ICT_MIN:
@@ -298,22 +305,44 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 	return res;
 }
 
-static void check_edge_val(struct mm_result *res, const char *buf,
+enum elm_order {
+	ELM_FIRST,
+	ELM_LAST
+};
+
+static void set_idx(struct mm_result *res, enum elm_order e)
+{
+	if (ELM_FIRST == e)
+		res->mr_idx = 0;
+	else
+		res->mr_idx = res->mr_idx_max;
+}
+
+static void check_edge_val(struct mm_result *res, enum elm_order e,
 			   enum isc_comp_type type)
 {
-	double val;
+	const char *buf;
+	double      val;
+
+	if (ELM_FIRST == e)
+		buf = res->mr_lbuf.i_buf;
+	else // last
+		buf = res->mr_rbuf.i_buf;
 
 	if (sscanf(buf, "%lf", &val) < 1) {
 		fprintf(stderr, "failed to parse egde value=%s\n", buf);
 		return;
 	}
 
-	printf("edge val=%lf\n", val);
+	//printf("edge val=%lf\n", val);
 
-	if (ICT_MIN == type && val < res->mr_val)
+	if (ICT_MIN == type && val < res->mr_val) {
 		res->mr_val = val;
-	else if (ICT_MAX == type && val > res->mr_val)
+		set_idx(res, e);
+	} else if (ICT_MAX == type && val > res->mr_val) {
 		res->mr_val = val;
+		set_idx(res, e);
+	}
 }
 
 static void *minmax_output_prepare(struct m0_buf *result,
@@ -333,13 +362,13 @@ static void *minmax_output_prepare(struct m0_buf *result,
 	}
 	if (prev == NULL) {
 		M0_ALLOC_PTR(prev);
-		check_edge_val(&new, new.mr_lbuf.i_buf, type);
+		check_edge_val(&new, ELM_FIRST, type);
 		*prev = new;
 		goto out;
 	}
 
 	if (last_unit)
-		check_edge_val(&new, new.mr_rbuf.i_buf, type);
+		check_edge_val(&new, ELM_LAST, type);
 
 	/* Copy the current resulting value. */
 	res = op_result(prev, &new, type);
@@ -349,7 +378,8 @@ static void *minmax_output_prepare(struct m0_buf *result,
  out:
 	/* Print the output. */
 	if (last_unit)
-		fprintf(stderr, "idx=%d val=%lf\n", prev->mr_idx, prev->mr_val);
+		fprintf(stderr, "idx=%lu val=%lf\n",
+			prev->mr_idx, prev->mr_val);
 
 	return prev;
 }

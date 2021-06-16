@@ -288,6 +288,10 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 		}
 	}
 
+	/* +1 for the lbuf element not included in the array */
+	curr.mr_idx++;
+	curr.mr_idx_max = arr_len + 1;
+
 	*rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(mm_result_xc, &curr),
 				      &buf.b_addr, &buf.b_nob) ?:
 	      m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);

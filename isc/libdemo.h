@@ -42,7 +42,8 @@ struct isc_buf {
  * in the final computation also.
  */
 struct mm_result {
-	uint32_t       mr_idx;
+	uint64_t       mr_idx;
+	uint64_t       mr_idx_max;
 	double         mr_val;
 	/** right cut of the value on the left side of unit */
 	struct isc_buf mr_lbuf;
