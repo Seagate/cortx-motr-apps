@@ -28,10 +28,26 @@
 #include "lib/vec_xc.h"
 #include "xcode/xcode_attr.h"
 
-/** Holds the result of min and max computations. */
+struct isc_buf {
+	uint32_t    i_len;
+	const char *i_buf;
+} M0_XCA_SEQUENCE;
+
+/**
+ * Holds the result of min and max computations.
+ *
+ * The left and right cuts of the values which crossed
+ * the unit boundaries should be glued by the client code
+ * to restore the missing values in order to include them
+ * in the final computation also.
+ */
 struct mm_result {
-	uint32_t mr_idx;
-	double   mr_val;
+	uint32_t       mr_idx;
+	double         mr_val;
+	/** right cut of the value on the left side of unit */
+	struct isc_buf mr_lbuf;
+	/** left  cut of the value on the right side of unit */
+	struct isc_buf mr_rbuf;
 } M0_XCA_RECORD;
 
 struct isc_arr {

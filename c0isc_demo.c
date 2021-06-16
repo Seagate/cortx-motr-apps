@@ -246,17 +246,74 @@ static int input_prepare(struct m0_buf *buf, struct m0_fid *comp_fid,
 	return -EINVAL;
 }
 
-struct mm_result *op_result(struct mm_result *x, struct mm_result *y,
-			    enum isc_comp_type op_type)
+static struct mm_result *
+op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 {
-	switch (op_type) {
-	case ICT_MIN:
-		return x->mr_val <= y->mr_val ? x : y;
-	case ICT_MAX:
-		return x->mr_val >= y->mr_val ? x : y;
-	default:
+	int               rc;
+	int               len;
+	struct mm_result *res;
+	char             *buf;
+	double            x_rval;
+	double            y_lval;
+
+	len = x->mr_rbuf.i_len + y->mr_lbuf.i_len;
+	buf = malloc(x->mr_rbuf.i_len + y->mr_lbuf.i_len + 1);
+	if (buf == NULL) {
+		fprintf(stderr, "failed to allocate %d of memory for result\n",
+			                            len);
 		return NULL;
 	}
+
+	memcpy(buf, x->mr_rbuf.i_buf, x->mr_rbuf.i_len);
+	memcpy(buf + x->mr_rbuf.i_len, y->mr_lbuf.i_buf, y->mr_lbuf.i_len);
+	buf[x->mr_rbuf.i_len + y->mr_lbuf.i_len] = '\0';
+
+	rc = sscanf(buf, "%lf%n", &x_rval, &len);
+	if (rc < 1) {
+		fprintf(stderr, "failed to read the resulting xr-value\n");
+		return NULL;
+	}
+
+	printf("buf=%s x_rval=%lf\n", buf, x_rval);
+
+	rc = sscanf(buf + len, "%lf", &y_lval);
+	if (rc < 1)
+		y_lval = x_rval;
+
+	printf("y_lval=%lf\n", y_lval);
+
+	switch (op_type) {
+	case ICT_MIN:
+		res = x->mr_val <= y->mr_val ? x : y;
+		res->mr_val = min3(res->mr_val, x_rval, y_lval);
+		break;
+	case ICT_MAX:
+		res = x->mr_val >= y->mr_val ? x : y;
+		res->mr_val = max3(res->mr_val, x_rval, y_lval);
+		break;
+	default:
+		res = NULL;
+	}
+
+	return res;
+}
+
+static void check_edge_val(struct mm_result *res, const char *buf,
+			   enum isc_comp_type type)
+{
+	double val;
+
+	if (sscanf(buf, "%lf", &val) < 1) {
+		fprintf(stderr, "failed to parse egde value=%s\n", buf);
+		return;
+	}
+
+	printf("edge val=%lf\n", val);
+
+	if (ICT_MIN == type && val < res->mr_val)
+		res->mr_val = val;
+	else if (ICT_MAX == type && val > res->mr_val)
+		res->mr_val = val;
 }
 
 static void *minmax_output_prepare(struct m0_buf *result,
@@ -264,22 +321,31 @@ static void *minmax_output_prepare(struct m0_buf *result,
 				   struct mm_result *prev,
 				   enum isc_comp_type type)
 {
-	int              rc;
-	struct mm_result new = {};
+	int               rc;
+	struct mm_result  new = {};
+	struct mm_result *res;
 
 	rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(mm_result_xc, &new),
 				       result->b_addr, result->b_nob);
 	if (rc != 0) {
-		fprintf(stderr, "failed to parse result: rc=%d", rc);
+		fprintf(stderr, "failed to parse result: rc=%d\n", rc);
 		goto out;
 	}
 	if (prev == NULL) {
 		M0_ALLOC_PTR(prev);
+		check_edge_val(&new, new.mr_lbuf.i_buf, type);
 		*prev = new;
 		goto out;
 	}
+
+	if (last_unit)
+		check_edge_val(&new, new.mr_rbuf.i_buf, type);
+
 	/* Copy the current resulting value. */
-	*prev = *op_result(prev, &new, type);
+	res = op_result(prev, &new, type);
+	if (res == NULL)
+		goto out;
+	*prev = *res;
  out:
 	/* Print the output. */
 	if (last_unit)

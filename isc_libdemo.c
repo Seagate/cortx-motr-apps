@@ -203,32 +203,55 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 	return M0_FSO_WAIT;
 }
 
-static int buf_to_array(const char *buf, double **arr)
+static int buf_to_array(const char *buf, double **arr,
+			struct isc_buf *lbuf, struct isc_buf *rbuf)
 {
-	int       i;
-	int       n;
-	int       rc;
-	int       arr_len;
-	double   *val_arr;
+	int         i;
+	int         n;
+	int         rc;
+	int         arr_len = 0;
+	double      val;
+	double     *val_arr;
+	const char *p = buf;
 
-	rc = sscanf(buf, "%d\n%n", &arr_len, &n);
-	if (rc < 1)
-		return M0_ERR(-EINVAL);
-	buf += n;
+	/* calc number of lines 1st to estimate the array length */
+	while (sscanf(p, "%lf\n%n", &val, &n) > 0) {
+		arr_len++;
+		p += n;
+	}
 
 	M0_ALLOC_ARR(val_arr, arr_len);
 	if (val_arr == NULL)
 		return M0_ERR(-ENOMEM);
 
+	/*
+	 * 1st value should go to the lbuf always, because it can be
+	 * the right cut of the last value from the previous unit.
+	 *
+	 * The same is true for the last value.
+	 */
+	rc = sscanf(buf, "%lf\n%n", &val, &n);
+	if (rc < 1)
+		return M0_ERR(-EINVAL);
+	lbuf->i_buf = buf;
+	lbuf->i_len = n;
+	buf += n;
+
 	for (i = 0; i < arr_len; ++i) {
 		rc = sscanf(buf, "%lf\n%n", &val_arr[i], &n);
-		if (rc < 1) {
-			M0_LOG(M0_ERROR, "failed to read %d element of %d",
-				i, arr_len);
-			m0_free(val_arr);
-			return -EINVAL;
-		}
+		if (rc < 1)
+			break;
 		buf += n;
+	}
+
+	/*
+	 * Last value should go to the rbuf always, because it can be
+	 * the left cut of the first value of the next unit.
+	 */
+	if (i > 0) {
+		rbuf->i_buf = buf - n;
+		rbuf->i_len = n;
+		i--;
 	}
 
 	*arr = val_arr;
@@ -247,7 +270,8 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 
 	bufvec_open(&stio->si_user, m0_stob_block_shift(stio->si_obj));
 
-	arr_len = buf_to_array(stio->si_user.ov_buf[0], &arr);
+	arr_len = buf_to_array(stio->si_user.ov_buf[0], &arr,
+			       &curr.mr_lbuf, &curr.mr_rbuf);
 	if (arr_len < 0) {
 		*rc = arr_len;
 		return M0_FSO_AGAIN;
