@@ -239,6 +239,7 @@ static uint64_t roundup_power2(uint64_t x)
 uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier)
 {
 	int                     rc;
+	int                     k;
 	unsigned long           usz; /* unit size */
 	unsigned long           gsz; /* data units in parity group */
 	uint64_t                max_bs;
@@ -247,7 +248,7 @@ uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier)
 	struct m0_pool_version *pver;
 	struct m0_pdclust_attr *pa;
 	struct m0_fid          *pool = tier2pool(tier);
-	struct m0_obj    obj;
+	struct m0_obj           obj;
 
 	if (obj_sz > MAX_M0_BUFSZ)
 		obj_sz = MAX_M0_BUFSZ;
@@ -270,8 +271,19 @@ uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier)
 	usz = m0_obj_layout_id_to_unit_size(lid);
 	pa = &pver->pv_attr;
 	gsz = usz * pa->pa_N;
-	/* max 2-times pool-width deep, otherwise we may get -E2BIG */
-	max_bs = usz * 2 * pa->pa_P * pa->pa_N / (pa->pa_N + 2 * pa->pa_K);
+	/*
+	 * The buffer should be max 4-times pool-width deep counting by
+	 * 1MB units, otherwise we may get -E2BIG from Motr BE subsystem
+	 * when there are too many units in one fop and the transaction
+	 * grow too big.
+	 *
+	 * Also, the bigger is unit size - the bigger transaction it may
+	 * require. LNet maximum frame size is 1MB, so, for example, 2MB
+	 * unit will be sent by two LNet frames and will make bigger BE
+	 * transaction.
+	 */
+	k = 8 / (usz / 0x80000 ?: 1);
+	max_bs = usz * k * pa->pa_P * pa->pa_N / (pa->pa_N + 2 * pa->pa_K);
 	max_bs = max_bs / gsz * gsz; /* make it multiple of group size */
 
 	DBG("usz=%lu (N,K,P)=(%u,%u,%u) max_bs=%lu\n",
