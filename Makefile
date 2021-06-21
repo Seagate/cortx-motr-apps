@@ -259,13 +259,25 @@ $(ISC_INVK): c0isc_demo.o isc/libdemo_xc.o $(SRC)
 
 c0isc_demo.c: isc/libdemo_xc.h
 
-CXXXML_FLAGS := -DGCC_VERSION=4002
+ifneq ($(shell which castxml),)
+CXXXML := castxml
+CXXXML_FLAGS := --castxml-gccxml
+CXXXML_OUTPUT := -o # keep trailing blank-space after -o
+CXXXML2XC_FLAGS := --castxml
+else
+CXXXML := gccxml
+# set maximum supported gcc version by gccxml, currently it's 4.2
+CXXXML_FLAGS := -DGCC_VERSION=4002 -DENABLE_GCCXML
+CXXXML_OUTPUT := -fxml=
+CXXXML2XC_FLAGS :=
+endif
+
 CXXXML_UNSUPPORTED_CFLAGS := -Wno-unused-but-set-variable -Werror -Wno-trampolines -rdynamic --coverage -pipe -Wp,-D_FORTIFY_SOURCE=2 --param=ssp-buffer-size=4 -grecord-gcc-switches -fstack-protector-strong -fstack-clash-protection -MD -MP
-CXXXML_CFLAGS := $(filter-out $(CXXXML_UNSUPPORTED_CFLAGS), $(CFLAGS)) -iquote'$(IQUOTEDIR)' -include'config.h'
+CXXXML_CFLAGS := $(filter-out $(CXXXML_UNSUPPORTED_CFLAGS), $(CFLAGS))
 
 %_xc.h %_xc.c: %.h
-	gccxml $(CXXXML_FLAGS) $(CXXXML_CFLAGS) -fxml=$(<:.h=.gccxml) $<
-	$(M0GCCXML2XCODE) -i $(<:.h=.gccxml)
+	$(CXXXML) $(CXXXML_FLAGS) $(CXXXML_CFLAGS) $(CXXXML_OUTPUT)$(<:.h=.gccxml) $<
+	$(M0GCCXML2XCODE) $(CXXXML2XC_FLAGS) -i $(<:.h=.gccxml)
 
 isc-all: $(ISC_REG) $(ISC_INVK) $(LIBISC)
 isc-clean:
