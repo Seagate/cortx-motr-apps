@@ -383,6 +383,9 @@ static void *minmax_output_prepare(struct m0_buf *result,
 		fprintf(stderr, "idx=%lu val=%lf\n",
 			prev->mr_idx, prev->mr_val);
 
+	m0_free(new.mr_lbuf.i_buf);
+	m0_free(new.mr_rbuf.i_buf);
+
 	return prev;
 }
 

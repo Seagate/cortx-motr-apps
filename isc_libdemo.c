@@ -203,7 +203,7 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 	return M0_FSO_WAIT;
 }
 
-static int buf_to_array(const char *buf, double **arr,
+static int buf_to_array(char *buf, double **arr,
 			struct isc_buf *lbuf, struct isc_buf *rbuf)
 {
 	int         i;

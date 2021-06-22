@@ -29,8 +29,8 @@
 #include "xcode/xcode_attr.h"
 
 struct isc_buf {
-	uint32_t    i_len;
-	const char *i_buf;
+	uint32_t  i_len;
+	char     *i_buf;
 } M0_XCA_SEQUENCE;
 
 /**
