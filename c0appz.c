@@ -38,6 +38,7 @@
 #include <lib/mutex.h>
 #include <sys/user.h>           /* PAGE_SIZE */
 
+#include "lib/types.h"        /* uint32_t */
 #include "motr/client.h"
 #include "motr/client_internal.h"
 #include "conf/confc.h"       /* m0_confc_open_sync */
@@ -47,7 +48,7 @@
 #include "conf/obj_ops.h"     /* M0_CONF_DIREND */
 #include "spiel/spiel.h"      /* m0_spiel_process_lib_load */
 #include "reqh/reqh.h"        /* m0_reqh */
-#include "lib/types.h"        /* uint32_t */
+#include "layout/plan.h"      /* m0_layout_io_plop */
 
 #include "c0appz.h"
 #include "c0appz_internal.h"
@@ -829,13 +830,14 @@ int c0appz_isc_nxt_svc_get(struct m0_fid *svc_fid, struct m0_fid *nxt_fid,
 int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 			   const struct m0_fid *comp_fid,
 			   struct m0_buf *reply_buf,
-			   struct m0_rpc_session *sess, uint32_t reply_len)
+			   struct m0_layout_io_plop *iopl, uint32_t reply_len)
 {
-
+	struct m0_rpc_session *sess = iopl->iop_session;
 	struct m0_fop_isc  *fop_isc = &req->cir_isc_fop;
 	struct m0_fop      *arg_fop = &req->cir_fop;
 	int                 rc;
 
+	req->cir_plop = &iopl->iop_base;
 	req->cir_args = args;
 	req->cir_result = reply_buf;
 	fop_isc->fi_comp_id = *comp_fid;
@@ -857,6 +859,68 @@ int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 	}
 	m0_fop_init(arg_fop, &m0_fop_isc_fopt, fop_isc, m0_fop_release);
 	req->cir_rpc_sess = sess;
+
+	return rc;
+}
+
+void isc_req_replied(struct m0_rpc_item *item)
+{
+	int                    rc;
+	struct m0_fop         *fop = M0_AMB(fop, item, f_item);
+	struct m0_fop         *reply_fop;
+	struct m0_fop_isc_rep *isc_reply;
+	struct c0appz_isc_req *req = M0_AMB(req, fop, cir_fop);
+
+	reply_fop = m0_rpc_item_to_fop(req->cir_fop.f_item.ri_reply);
+	isc_reply = (struct m0_fop_isc_rep *)m0_fop_data(reply_fop);
+	rc = req->cir_rc = isc_reply->fir_rc;
+	if (rc != 0) {
+		fprintf(stderr, "Got error in reply from %s: rc=%d.\n",
+			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
+		if (rc == -ENOENT)
+			fprintf(stderr, "Was isc .so library is loaded?\n");
+		goto err;
+	}
+	rc = m0_rpc_at_rep_get(&req->cir_isc_fop.fi_ret, &isc_reply->fir_ret,
+			        req->cir_result);
+	if (rc != 0)
+		fprintf(stderr, "rpc_at_rep_get() from %s failed: rc=%d\n",
+			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
+ err:
+	m0_fop_put(&req->cir_fop);
+	m0_semaphore_up(req->cir_sem);
+}
+
+struct m0_semaphore isc_sem;
+struct m0_list      isc_reqs;
+
+static const struct m0_rpc_item_ops isc_item_ops = {
+	.rio_replied = isc_req_replied,
+};
+
+int c0appz_isc_req_send(struct c0appz_isc_req *req)
+{
+	int                    rc;
+	struct m0_rpc_item    *item;
+
+	req->cir_sem = &isc_sem;
+
+	item              = &req->cir_fop.f_item;
+	item->ri_session  = req->cir_rpc_sess;
+	item->ri_prio     = M0_RPC_ITEM_PRIO_MID;
+	item->ri_deadline = M0_TIME_IMMEDIATELY;
+	item->ri_nr_sent_max = M0_RPCLIB_MAX_RETRIES;
+	item->ri_ops      = &isc_item_ops;
+
+	m0_fop_get(&req->cir_fop);
+	rc = m0_rpc_post(item);
+	if (rc != 0) {
+		fprintf(stderr, "Failed to send request to %s: rc=%d\n",
+			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
+		m0_fop_put(&req->cir_fop);
+	}
+
+	m0_list_add_tail(&isc_reqs, &req->cir_link);
 
 	return rc;
 }
@@ -1056,6 +1120,8 @@ int c0appz_init(int idx)
 		fprintf(stderr,"failed to open uber realm\n");
 		return rc;
 	}
+
+	m0_list_init(&isc_reqs);
 
 	/* success */
 	uber_realm = container.co_realm;

@@ -21,8 +21,11 @@
  * Original creation date: 06-Sep-2018
  */
 
+#include "lib/list.h"
 #include "iscservice/isc.h"
 #include "rpc/rpc_machine.h"
+
+struct m0_layout_io_plop;
 
 enum c0appz_buffer_len {
 	/** 32K */
@@ -44,7 +47,22 @@ struct c0appz_isc_req {
 	struct m0_fop_isc      cir_isc_fop;
 	/** A generic fop for ISC service. */
 	struct m0_fop          cir_fop;
+	/** Semaphore to signal the reply to. */
+	struct m0_semaphore   *cir_sem;
+	/** plop this request corresponds to. */
+	struct m0_layout_plop *cir_plop;
+	/** all reqs list link */
+	struct m0_list_link    cir_link;
 };
+
+extern struct m0_semaphore isc_sem;
+extern struct m0_list      isc_reqs;
+
+#define m0appz_isc_reqs_teardown(req) \
+  while (!m0_list_is_empty(&isc_reqs) && \
+         (req = m0_list_entry(isc_reqs.l_head, \
+                              struct c0appz_isc_req, cir_link)) && \
+         (m0_list_del(&req->cir_link), true))
 
 /** Returns the cut-off of message size beyond which RPC bulk is used. */
 int c0appz_rmach_bulk_cutoff(struct m0_rpc_link *link, uint32_t *bulk_cutoff);
@@ -76,20 +94,27 @@ int c0appz_isc_nxt_svc_get(struct m0_fid *svcc_fid, struct m0_fid *nxt_fid,
 /**
  * Prepares a request using provided parameters.
  * @param[in] args      Holds arguments for the computation.
- * @param[in] comp_fid  The unique fid associated with the computation.
- * @param[in] reply_buf A buf to be used for holding reply.
- * @param[in] svc_fid   "fid" associated with service.
+ * @param[in] comp      The unique fid associated with the computation.
+ * @param[in] reply     A buf to be used for holding reply.
+ * @param[in] iopl      IO plop associated with the request.
  * @param[in] reply_len Expected length of reply buffer. This is allowed to
  *                      be greater than the actual length of reply.
  */
-int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
-			   const struct m0_fid *comp_fid,
-			   struct m0_buf *reply_buf, struct m0_rpc_session*,
-			   uint32_t reply_len);
+int c0appz_isc_req_prepare(struct c0appz_isc_req *, struct m0_buf *args,
+			   const struct m0_fid *comp, struct m0_buf *reply,
+			   struct m0_layout_io_plop *iopl, uint32_t reply_len);
+
+/**
+ * Sends a request asynchronously. The request is added to the
+ * isc_reqs list. On reply receipt, isc_sem(aphore) is up-ped.
+ * The received reply is populated at req->cir_result.
+ * The returned error code is at req->cir_rc.
+ */
+int c0appz_isc_req_send(struct c0appz_isc_req *req);
 
 /**
  * Sends a request and waits till reply is received. The received reply is
- * populated in req->cir_result. The returned errpr cpde is in req->cir_rc.
+ * populated in req->cir_result. The returned error code is in req->cir_rc.
  */
 int c0appz_isc_req_send_sync(struct c0appz_isc_req *req);
 

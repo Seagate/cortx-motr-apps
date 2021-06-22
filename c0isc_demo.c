@@ -302,6 +302,8 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 		res = NULL;
 	}
 
+	m0_free(buf);
+
 	return res;
 }
 
@@ -449,13 +451,14 @@ int main(int argc, char **argv)
 	void                  *inp_args; /* computation-specific input args */
 	void                  *out_args; /* output specific to a computation. */
 	struct m0_layout_plan *plan;
-	struct m0_layout_plop *plop;
+	struct m0_layout_plop *plop = NULL;
+	struct m0_layout_plop *prev_plop;
 	struct m0_layout_io_plop *iopl;
-	const char            *conn_addr;
+	const char            *conn_addr = NULL;
 	struct m0_buf          buf;
 	struct m0_buf          result;
 	struct m0_fid          comp_fid;
-	struct c0appz_isc_req  req;
+	struct c0appz_isc_req *req;
 	struct m0_uint128      obj_id;
 	struct m0_indexvec     ext;
 	struct m0_bufvec       data;
@@ -463,6 +466,7 @@ int main(int argc, char **argv)
 	uint32_t               reply_len;
 	int                    op_type;
 	int                    segs_nr = 2;
+	int                    reqs_nr = 0;
 	struct m0_obj          obj = {};
 
 	prog = basename(strdup(argv[0]));
@@ -530,6 +534,12 @@ int main(int argc, char **argv)
 	/* Initialise the  parameters for operation. */
 	rc = op_init(op_type, &inp_args);
 	while (rc == 0) {
+		M0_ALLOC_PTR(req);
+		if (req == NULL) {
+			fprintf(stderr, "request allocation failed\n");
+			break;
+		}
+		prev_plop = plop;
 		rc = m0_layout_plan_get(plan, 0, &plop);
 		if (rc != 0) {
 			fprintf(stderr, "failed to get plop: rc=%d\n", rc);
@@ -541,6 +551,9 @@ int main(int argc, char **argv)
 			break;
 		}
 		if (plop->pl_type == M0_LAT_OUT_READ) {
+			/* XXX just to be sure, for now only */
+			M0_ASSERT(prev_plop != NULL &&
+				  prev_plop->pl_type == M0_LAT_READ);
 			m0_layout_plop_done(plop);
 			continue;
 		}
@@ -549,48 +562,55 @@ int main(int argc, char **argv)
 
 		iopl = container_of(plop, struct m0_layout_io_plop, iop_base);
 
+		printf("req=%d goff=%lu\n", reqs_nr, iopl->iop_goff);
+
 		/* Prepare arguments for computation. */
 		rc = input_prepare(&buf, &comp_fid, iopl, &reply_len, op_type);
 		if (rc != 0) {
 			m0_layout_plop_done(plop);
-			fprintf(stderr,
-				"error! Input preparation failed: %d\n", rc);
+			fprintf(stderr, "input preparation failed: %d\n", rc);
 			break;
 		}
-		rc = c0appz_isc_req_prepare(&req, &buf, &comp_fid, &result,
-					    iopl->iop_session, reply_len);
+		rc = c0appz_isc_req_prepare(req, &buf, &comp_fid, &result,
+					    iopl, reply_len);
 		if (rc != 0) {
 			m0_buf_free(&buf);
 			m0_layout_plop_done(plop);
-			fprintf(stderr,
-				"error! request preparation failed: %d\n", rc);
-			goto out;
+			m0_free(req);
+			fprintf(stderr, "request preparation failed: %d\n", rc);
+			break;
 		}
-		/*
-		 * XXX: To achieve parallelism across services need to change
-		 * this to async.
-		 */
-		rc = c0appz_isc_req_send_sync(&req);
+
+		rc = c0appz_isc_req_send(req);
 		conn_addr = m0_rpc_conn_addr(iopl->iop_session->s_conn);
-		if (rc == 0) {
+		if (rc != 0) {
+			fprintf(stderr, "error from %s received: rc=%d\n",
+				conn_addr, rc);
+			break;
+		}
+		reqs_nr++;
+	}
+
+	/* wait for all replies */
+	while (reqs_nr-- > 0)
+		m0_semaphore_down(&isc_sem);
+
+	/* process the replies */
+	m0appz_isc_reqs_teardown(req) {
+		if (rc == 0 && req->cir_rc == 0) {
 			if (op_type == ICT_PING)
 				out_args = (void*)conn_addr;
 			out_args = output_process(&result,
 						  --segs_nr == 0 ? true : false,
 						  out_args, op_type);
-		} else {
-			fprintf(stderr, "Error from %s received: rc=%d\n"
-				"Check if the relevant library is loaded\n",
-				conn_addr, rc);
 		}
-		c0appz_isc_req_fini(&req);
-		m0_layout_plop_done(plop);
+		m0_layout_plop_done(req->cir_plop);
+		c0appz_isc_req_fini(req);
+		m0_free(req);
 	}
-	/* Ignore the case when all services are iterated. */
-	if (rc == -ENOENT)
-		rc = 0;
+
 	op_fini(op_type, inp_args, out_args);
- out:
+
 	/* free resources*/
 	c0appz_free();
 
