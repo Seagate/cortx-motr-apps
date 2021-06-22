@@ -459,7 +459,6 @@ int main(int argc, char **argv)
 	struct m0_layout_io_plop *iopl;
 	const char            *conn_addr = NULL;
 	struct m0_buf          buf;
-	struct m0_buf          result;
 	struct m0_fid          comp_fid;
 	struct c0appz_isc_req *req;
 	struct m0_uint128      obj_id;
@@ -574,8 +573,8 @@ int main(int argc, char **argv)
 			fprintf(stderr, "input preparation failed: %d\n", rc);
 			break;
 		}
-		rc = c0appz_isc_req_prepare(req, &buf, &comp_fid, &result,
-					    iopl, reply_len);
+		rc = c0appz_isc_req_prepare(req, &buf, &comp_fid, iopl,
+					    reply_len);
 		if (rc != 0) {
 			m0_buf_free(&buf);
 			m0_layout_plop_done(plop);
@@ -603,7 +602,7 @@ int main(int argc, char **argv)
 		if (rc == 0 && req->cir_rc == 0) {
 			if (op_type == ICT_PING)
 				out_args = (void*)conn_addr;
-			out_args = output_process(&result,
+			out_args = output_process(&req->cir_result,
 						  --segs_nr == 0 ? true : false,
 						  out_args, op_type);
 		}

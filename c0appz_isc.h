@@ -38,7 +38,7 @@ struct c0appz_isc_req {
 	/** Arguments for computation. */
 	struct m0_buf         *cir_args;
 	/** Buffer to store returned result. */
-	struct m0_buf         *cir_result;
+	struct m0_buf          cir_result;
 	/** Error code for the computation. */
 	int                    cir_rc;
 	/** RPC session of the ISC service. */
@@ -95,13 +95,12 @@ int c0appz_isc_nxt_svc_get(struct m0_fid *svcc_fid, struct m0_fid *nxt_fid,
  * Prepares a request using provided parameters.
  * @param[in] args      Holds arguments for the computation.
  * @param[in] comp      The unique fid associated with the computation.
- * @param[in] reply     A buf to be used for holding reply.
  * @param[in] iopl      IO plop associated with the request.
  * @param[in] reply_len Expected length of reply buffer. This is allowed to
  *                      be greater than the actual length of reply.
  */
 int c0appz_isc_req_prepare(struct c0appz_isc_req *, struct m0_buf *args,
-			   const struct m0_fid *comp, struct m0_buf *reply,
+			   const struct m0_fid *comp,
 			   struct m0_layout_io_plop *iopl, uint32_t reply_len);
 
 /**

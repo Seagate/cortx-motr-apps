@@ -829,7 +829,6 @@ int c0appz_isc_nxt_svc_get(struct m0_fid *svc_fid, struct m0_fid *nxt_fid,
 
 int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 			   const struct m0_fid *comp_fid,
-			   struct m0_buf *reply_buf,
 			   struct m0_layout_io_plop *iopl, uint32_t reply_len)
 {
 	struct m0_rpc_session *sess = iopl->iop_session;
@@ -839,7 +838,6 @@ int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 
 	req->cir_plop = &iopl->iop_base;
 	req->cir_args = args;
-	req->cir_result = reply_buf;
 	fop_isc->fi_comp_id = *comp_fid;
 	m0_rpc_at_init(&fop_isc->fi_args);
 	rc = m0_rpc_at_add(&fop_isc->fi_args, args, sess->s_conn);
@@ -882,7 +880,7 @@ void isc_req_replied(struct m0_rpc_item *item)
 		goto err;
 	}
 	rc = m0_rpc_at_rep_get(&req->cir_isc_fop.fi_ret, &isc_reply->fir_ret,
-			        req->cir_result);
+			       &req->cir_result);
 	if (rc != 0)
 		fprintf(stderr, "rpc_at_rep_get() from %s failed: rc=%d\n",
 			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
@@ -945,7 +943,7 @@ int c0appz_isc_req_send_sync(struct c0appz_isc_req *req)
 		fprintf(stderr, "Got error from %s: rc=%d\n",
 			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
 	rc = m0_rpc_at_rep_get(&req->cir_isc_fop.fi_ret, &isc_reply.fir_ret,
-			       req->cir_result);
+			       &req->cir_result);
 	if (rc != 0)
 		fprintf(stderr, "rpc_at_rep_get() from %s failed: rc=%d\n",
 			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
