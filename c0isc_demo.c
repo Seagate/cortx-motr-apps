@@ -271,6 +271,7 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 	rc = sscanf(buf, "%lf%n", &x_rval, &len);
 	if (rc < 1) {
 		fprintf(stderr, "failed to read the resulting xr-value\n");
+		m0_free(buf);
 		return NULL;
 	}
 
