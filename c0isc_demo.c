@@ -293,9 +293,18 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 	//printf("xval=%lf yval=%lf\n", x->mr_val, y->mr_val);
 
 	if (ICT_MIN == op_type)
-		y->mr_val = min3(y->mr_val, x_rval, y_lval);
+		y->mr_val = min3(min_check(x->mr_val, y->mr_val),
+				 x_rval, y_lval);
 	else
-		y->mr_val = max3(y->mr_val, x_rval, y_lval);
+		y->mr_val = max3(max_check(x->mr_val, y->mr_val),
+				 x_rval, y_lval);
+
+	if (y->mr_val == x->mr_val)
+		y->mr_idx = x->mr_idx;
+	else if (y->mr_val == x_rval)
+		y->mr_idx = x->mr_idx_max;
+	else if (y->mr_val == y_lval)
+		y->mr_idx = x->mr_idx_max + 1;
 
 	m0_free(buf);
 
@@ -373,9 +382,10 @@ static void *minmax_output_prepare(struct m0_buf *result,
 		check_edge_val(&new, ELM_LAST, type);
 
 	/* Copy the current resulting value. */
-	op_result(prev, &new, type);
-	mm_result_free_xcode_bufs(prev);
-	*prev = new;
+	if (op_result(prev, &new, type)) {
+		mm_result_free_xcode_bufs(prev);
+		*prev = new;
+	}
  out:
 	/* Print the result. */
 	if (last_unit && prev != NULL) {
