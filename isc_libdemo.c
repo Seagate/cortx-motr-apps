@@ -80,7 +80,8 @@ enum op {MIN, MAX};
 static void stio_fini(struct m0_stob_io *stio, struct m0_stob *stob)
 {
 	m0_indexvec_free(&stio->si_stob);
-	m0_bufvec_free(&stio->si_user);
+	m0_free(stio->si_user.ov_buf[0]);
+	m0_bufvec_free2(&stio->si_user);
 	m0_stob_io_fini(stio);
 	m0_storage_dev_stob_put(m0_cs_storage_devs_get(), stob);
 }
@@ -100,21 +101,33 @@ static void bufvec_open(struct m0_bufvec *bv, uint32_t shift)
 	uint32_t i;
 
 	for (i = 0; i < bv->ov_vec.v_nr; i++) {
-		bv->ov_vec.v_count[0] <<= shift;
-		bv->ov_buf[0] = m0_stob_addr_open(bv->ov_buf[0], shift);
+		bv->ov_vec.v_count[i] <<= shift;
+		bv->ov_buf[i] = m0_stob_addr_open(bv->ov_buf[i], shift);
+	}
+}
+
+static void bufvec_fill(struct m0_bufvec *bv, char *p,
+			struct m0_io_indexvec *iiv)
+{
+	int i;
+
+	for (i = 0; i < bv->ov_vec.v_nr; i++) {
+		bv->ov_buf[i] = p;
+		bv->ov_vec.v_count[i] = iiv->ci_iosegs[i].ci_count;
+		p += iiv->ci_iosegs[i].ci_count;
 	}
 }
 
 int launch_stob_io(struct m0_isc_comp_private *pdata,
 		   struct m0_buf *in, int *rc)
 {
-	uint32_t           shift;
+	uint32_t           shift = 0;
 	struct m0_stob_io *stio = (struct m0_stob_io *)pdata->icp_data;
 	struct m0_fom     *fom = pdata->icp_fom;
 	struct isc_targs   ta = {};
 	struct m0_stob_id  stob_id;
 	struct m0_stob    *stob = NULL;
-	struct m0_ioseg   *ioseg;
+	char              *buf;
 
 	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_targs_xc, &ta),
 					in->b_addr, in->b_nob);
@@ -125,12 +138,6 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 
 	if (ta.ist_ioiv.ci_nr == 0) {
 		M0_LOG(M0_ERROR, "no io segments given");
-		*rc = -EINVAL;
-		goto err;
-	}
-
-	if (ta.ist_ioiv.ci_nr > 1) {
-		M0_LOG(M0_ERROR, "only one segment for now");
 		*rc = -EINVAL;
 		goto err;
 	}
@@ -147,7 +154,6 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 		goto err;
 	}
 
-	ioseg = ta.ist_ioiv.ci_iosegs;
 	shift = m0_stob_block_shift(stob);
 
 	*rc = m0_indexvec_wire2mem(&ta.ist_ioiv, ta.ist_ioiv.ci_nr,
@@ -157,12 +163,17 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 		goto err;
 	}
 
-	*rc = m0_bufvec_alloc_aligned(&stio->si_user, ta.ist_ioiv.ci_nr,
-				      ioseg->ci_count, shift);
+	*rc = m0_bufvec_empty_alloc(&stio->si_user, ta.ist_ioiv.ci_nr);
 	if (*rc != 0) {
 		M0_LOG(M0_ERROR, "failed to make bufvec: rc=%d", *rc);
 		goto err;
 	}
+	buf = m0_alloc_aligned(m0_io_count(&ta.ist_ioiv), shift);
+	if (buf == NULL) {
+		*rc = M0_ERR_INFO(-ENOMEM, "failed to allocate buf");
+		goto err;
+	}
+	bufvec_fill(&stio->si_user, buf, &ta.ist_ioiv);
 	bufvec_pack(&stio->si_user, shift);
 
 	*rc = m0_stob_io_private_setup(stio, stob);
@@ -188,8 +199,10 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
  err:
 	m0_free(ta.ist_arr.ia_arr);
 	if (*rc != 0) {
-		if (stob != NULL)
+		if (stob != NULL) {
+			bufvec_open(&stio->si_user, shift);
 			stio_fini(stio, stob);
+		}
 		/*
 		 * EAGAIN has a special meaning in the calling isc code,
 		 * so make sure we don't return it by accident.

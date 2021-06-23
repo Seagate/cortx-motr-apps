@@ -187,12 +187,13 @@ static int minmax_input_prepare(struct m0_buf *out, struct m0_fid *comp_fid,
 	struct m0_buf buf = M0_BUF_INIT0;
 	struct isc_targs ta = {};
 
-	if (iop->iop_ext.iv_vec.v_nr > 1) {
-		fprintf(stderr, "no more than 1 segment for now\n");
+	if (iop->iop_ext.iv_vec.v_nr == 0) {
+		fprintf(stderr, "at least 1 segment required\n");
 		return -EINVAL;
 	}
 	ta.ist_cob = iop->iop_base.pl_ent;
-	rc = m0_indexvec_mem2wire(&iop->iop_ext, 1, 0, &ta.ist_ioiv);
+	rc = m0_indexvec_mem2wire(&iop->iop_ext, iop->iop_ext.iv_vec.v_nr, 0,
+				  &ta.ist_ioiv);
 	if (rc != 0)
 		return rc;
 	rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(isc_targs_xc, &ta),
@@ -393,9 +394,8 @@ static void *minmax_output_prepare(struct m0_buf *result,
 	}
  out:
 	/* Print the result. */
-	if (last_unit) {
-		fprintf(stderr, "idx=%lu val=%lf\n",
-			prev->mr_idx, prev->mr_val);
+	if (last_unit && prev != NULL) {
+		printf("idx=%lu val=%lf\n", prev->mr_idx, prev->mr_val);
 		mm_result_free_xcode_bufs(prev);
 		m0_free(prev);
 		prev = NULL;
@@ -427,13 +427,14 @@ static void* output_process(struct m0_buf *result, bool last,
 char *prog;
 
 const char *help_str = "\
-Usage: %s op_name obj_id\n\
+\n\
+Usage: %s op obj len\n\
 \n\
   Supported operations: ping, min, max.\n\
 \n\
-  obj_id is two uint64 numbers in format: hi:lo.\n\
-\n\
-  Refer to README.isc for more usage details.\n";
+  obj is two uint64 numbers in format: hi:lo.\n\
+  len is the length of object (in KiB).\n\
+\n";
 
 static void usage()
 {
@@ -482,13 +483,15 @@ int main(int argc, char **argv)
 	struct m0_bufvec       attr;
 	uint32_t               reply_len;
 	int                    op_type;
-	int                    segs_nr = 2;
+	int                    segs_nr;
 	int                    reqs_nr = 0;
+	int                    len;
+	int                    unit_sz;
 	struct m0_obj          obj = {};
 
 	prog = basename(strdup(argv[0]));
 
-	if (argc < 2)
+	if (argc < 4)
 		usage();
 
 	c0appz_timein();
@@ -499,10 +502,14 @@ int main(int argc, char **argv)
 	op_type = op_type_parse(argv[1]);
 	if (op_type == -EINVAL)
 		usage();
-	if (argc < 3)
-		usage();
 	if (read_id(argv[2], &obj_id) < 1)
 		usage();
+	len = atoi(argv[3]);
+	if (len < 4) {
+		fprintf(stderr, "object length should be at least 4K\n");
+		usage();
+	}
+	len *= 1024;
 
 	m0trace_on = true;
 
@@ -519,19 +526,23 @@ int main(int argc, char **argv)
 
 	m0_xc_isc_libdemo_init();
 
-	rc = alloc_segs(&data, &ext, &attr, 4096, segs_nr);
-	if (rc != 0) {
-		fprintf(stderr, "failed to alloc_segs: rc=%d\n", rc);
-		usage();
-	}
-	set_exts(&ext, 0, 4096);
-
 	m0_obj_init(&obj, &uber_realm, &obj_id, M0_DEFAULT_LAYOUT_ID);
 	rc = open_entity(&obj.ob_entity);
 	if (rc != 0) {
 		fprintf(stderr, "failed to open object: rc=%d\n", rc);
 		usage();
 	}
+
+	unit_sz = m0_obj_layout_id_to_unit_size(obj.ob_attr.oa_layout_id);
+	segs_nr = (len + unit_sz - 1) / unit_sz;
+	printf("unit_sz=%d segs_nr=%d\n", unit_sz, segs_nr);
+
+	rc = alloc_segs(&data, &ext, &attr, unit_sz, segs_nr);
+	if (rc != 0) {
+		fprintf(stderr, "failed to alloc_segs: rc=%d\n", rc);
+		usage();
+	}
+	set_exts(&ext, 0, unit_sz);
 
 	rc = m0_obj_op(&obj, M0_OC_READ, &ext, &data, &attr, 0, 0, &op);
 	if (rc != 0) {

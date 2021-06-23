@@ -868,13 +868,20 @@ void isc_req_replied(struct m0_rpc_item *item)
 	struct m0_fop         *reply_fop;
 	struct m0_fop_isc_rep *isc_reply;
 	struct c0appz_isc_req *req = M0_AMB(req, fop, cir_fop);
+	const char *addr = m0_rpc_conn_addr(req->cir_rpc_sess->s_conn);
 
+	if (item->ri_error != 0) {
+		req->cir_rc = item->ri_error;
+		fprintf(stderr,
+			"No reply from %s: rc=%d.\n", addr, item->ri_error);
+		goto err;
+	}
 	reply_fop = m0_rpc_item_to_fop(req->cir_fop.f_item.ri_reply);
 	isc_reply = (struct m0_fop_isc_rep *)m0_fop_data(reply_fop);
 	rc = req->cir_rc = isc_reply->fir_rc;
 	if (rc != 0) {
-		fprintf(stderr, "Got error in reply from %s: rc=%d.\n",
-			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
+		fprintf(stderr,
+			"Got error in reply from %s: rc=%d.\n", addr, rc);
 		if (rc == -ENOENT)
 			fprintf(stderr, "Was isc .so library is loaded?\n");
 		goto err;
@@ -882,8 +889,8 @@ void isc_req_replied(struct m0_rpc_item *item)
 	rc = m0_rpc_at_rep_get(&req->cir_isc_fop.fi_ret, &isc_reply->fir_ret,
 			       &req->cir_result);
 	if (rc != 0)
-		fprintf(stderr, "rpc_at_rep_get() from %s failed: rc=%d\n",
-			m0_rpc_conn_addr(req->cir_rpc_sess->s_conn), rc);
+		fprintf(stderr,
+			"rpc_at_rep_get() from %s failed: rc=%d\n", addr, rc);
  err:
 	m0_fop_put(&req->cir_fop);
 	m0_semaphore_up(req->cir_sem);
@@ -962,9 +969,10 @@ static void fop_fini_lock(struct m0_fop *fop)
 
 void c0appz_isc_req_fini(struct c0appz_isc_req *req)
 {
-	struct m0_fop *reply_fop;
+	struct m0_fop *reply_fop = NULL;
 
-	reply_fop = m0_rpc_item_to_fop(req->cir_fop.f_item.ri_reply);
+	if (req->cir_fop.f_item.ri_reply != NULL)
+		reply_fop = m0_rpc_item_to_fop(req->cir_fop.f_item.ri_reply);
 	if (reply_fop != NULL)
 		m0_fop_put_lock(reply_fop);
 	req->cir_fop.f_item.ri_reply = NULL;
