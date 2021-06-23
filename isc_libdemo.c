@@ -106,16 +106,30 @@ static void bufvec_open(struct m0_bufvec *bv, uint32_t shift)
 	}
 }
 
-static void bufvec_fill(struct m0_bufvec *bv, char *p,
-			struct m0_io_indexvec *iiv)
+static int bufvec_alloc_init(struct m0_bufvec *bv, struct m0_io_indexvec *iiv,
+			     uint32_t shift)
 {
-	int i;
+	int   rc;
+	int   i;
+	char *p;
 
-	for (i = 0; i < bv->ov_vec.v_nr; i++) {
+	p = m0_alloc_aligned(m0_io_count(iiv), shift);
+	if (p == NULL)
+		return M0_ERR_INFO(-ENOMEM, "failed to allocate buf");
+
+	rc = m0_bufvec_empty_alloc(bv, iiv->ci_nr);
+	if (rc != 0) {
+		m0_free(p);
+		return M0_ERR_INFO(rc, "failed to allocate bufvec");
+	}
+
+	for (i = 0; i < iiv->ci_nr; i++) {
 		bv->ov_buf[i] = p;
 		bv->ov_vec.v_count[i] = iiv->ci_iosegs[i].ci_count;
 		p += iiv->ci_iosegs[i].ci_count;
 	}
+
+	return 0;
 }
 
 int launch_stob_io(struct m0_isc_comp_private *pdata,
@@ -127,7 +141,6 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 	struct isc_targs   ta = {};
 	struct m0_stob_id  stob_id;
 	struct m0_stob    *stob = NULL;
-	char              *buf;
 
 	*rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(isc_targs_xc, &ta),
 					in->b_addr, in->b_nob);
@@ -163,17 +176,12 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 		goto err;
 	}
 
-	*rc = m0_bufvec_empty_alloc(&stio->si_user, ta.ist_ioiv.ci_nr);
+	*rc = bufvec_alloc_init(&stio->si_user, &ta.ist_ioiv, shift);
 	if (*rc != 0) {
-		M0_LOG(M0_ERROR, "failed to make bufvec: rc=%d", *rc);
+		M0_LOG(M0_ERROR, "failed to allocate bufvec: rc=%d", *rc);
 		goto err;
 	}
-	buf = m0_alloc_aligned(m0_io_count(&ta.ist_ioiv), shift);
-	if (buf == NULL) {
-		*rc = M0_ERR_INFO(-ENOMEM, "failed to allocate buf");
-		goto err;
-	}
-	bufvec_fill(&stio->si_user, buf, &ta.ist_ioiv);
+
 	bufvec_pack(&stio->si_user, shift);
 
 	*rc = m0_stob_io_private_setup(stio, stob);

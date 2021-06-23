@@ -252,7 +252,6 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 {
 	int               rc;
 	int               len;
-	struct mm_result *res;
 	char             *buf;
 	double            x_rval;
 	double            y_lval;
@@ -266,6 +265,7 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 	}
 
 	memcpy(buf, x->mr_rbuf.i_buf, x->mr_rbuf.i_len);
+	//buf[x->mr_rbuf.i_len] = '\0'; printf("xrbuf=%s\n", buf);
 	memcpy(buf + x->mr_rbuf.i_len, y->mr_lbuf.i_buf, y->mr_lbuf.i_len);
 	buf[x->mr_rbuf.i_len + y->mr_lbuf.i_len] = '\0';
 
@@ -292,22 +292,14 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 
 	//printf("xval=%lf yval=%lf\n", x->mr_val, y->mr_val);
 
-	switch (op_type) {
-	case ICT_MIN:
-		res = x->mr_val <= y->mr_val ? x : y;
-		res->mr_val = min3(res->mr_val, x_rval, y_lval);
-		break;
-	case ICT_MAX:
-		res = x->mr_val >= y->mr_val ? x : y;
-		res->mr_val = max3(res->mr_val, x_rval, y_lval);
-		break;
-	default:
-		res = NULL;
-	}
+	if (ICT_MIN == op_type)
+		y->mr_val = min3(y->mr_val, x_rval, y_lval);
+	else
+		y->mr_val = max3(y->mr_val, x_rval, y_lval);
 
 	m0_free(buf);
 
-	return res;
+	return y;
 }
 
 enum elm_order {
@@ -363,7 +355,6 @@ static void *minmax_output_prepare(struct m0_buf *result,
 {
 	int               rc;
 	struct mm_result  new = {};
-	struct mm_result *res;
 
 	rc = m0_xcode_obj_dec_from_buf(&M0_XCODE_OBJ(mm_result_xc, &new),
 				       result->b_addr, result->b_nob);
@@ -382,16 +373,9 @@ static void *minmax_output_prepare(struct m0_buf *result,
 		check_edge_val(&new, ELM_LAST, type);
 
 	/* Copy the current resulting value. */
-	res = op_result(prev, &new, type);
-	if (res == NULL)
-		goto out;
-
-	if (res == prev) {
-		mm_result_free_xcode_bufs(&new);
-	} else {
-		mm_result_free_xcode_bufs(prev);
-		*prev = new;
-	}
+	op_result(prev, &new, type);
+	mm_result_free_xcode_bufs(prev);
+	*prev = new;
  out:
 	/* Print the result. */
 	if (last_unit && prev != NULL) {
