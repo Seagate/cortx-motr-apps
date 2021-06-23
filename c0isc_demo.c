@@ -283,11 +283,12 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 	if (rc < 1) {
 		y_lval = x_rval;
 	} else {
+		//printf("y_lval=%lf\n", y_lval);
 		y->mr_idx++;
 		y->mr_idx_max++;
 	}
 
-	//printf("y_lval=%lf\n", y_lval);
+	//printf("xval=%lf yval=%lf\n", x->mr_val, y->mr_val);
 
 	switch (op_type) {
 	case ICT_MIN:
@@ -336,7 +337,7 @@ static void check_edge_val(struct mm_result *res, enum elm_order e,
 		return;
 	}
 
-	//printf("edge val=%lf\n", val);
+	//printf("edge val=%lf (%s)\n", val, (ELM_FIRST == e) ? "first" : "last");
 
 	if (ICT_MIN == type && val < res->mr_val) {
 		res->mr_val = val;
@@ -345,6 +346,12 @@ static void check_edge_val(struct mm_result *res, enum elm_order e,
 		res->mr_val = val;
 		set_idx(res, e);
 	}
+}
+
+static void mm_result_free_xcode_bufs(struct mm_result *r)
+{
+	m0_free(r->mr_lbuf.i_buf);
+	m0_free(r->mr_rbuf.i_buf);
 }
 
 static void *minmax_output_prepare(struct m0_buf *result,
@@ -376,15 +383,22 @@ static void *minmax_output_prepare(struct m0_buf *result,
 	res = op_result(prev, &new, type);
 	if (res == NULL)
 		goto out;
-	*prev = *res;
+
+	if (res == prev) {
+		mm_result_free_xcode_bufs(&new);
+	} else {
+		mm_result_free_xcode_bufs(prev);
+		*prev = new;
+	}
  out:
-	/* Print the output. */
-	if (last_unit)
+	/* Print the result. */
+	if (last_unit) {
 		fprintf(stderr, "idx=%lu val=%lf\n",
 			prev->mr_idx, prev->mr_val);
-
-	m0_free(new.mr_lbuf.i_buf);
-	m0_free(new.mr_rbuf.i_buf);
+		mm_result_free_xcode_bufs(prev);
+		m0_free(prev);
+		prev = NULL;
+	}
 
 	return prev;
 }
@@ -603,7 +617,8 @@ int main(int argc, char **argv)
 			if (op_type == ICT_PING)
 				out_args = (void*)conn_addr;
 			out_args = output_process(&req->cir_result,
-						  --segs_nr == 0 ? true : false,
+						  m0_list_is_empty(&isc_reqs) ?
+						      true : false,
 						  out_args, op_type);
 		}
 		m0_layout_plop_done(req->cir_plop);
