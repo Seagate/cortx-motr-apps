@@ -163,8 +163,7 @@ static int op_init(enum isc_comp_type type, void **inp_args)
 	}
 }
 
-static void op_fini(enum isc_comp_type op_type, struct mm_args *in_info,
-		    void *out_args)
+static void op_fini(enum isc_comp_type op_type, struct mm_args *in_info)
 {
 	switch (op_type) {
 	case ICT_PING:
@@ -175,7 +174,6 @@ static void op_fini(enum isc_comp_type op_type, struct mm_args *in_info,
 			break;
 		m0_free(in_info->ma_arr);
 		m0_free(in_info);
-		m0_free(out_args);
 	}
 }
 
@@ -457,101 +455,20 @@ int read_id(const char *s, struct m0_uint128 *id)
 	return res;
 }
 
-int main(int argc, char **argv)
+int launch_comp(struct m0_layout_plan *plan, int op_type, bool last)
 {
 	int                    rc;
-	struct m0_op          *op = NULL;
-	void                  *inp_args; /* computation-specific input args */
-	void                  *out_args; /* output specific to a computation. */
-	struct m0_layout_plan *plan;
+	int                    reqs_nr = 0;
+	uint32_t               reply_len;
+	struct c0appz_isc_req *req;
 	struct m0_layout_plop *plop = NULL;
 	struct m0_layout_plop *prev_plop;
 	struct m0_layout_io_plop *iopl;
+	void                  *inp_args = NULL; /* computation input args */
+	static void           *out_args = NULL; /* computation output */
 	const char            *conn_addr = NULL;
-	struct m0_buf          buf;
 	struct m0_fid          comp_fid;
-	struct c0appz_isc_req *req;
-	struct m0_uint128      obj_id;
-	struct m0_indexvec     ext;
-	struct m0_bufvec       data;
-	struct m0_bufvec       attr;
-	uint32_t               reply_len;
-	int                    op_type;
-	int                    segs_nr;
-	int                    reqs_nr = 0;
-	int                    len;
-	int                    unit_sz;
-	struct m0_obj          obj = {};
-
-	prog = basename(strdup(argv[0]));
-
-	if (argc < 4)
-		usage();
-
-	c0appz_timein();
-
-	c0appz_setrc(prog);
-	c0appz_putrc();
-
-	op_type = op_type_parse(argv[1]);
-	if (op_type == -EINVAL)
-		usage();
-	if (read_id(argv[2], &obj_id) < 1)
-		usage();
-	len = atoi(argv[3]);
-	if (len < 4) {
-		fprintf(stderr, "object length should be at least 4K\n");
-		usage();
-	}
-	len *= 1024;
-
-	m0trace_on = true;
-
-	rc = c0appz_init(0);
-	if (rc != 0) {
-		fprintf(stderr,"c0appz_init() failed: %d\n", rc);
-		usage();
-	}
-
-	if (isc_services_count() == 0) {
-		fprintf(stderr, "ISC services are not started\n");
-		usage();
-	}
-
-	m0_xc_isc_libdemo_init();
-
-	m0_obj_init(&obj, &uber_realm, &obj_id, M0_DEFAULT_LAYOUT_ID);
-	rc = open_entity(&obj.ob_entity);
-	if (rc != 0) {
-		fprintf(stderr, "failed to open object: rc=%d\n", rc);
-		usage();
-	}
-
-	unit_sz = m0_obj_layout_id_to_unit_size(obj.ob_attr.oa_layout_id);
-	segs_nr = (len + unit_sz - 1) / unit_sz;
-	printf("unit_sz=%d segs_nr=%d\n", unit_sz, segs_nr);
-
-	rc = alloc_segs(&data, &ext, &attr, unit_sz, segs_nr);
-	if (rc != 0) {
-		fprintf(stderr, "failed to alloc_segs: rc=%d\n", rc);
-		usage();
-	}
-	set_exts(&ext, 0, unit_sz);
-
-	rc = m0_obj_op(&obj, M0_OC_READ, &ext, &data, &attr, 0, 0, &op);
-	if (rc != 0) {
-		fprintf(stderr, "failed to create op: rc=%d\n", rc);
-		usage();
-	}
-
-	plan = m0_layout_plan_build(op);
-	if (plan == NULL) {
-		fprintf(stderr, "failed to build access plan\n");
-		usage();
-	}
-
-	out_args = NULL;
-	inp_args = NULL;
+	struct m0_buf          buf;
 
 	/* Initialise the  parameters for operation. */
 	rc = op_init(op_type, &inp_args);
@@ -584,7 +501,8 @@ int main(int argc, char **argv)
 
 		iopl = container_of(plop, struct m0_layout_io_plop, iop_base);
 
-		printf("req=%d goff=%lu\n", reqs_nr, iopl->iop_goff);
+		printf("req=%d goff=%lu segs=%d\n", reqs_nr, iopl->iop_goff,
+		       iopl->iop_ext.iv_vec.v_nr);
 
 		/* Prepare arguments for computation. */
 		rc = input_prepare(&buf, &comp_fid, iopl, &reply_len, op_type);
@@ -613,7 +531,7 @@ int main(int argc, char **argv)
 		reqs_nr++;
 	}
 
-	/* wait for all replies */
+	/* wait for all the replies */
 	while (reqs_nr-- > 0)
 		m0_semaphore_down(&isc_sem);
 
@@ -623,8 +541,7 @@ int main(int argc, char **argv)
 			if (op_type == ICT_PING)
 				out_args = (void*)conn_addr;
 			out_args = output_process(&req->cir_result,
-						  m0_list_is_empty(&isc_reqs) ?
-						      true : false,
+					  last && m0_list_is_empty(&isc_reqs),
 						  out_args, op_type);
 		}
 		m0_layout_plop_done(req->cir_plop);
@@ -632,7 +549,107 @@ int main(int argc, char **argv)
 		m0_free(req);
 	}
 
-	op_fini(op_type, inp_args, out_args);
+	op_fini(op_type, inp_args);
+
+	return rc;
+}
+
+int main(int argc, char **argv)
+{
+	int                    rc;
+	struct m0_op          *op = NULL;
+	struct m0_layout_plan *plan;
+	struct m0_uint128      obj_id;
+	struct m0_indexvec     ext;
+	struct m0_bufvec       data;
+	struct m0_bufvec       attr;
+	int                    op_type;
+	int                    segs_nr;
+	m0_bcount_t            len;
+	m0_bcount_t            bs;
+	m0_bindex_t            off = 0;
+	int                    unit_sz;
+	struct m0_obj          obj = {};
+
+	prog = basename(strdup(argv[0]));
+
+	if (argc < 4)
+		usage();
+
+	c0appz_timein();
+
+	c0appz_setrc(prog);
+	c0appz_putrc();
+
+	op_type = op_type_parse(argv[1]);
+	if (op_type == -EINVAL)
+		usage();
+	if (read_id(argv[2], &obj_id) < 1)
+		usage();
+	len = atoll(argv[3]);
+	if (len < 4) {
+		fprintf(stderr, "object length should be at least 4K\n");
+		usage();
+	}
+	len *= 1024;
+
+	m0trace_on = true;
+
+	rc = c0appz_init(0);
+	if (rc != 0) {
+		fprintf(stderr,"c0appz_init() failed: %d\n", rc);
+		usage();
+	}
+
+	if (isc_services_count() == 0) {
+		fprintf(stderr, "ISC services are not started\n");
+		usage();
+	}
+
+	m0_xc_isc_libdemo_init();
+
+	m0_obj_init(&obj, &uber_realm, &obj_id, M0_DEFAULT_LAYOUT_ID);
+	rc = open_entity(&obj.ob_entity);
+	if (rc != 0) {
+		fprintf(stderr, "failed to open object: rc=%d\n", rc);
+		usage();
+	}
+
+	bs = c0appz_isc_m0bs(&obj, len, 0);
+	if (bs == 0) {
+		fprintf(stderr, "cannot figure out bs to use\n");
+		usage();
+	}
+	unit_sz = m0_obj_layout_id_to_unit_size(obj.ob_attr.oa_layout_id);
+
+	for (; rc == 0 && len > 0; len -= bs > len ? len : bs, off += bs) {
+		segs_nr = bs / unit_sz;
+		printf("unit_sz=%d segs_nr=%d\n", unit_sz, segs_nr);
+
+		rc = alloc_segs(&data, &ext, &attr, unit_sz, segs_nr);
+		if (rc != 0) {
+			fprintf(stderr, "failed to alloc_segs: rc=%d\n", rc);
+			usage();
+		}
+		set_exts(&ext, off, unit_sz);
+
+		rc = m0_obj_op(&obj, M0_OC_READ, &ext, &data, &attr, 0, 0, &op);
+		if (rc != 0) {
+			fprintf(stderr, "failed to create op: rc=%d\n", rc);
+			usage();
+		}
+
+		plan = m0_layout_plan_build(op);
+		if (plan == NULL) {
+			fprintf(stderr, "failed to build access plan\n");
+			usage();
+		}
+
+		rc = launch_comp(plan, op_type, len <= bs ? true : false);
+
+		m0_layout_plan_fini(plan);
+		free_segs(&data, &ext, &attr);
+	}
 
 	/* free resources*/
 	c0appz_free();
