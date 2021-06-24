@@ -22,16 +22,13 @@
  */
 
 #include "lib/types.h"
+#include "lib/buf.h"
+#include "lib/buf_xc.h"
 #include "fid/fid.h"
 #include "fid/fid_xc.h"
 #include "lib/vec.h"
 #include "lib/vec_xc.h"
 #include "xcode/xcode_attr.h"
-
-struct isc_buf {
-	uint32_t  i_len;
-	char     *i_buf;
-} M0_XCA_SEQUENCE;
 
 /**
  * Holds the result of min and max computations.
@@ -42,25 +39,19 @@ struct isc_buf {
  * in the final computation also.
  */
 struct mm_result {
-	uint64_t       mr_idx;
-	uint64_t       mr_idx_max;
-	double         mr_val;
+	uint64_t      mr_idx;
+	uint64_t      mr_idx_max;
+	double        mr_val;
 	/** right cut of the value on the left side of unit */
-	struct isc_buf mr_lbuf;
+	struct m0_buf mr_lbuf;
 	/** left  cut of the value on the right side of unit */
-	struct isc_buf mr_rbuf;
+	struct m0_buf mr_rbuf;
 } M0_XCA_RECORD;
-
-struct isc_arr {
-	uint32_t ia_len;
-	double  *ia_arr;
-} M0_XCA_SEQUENCE;
 
 /** Arguments to the target ISC service. */
 struct isc_targs {
 	struct m0_fid         ist_cob;
 	struct m0_io_indexvec ist_ioiv;
-	struct isc_arr        ist_arr;
 } M0_XCA_RECORD;
 
 /*

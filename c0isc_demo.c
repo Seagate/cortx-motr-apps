@@ -1,6 +1,6 @@
 /* -*- C -*- */
 /*
- * Copyright (c) 2018-2020 Seagate Technology LLC and/or its Affiliates
+ * Copyright (c) 2018-2021 Seagate Technology LLC and/or its Affiliates
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -254,18 +254,18 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 	double            x_rval;
 	double            y_lval;
 
-	len = x->mr_rbuf.i_len + y->mr_lbuf.i_len;
-	buf = malloc(x->mr_rbuf.i_len + y->mr_lbuf.i_len + 1);
+	len = x->mr_rbuf.b_nob + y->mr_lbuf.b_nob;
+	buf = malloc(x->mr_rbuf.b_nob + y->mr_lbuf.b_nob + 1);
 	if (buf == NULL) {
 		fprintf(stderr, "failed to allocate %d of memory for result\n",
 			                            len);
 		return NULL;
 	}
 
-	memcpy(buf, x->mr_rbuf.i_buf, x->mr_rbuf.i_len);
-	//buf[x->mr_rbuf.i_len] = '\0'; printf("xrbuf=%s\n", buf);
-	memcpy(buf + x->mr_rbuf.i_len, y->mr_lbuf.i_buf, y->mr_lbuf.i_len);
-	buf[x->mr_rbuf.i_len + y->mr_lbuf.i_len] = '\0';
+	memcpy(buf, x->mr_rbuf.b_addr, x->mr_rbuf.b_nob);
+	//buf[x->mr_rbuf.b_nob] = '\0'; printf("xrbuf=%s\n", buf);
+	memcpy(buf + x->mr_rbuf.b_nob, y->mr_lbuf.b_addr, y->mr_lbuf.b_nob);
+	buf[x->mr_rbuf.b_nob + y->mr_lbuf.b_nob] = '\0';
 
 	rc = sscanf(buf, "%lf%n", &x_rval, &len);
 	if (rc < 1) {
@@ -329,9 +329,9 @@ static void check_edge_val(struct mm_result *res, enum elm_order e,
 	double      val;
 
 	if (ELM_FIRST == e)
-		buf = res->mr_lbuf.i_buf;
+		buf = res->mr_lbuf.b_addr;
 	else // last
-		buf = res->mr_rbuf.i_buf;
+		buf = res->mr_rbuf.b_addr;
 
 	if (sscanf(buf, "%lf", &val) < 1) {
 		fprintf(stderr, "failed to parse egde value=%s\n", buf);
@@ -351,8 +351,8 @@ static void check_edge_val(struct mm_result *res, enum elm_order e,
 
 static void mm_result_free_xcode_bufs(struct mm_result *r)
 {
-	m0_free(r->mr_lbuf.i_buf);
-	m0_free(r->mr_rbuf.i_buf);
+	m0_free(r->mr_lbuf.b_addr);
+	m0_free(r->mr_rbuf.b_addr);
 }
 
 static void *minmax_output_prepare(struct m0_buf *result,

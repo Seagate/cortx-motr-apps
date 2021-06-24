@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Seagate Technology LLC and/or its Affiliates
+ * Copyright (c) 2018-2021 Seagate Technology LLC and/or its Affiliates
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -205,7 +205,6 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 		m0_mutex_unlock(&stio->si_mutex);
 	}
  err:
-	m0_free(ta.ist_arr.ia_arr);
 	if (*rc != 0) {
 		if (stob != NULL) {
 			bufvec_open(&stio->si_user, shift);
@@ -225,7 +224,7 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 }
 
 static int buf_to_array(char *buf, double **arr,
-			struct isc_buf *lbuf, struct isc_buf *rbuf)
+			struct m0_buf *lbuf, struct m0_buf *rbuf)
 {
 	int         i;
 	int         n;
@@ -254,8 +253,8 @@ static int buf_to_array(char *buf, double **arr,
 	rc = sscanf(buf, "%lf\n%n", &val, &n);
 	if (rc < 1)
 		return M0_ERR(-EINVAL);
-	lbuf->i_buf = buf;
-	lbuf->i_len = n;
+	lbuf->b_addr = buf;
+	lbuf->b_nob = n;
 	buf += n;
 
 	for (i = 0; i < arr_len; ++i) {
@@ -270,8 +269,8 @@ static int buf_to_array(char *buf, double **arr,
 	 * the left cut of the first value of the next unit.
 	 */
 	if (i > 0) {
-		rbuf->i_buf = buf - n;
-		rbuf->i_len = n;
+		rbuf->b_addr = buf - n;
+		rbuf->b_nob = n;
 		i--;
 	}
 
