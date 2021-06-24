@@ -21,6 +21,7 @@
  * Original creation date: 06-Sep-2018
  */
 
+#include <unistd.h>      /* getopt */
 #include <libgen.h>      /* dirname */
 
 #include "lib/memory.h"  /* m0_alloc m0_free */
@@ -263,7 +264,8 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 	}
 
 	memcpy(buf, x->mr_rbuf.b_addr, x->mr_rbuf.b_nob);
-	//buf[x->mr_rbuf.b_nob] = '\0'; printf("xrbuf=%s\n", buf);
+	buf[x->mr_rbuf.b_nob] = '\0';
+	DBG2("xrbuf=%s\n", buf);
 	memcpy(buf + x->mr_rbuf.b_nob, y->mr_lbuf.b_addr, y->mr_lbuf.b_nob);
 	buf[x->mr_rbuf.b_nob + y->mr_lbuf.b_nob] = '\0';
 
@@ -277,7 +279,7 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 	y->mr_idx     += x->mr_idx_max;
 	y->mr_idx_max += x->mr_idx_max;
 
-	//printf("buf=%s x_rval=%lf\n", buf, x_rval);
+	DBG2("buf=%s x_rval=%lf\n", buf, x_rval);
 
 	rc = sscanf(buf + len, "%lf", &y_lval);
 	if (rc < 1) {
@@ -288,7 +290,7 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 		y->mr_idx_max++;
 	}
 
-	//printf("xval=%lf yval=%lf\n", x->mr_val, y->mr_val);
+	DBG2("xval=%lf yval=%lf\n", x->mr_val, y->mr_val);
 
 	if (ICT_MIN == op_type)
 		y->mr_val = min3(min_check(x->mr_val, y->mr_val),
@@ -420,12 +422,14 @@ char *prog;
 
 const char *help_str = "\
 \n\
-Usage: %s op obj len\n\
+Usage: %s [-v[v]] op obj len\n\
 \n\
   Supported operations: ping, min, max.\n\
 \n\
   obj is two uint64 numbers in format: hi:lo.\n\
   len is the length of object (in KiB).\n\
+\n\
+  -v increase verbosity.\n\
 \n";
 
 static void usage()
@@ -501,9 +505,8 @@ int launch_comp(struct m0_layout_plan *plan, int op_type, bool last)
 
 		iopl = container_of(plop, struct m0_layout_io_plop, iop_base);
 
-		printf("req=%d goff=%lu segs=%d\n", reqs_nr, iopl->iop_goff,
-		       iopl->iop_ext.iv_vec.v_nr);
-
+		DBG("req=%d goff=%lu segs=%d\n", reqs_nr, iopl->iop_goff,
+		                                 iopl->iop_ext.iv_vec.v_nr);
 		/* Prepare arguments for computation. */
 		rc = input_prepare(&buf, &comp_fid, iopl, &reply_len, op_type);
 		if (rc != 0) {
@@ -557,6 +560,7 @@ int launch_comp(struct m0_layout_plan *plan, int op_type, bool last)
 int main(int argc, char **argv)
 {
 	int                    rc;
+	int                    opt;     /* options */
 	struct m0_op          *op = NULL;
 	struct m0_layout_plan *plan;
 	struct m0_uint128      obj_id;
@@ -564,16 +568,28 @@ int main(int argc, char **argv)
 	struct m0_bufvec       data;
 	struct m0_bufvec       attr;
 	int                    op_type;
-	int                    segs_nr;
+	int                    unit_sz;
+	int                    unit_nr;
 	m0_bcount_t            len;
 	m0_bcount_t            bs;
 	m0_bindex_t            off = 0;
-	int                    unit_sz;
 	struct m0_obj          obj = {};
 
 	prog = basename(strdup(argv[0]));
 
-	if (argc < 4)
+	while ((opt = getopt(argc, argv, ":v")) != -1) {
+		switch (opt) {
+		case 'v':
+			trace_level++;
+			break;
+		default:
+			fprintf(stderr, "unknown option: %c\n", optopt);
+			usage();
+			break;
+		}
+	}
+
+	if (argc - optind < 3)
 		usage();
 
 	c0appz_timein();
@@ -581,12 +597,12 @@ int main(int argc, char **argv)
 	c0appz_setrc(prog);
 	c0appz_putrc();
 
-	op_type = op_type_parse(argv[1]);
+	op_type = op_type_parse(argv[optind]);
 	if (op_type == -EINVAL)
 		usage();
-	if (read_id(argv[2], &obj_id) < 1)
+	if (read_id(argv[optind + 1], &obj_id) < 1)
 		usage();
-	len = atoll(argv[3]);
+	len = atoll(argv[optind + 2]);
 	if (len < 4) {
 		fprintf(stderr, "object length should be at least 4K\n");
 		usage();
@@ -615,7 +631,7 @@ int main(int argc, char **argv)
 		usage();
 	}
 
-	bs = c0appz_isc_m0bs(&obj, len, 0);
+	bs = c0appz_m0gs(&obj, 0);
 	if (bs == 0) {
 		fprintf(stderr, "cannot figure out bs to use\n");
 		usage();
@@ -623,10 +639,10 @@ int main(int argc, char **argv)
 	unit_sz = m0_obj_layout_id_to_unit_size(obj.ob_attr.oa_layout_id);
 
 	for (; rc == 0 && len > 0; len -= bs > len ? len : bs, off += bs) {
-		segs_nr = bs / unit_sz;
-		printf("unit_sz=%d segs_nr=%d\n", unit_sz, segs_nr);
+		unit_nr = bs / unit_sz;
+		DBG("unit_sz=%d units=%d\n", unit_sz, unit_nr);
 
-		rc = alloc_segs(&data, &ext, &attr, unit_sz, segs_nr);
+		rc = alloc_segs(&data, &ext, &attr, unit_sz, unit_nr);
 		if (rc != 0) {
 			fprintf(stderr, "failed to alloc_segs: rc=%d\n", rc);
 			usage();

@@ -50,9 +50,9 @@ int c0appz_free(void);
 int open_entity(struct m0_entity *entity);
 
 /**
- * Calculate the block size for ISC.
+ * Return parity group size for object.
  */
-uint64_t c0appz_isc_m0bs(struct m0_obj *obj, uint64_t obj_sz, int tier);
+uint64_t c0appz_m0gs(struct m0_obj *obj, int tier);
 
 /**
  * Calculate the optimal block size for the object store I/O

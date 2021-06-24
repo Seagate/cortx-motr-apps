@@ -310,13 +310,26 @@ static uint64_t calc_m0bs(unsigned lid, uint64_t obj_sz, int tier, int k)
 }
 
 /**
- * Calculate the block size for ISC, so that the number of units constitute no
- * more than one row of frames in the target objects. It is needed to avoid
- * the situations when several frames (units) appear in the same target io_req.
+ * Return parity group size for object.
  */
-uint64_t c0appz_isc_m0bs(struct m0_obj *obj, uint64_t osz, int tier)
+uint64_t c0appz_m0gs(struct m0_obj *obj, int tier)
 {
-	return calc_m0bs(obj->ob_attr.oa_layout_id, osz, tier, 1);
+	int                     rc;
+	unsigned long           usz; /* unit size */
+	struct m0_reqh         *reqh = &m0_instance->m0c_reqh;
+	struct m0_pool_version *pver;
+	struct m0_fid          *pool = tier2pool(tier);
+
+	rc = m0_pool_version_get(reqh->rh_pools, pool, &pver);
+	if (rc != 0) {
+		ERR("m0_pool_version_get(pool=%s) failed: rc=%d\n",
+		    fid2str(pool), rc);
+		return 0;
+	}
+
+	usz = m0_obj_layout_id_to_unit_size(obj->ob_attr.oa_layout_id);
+
+	return usz * pver->pv_attr.pa_N;
 }
 
 /**
