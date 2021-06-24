@@ -50,6 +50,11 @@ int c0appz_free(void);
 int open_entity(struct m0_entity *entity);
 
 /**
+ * Calculate the block size for ISC.
+ */
+uint64_t c0appz_isc_m0bs(struct m0_obj *obj, uint64_t obj_sz, int tier);
+
+/**
  * Calculate the optimal block size for the object store I/O
  *
  * @param idhi high number of the object id

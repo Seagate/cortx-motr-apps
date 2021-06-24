@@ -228,6 +228,37 @@ static uint64_t roundup_power2(uint64_t x)
 	return power;
 }
 
+static int64_t get_lid_by_bs(uint64_t bs, int tier)
+{
+	int                     rc;
+	int64_t                 lid;
+	struct m0_reqh         *reqh = &m0_instance->m0c_reqh;
+	struct m0_pool_version *pver;
+	struct m0_fid          *pool = tier2pool(tier);
+
+	DBG("tier=%d pool=%s\n", tier, fid2str(pool));
+	rc = m0_pool_version_get(reqh->rh_pools, pool, &pver);
+	if (rc != 0) {
+		ERR("m0_pool_version_get(pool=%s) failed: rc=%d\n",
+		    fid2str(pool), rc);
+		return rc;
+	}
+
+	if (unit_size)
+		lid = m0_client_layout_id(m0_instance);
+	else
+		lid = m0_layout_find_by_buffsize(&reqh->rh_ldom, &pver->pv_id,
+						 bs);
+
+	DBG("pool="FID_F" width=%u parity=(%u+%u) unit=%dK m0bs=%luK\n",
+	    FID_P(&pver->pv_pool->po_id), pver->pv_attr.pa_P,
+	    pver->pv_attr.pa_N, pver->pv_attr.pa_K,
+	    m0_obj_layout_id_to_unit_size(lid) / 1024, bs / 1024);
+
+	return lid;
+}
+
+
 /*
  ******************************************************************************
  * EXTERN FUNCTIONS
@@ -235,21 +266,21 @@ static uint64_t roundup_power2(uint64_t x)
  */
 
 /**
- * Calculate the optimal block size for the object store I/O
+ * Calculate the optimal block size for the object store I/O.
+ * k - is coefficient which signifies how deep the IO request can
+ * be on the given pool width. Or, in another words, how many units
+ * can happen in the same target IO request.
  */
-uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier)
+static uint64_t calc_m0bs(unsigned lid, uint64_t obj_sz, int tier, int k)
 {
 	int                     rc;
-	int                     k;
 	unsigned long           usz; /* unit size */
 	unsigned long           gsz; /* data units in parity group */
 	uint64_t                max_bs;
-	unsigned                lid;
 	struct m0_reqh         *reqh = &m0_instance->m0c_reqh;
 	struct m0_pool_version *pver;
 	struct m0_pdclust_attr *pa;
 	struct m0_fid          *pool = tier2pool(tier);
-	struct m0_obj           obj;
 
 	if (obj_sz > MAX_M0_BUFSZ)
 		obj_sz = MAX_M0_BUFSZ;
@@ -261,29 +292,9 @@ uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier)
 		return 0;
 	}
 
-	if (c0appz_ex(idhi, idlo, &obj))
-		lid = obj.ob_attr.oa_layout_id;
-	else if (unit_size) /* set explicitly via -u option ? */
-		lid = m0_client_layout_id(m0_instance);
-	else
-		lid = m0_layout_find_by_buffsize(&reqh->rh_ldom, &pver->pv_id,
-						 obj_sz);
-
 	usz = m0_obj_layout_id_to_unit_size(lid);
 	pa = &pver->pv_attr;
 	gsz = usz * pa->pa_N;
-	/*
-	 * The buffer should be max 4-times pool-width deep counting by
-	 * 1MB units, otherwise we may get -E2BIG from Motr BE subsystem
-	 * when there are too many units in one fop and the transaction
-	 * grow too big.
-	 *
-	 * Also, the bigger is unit size - the bigger transaction it may
-	 * require. LNet maximum frame size is 1MB, so, for example, 2MB
-	 * unit will be sent by two LNet frames and will make bigger BE
-	 * transaction.
-	 */
-	k = 8 / (usz / 0x80000 ?: 1);
 	max_bs = usz * k * pa->pa_P * pa->pa_N / (pa->pa_N + 2 * pa->pa_K);
 	max_bs = max_bs / gsz * gsz; /* make it multiple of group size */
 
@@ -296,6 +307,56 @@ uint64_t c0appz_m0bs(uint64_t idhi, uint64_t idlo, uint64_t obj_sz, int tier)
 		return gsz;
 	else
 		return roundup_power2(obj_sz);
+}
+
+/**
+ * Calculate the block size for ISC, so that the number of units constitute no
+ * more than one row of frames in the target objects. It is needed to avoid
+ * the situations when several frames (units) appear in the same target io_req.
+ */
+uint64_t c0appz_isc_m0bs(struct m0_obj *obj, uint64_t osz, int tier)
+{
+	return calc_m0bs(obj->ob_attr.oa_layout_id, osz, tier, 1);
+}
+
+/**
+ * Calculate the optimal block size for the object store I/O
+ */
+uint64_t c0appz_m0bs(uint64_t hi, uint64_t lo, uint64_t osz, int tier)
+{
+	int64_t          lid;
+	unsigned long    usz; /* unit size */
+	struct m0_obj    obj;
+
+	if (c0appz_ex(hi, lo, &obj))
+		lid = obj.ob_attr.oa_layout_id;
+	else if (unit_size) /* set explicitly via -u option ? */
+		lid = m0_client_layout_id(m0_instance);
+	else
+		lid = get_lid_by_bs(osz, tier);
+
+	if (lid <= 0) {
+		ERR("cannot figure out the layout id\n");
+		return 0;
+	}
+
+	usz = m0_obj_layout_id_to_unit_size(lid);
+
+	/*
+	 * The buffer should be max 4-times pool-width deep counting by
+	 * 1MB units, otherwise we may get -E2BIG from Motr BE subsystem
+	 * when there are too many units in one fop and the transaction
+	 * grow too big.
+	 *
+	 * Also, the bigger is unit size - the bigger transaction it may
+	 * require. LNet maximum frame size is 1MB, so, for example, 2MB
+	 * unit will be sent by two LNet frames and will make bigger BE
+	 * transaction. That's why k is decreased for bigger units, and
+	 * increased for smaller units.
+	 */
+	int k = 8 / (usz / 0x80000 ?: 1);
+
+	return calc_m0bs(lid, osz, tier, k);
 }
 
 void free_segs(struct m0_bufvec *data, struct m0_indexvec *ext,
@@ -1204,32 +1265,17 @@ int open_entity(struct m0_entity *entity)
 int c0appz_cr(uint64_t idhi, uint64_t idlo, int tier, uint64_t bsz)
 {
 	int                     rc;
-	unsigned                lid;
-	struct m0_reqh         *reqh = &m0_instance->m0c_reqh;
-	struct m0_pool_version *pver;
-	struct m0_op    *op = NULL;
+	int64_t                 lid;
+	struct m0_op           *op = NULL;
 	struct m0_fid          *pool = tier2pool(tier);
 	struct m0_uint128       id = {idhi, idlo};
-	struct m0_obj    obj = {};
+	struct m0_obj           obj = {};
 
-	DBG("tier=%d pool=%s\n", tier, fid2str(pool));
-	rc = m0_pool_version_get(reqh->rh_pools, pool, &pver);
-	if (rc != 0) {
-		ERR("m0_pool_version_get(pool=%s) failed: rc=%d\n",
-		    fid2str(pool), rc);
-		return rc;
+	lid = get_lid_by_bs(bsz, tier);
+	if (lid < 0) {
+		ERR("cannot figure out the layout id\n");
+		return lid;
 	}
-
-	if (unit_size)
-		lid = m0_client_layout_id(m0_instance);
-	else
-		lid = m0_layout_find_by_buffsize(&reqh->rh_ldom, &pver->pv_id,
-						 bsz);
-
-	DBG("pool="FID_F" width=%u parity=(%u+%u) unit=%dK m0bs=%luK\n",
-	    FID_P(&pver->pv_pool->po_id), pver->pv_attr.pa_P,
-	    pver->pv_attr.pa_N, pver->pv_attr.pa_K,
-	    m0_obj_layout_id_to_unit_size(lid) / 1024, bsz / 1024);
 
 	m0_obj_init(&obj, &uber_realm, &id, lid);
 
