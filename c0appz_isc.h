@@ -35,8 +35,6 @@ enum c0appz_buffer_len {
 
 /** A request holding all parameters relevant to a computation. */
 struct c0appz_isc_req {
-	/** Arguments for computation. */
-	struct m0_buf         *cir_args;
 	/** Buffer to store returned result. */
 	struct m0_buf          cir_result;
 	/** Error code for the computation. */

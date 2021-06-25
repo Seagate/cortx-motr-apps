@@ -382,7 +382,7 @@ int launch_comp(struct m0_layout_plan *plan, int op_type, bool last)
 	struct m0_fid          comp_fid;
 	struct m0_buf          buf;
 
-	while (rc == 0) {
+	for (;;) {
 		M0_ALLOC_PTR(req);
 		if (req == NULL) {
 			fprintf(stderr, "request allocation failed\n");

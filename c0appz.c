@@ -903,16 +903,16 @@ int c0appz_isc_nxt_svc_get(struct m0_fid *svc_fid, struct m0_fid *nxt_fid,
 
 int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 			   const struct m0_fid *comp_fid,
-			   struct m0_layout_io_plop *iopl, uint32_t reply_len)
+			   struct m0_layout_io_plop *iop, uint32_t reply_len)
 {
-	struct m0_rpc_session *sess = iopl->iop_session;
+	struct m0_rpc_session *sess = iop->iop_session;
 	struct m0_fop_isc  *fop_isc = &req->cir_isc_fop;
 	struct m0_fop      *arg_fop = &req->cir_fop;
 	int                 rc;
 
-	req->cir_plop = &iopl->iop_base;
-	req->cir_args = args;
+	req->cir_plop = &iop->iop_base;
 	fop_isc->fi_comp_id = *comp_fid;
+	fop_isc->fi_cob = iop->iop_base.pl_ent;
 	m0_rpc_at_init(&fop_isc->fi_args);
 	rc = m0_rpc_at_add(&fop_isc->fi_args, args, sess->s_conn);
 	if (rc != 0) {

@@ -226,17 +226,19 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 		   struct m0_buf *out, int *rc)
 {
-	int               i;
+	int               i = 0;
 	int               n;
-	char             *p;
+	uint32_t          shift;
+	char             *p, *end;
 	double            val;
-	struct mm_result  res;
+	struct mm_result  res = {};
 	struct m0_buf     buf = M0_BUF_INIT0;
 	struct m0_stob_io *stio = (struct m0_stob_io *)pdata->icp_data;
 
-	bufvec_open(&stio->si_user, m0_stob_block_shift(stio->si_obj));
-
+	shift = m0_stob_block_shift(stio->si_obj);
+	bufvec_open(&stio->si_user, shift);
 	p = stio->si_user.ov_buf[0];
+	end = p + (stio->si_count << shift);
 
 	/*
 	 * 1st value should go to the lbuf always, because it can be
@@ -252,29 +254,29 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	res.mr_lbuf.b_nob = n;
 	p += n;
 
-	res.mr_idx = 0;
-	res.mr_val = 0;
+	/* read 1st element to compare with */
+	if (sscanf(p, "%lf\n%n", &val, &n) < 1)
+		goto out;
+	p += n;
+	res.mr_val = val;
 
-	for (i = 0; sscanf(p, "%lf\n%n", &val, &n) > 0; i++) {
+	for (i = 1; p < end && sscanf(p, "%lf\n%n", &val, &n) > 0 &&
+	            p + n < end; i++, p += n) {
 		if (op == MIN ? val < res.mr_val :
 		                val > res.mr_val) {
 			res.mr_idx = i;
 			res.mr_val = val;
 		}
-		p += n;
 	}
-
 	/*
 	 * Last value should go to the rbuf always, because it can be
-	 * the left cut of the first value of the next unit.
+	 * the left cut of the first value of the next unit. rbuf element
+	 * is counted as lbuf on the next one.
 	 */
-	if (i > 0) {
-		res.mr_rbuf.b_addr = p - n;
-		res.mr_rbuf.b_nob = n;
-		i--;
-	}
-
-	/* +1 for the lbuf element not included in the array */
+	res.mr_rbuf.b_addr = p;
+	res.mr_rbuf.b_nob = n;
+ out:
+	/* +1 for the lbuf element */
 	res.mr_idx++;
 	res.mr_idx_max = i + 1;
 
