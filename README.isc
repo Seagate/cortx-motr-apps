@@ -1,5 +1,3 @@
-
-
 Preparing a library
 ===================
 
@@ -48,42 +46,15 @@ returns "Hello-World@<service-fid>" till it encounters a service that's down.
 min / max
 ---------
 
-This functionality reads a file (c0isc_data) co-located with the utility and
-identifies the min or max depending upon the input option provided. On
-successful completion it shows following output format:
+Write an object with a real numbers strings delimited by the newline.
+The min/max in-storage computation can be started now like this:
 
-+++++++++++++++++++++
-$ ./c0isc_demo min
+++++++++++++++++++++++++++++++
+$ ./c0isc_demo min 123:12345 4
 idx=0 val=1.100000
-$ ./c0isc_demo max
+$ ./c0isc_demo max 123:12345 4
 idx=2 val=3.300000
-+++++++++++++++++++++
++++++++++++++++++++++++++++++
 
-The numbers in c0isc_data file are stored in text format delimited by space
-(or newline): first integer specifies the number of elements followed by
-the floating point elements themselves. For example:
-
-+++++++++++++++++++
-$ cat c0isc_data
-3
-1.1
-2.2
-3.3
-+++++++++++++++++++
-
-What's not present ?
-====================
-
-Data serialisation is necessary for communicating with remote service. Motr
-serialises using gccxml and an internal utility gccxml2xcode. Incorporating
-this utility in Motr rpm is currently scheduled and not part of current
-Motr master. The demo includes a simplistic serialisation technique and
-is not scalable as is.
-
-Async communication with remote services is possible but the demo does not
-include the same. For that kindly review cases from iscservice/ut/service_ut.c
-
-Currently conducting an IO from server-side is not easily doable. It requires all
-the operations that ioservice conducts needs to be  done. A simplified API
-for server side IO is under progress. Hence result of the computation can not
-be persisted as of now.
+The numbers after min/max operation argument are object id and object
+size (in KiB).
