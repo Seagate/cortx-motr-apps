@@ -244,7 +244,7 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	 * 1st value should go to the lbuf always, because it can be
 	 * the right cut of the last value from the previous unit.
 	 *
-	 * The same is true for the last value.
+	 * We count it as the 1st element in the buffer.
 	 */
 	if (sscanf(p, "%lf\n%n", &val, &n) < 1) {
 		*rc = M0_ERR(-EINVAL);
@@ -255,7 +255,7 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	res.mr_nr = 1;
 	p += n;
 
-	/* read 1st element to compare with */
+	/* read 1st element to compare with (2nd element in buffer) */
 	if (sscanf(p, "%lf\n%n", &val, &n) < 1)
 		goto out;
 	p += n;
@@ -272,9 +272,17 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	}
 	res.mr_nr = i;
 	/*
-	 * Last value should go to the rbuf always, because it can be
-	 * the left cut of the first value of the next unit. rbuf element
-	 * is counted as lbuf on the next one.
+	 * Last value should always go to the rbuf, because it can be
+	 * the left cut of the first value in the next unit.
+	 *
+	 * rbuf element is counted as lbuf in the next unit. It may
+	 * happen that there is no cut of element on the border. I.e.
+	 * the last element is fully present at the end of the unit and
+	 * the 1st element is fully present in the beginning of the next
+	 * unit. This case must be checked by the client code (it should
+	 * assume that there might be two elements present in the result
+	 * of gluing rbuf and lbuf of who units). And if so, the index
+	 * and the number of elements should be incremented by client.
 	 */
 	res.mr_rbuf.b_addr = p;
 	res.mr_rbuf.b_nob = n;

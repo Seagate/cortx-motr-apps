@@ -33,18 +33,20 @@
 /**
  * Holds the result of min and max computations.
  *
- * The left and right cuts of the values which crossed
- * the unit boundaries should be glued by the client code
- * to restore the missing values in order to include them
- * in the final computation also.
+ * The left and right cuts of the values which cross
+ * the units boundaries should be glued by the client code
+ * and included in the final computation also.
  */
 struct mm_result {
+	/** Index of the resulting element. */
 	uint64_t      mr_idx;
+	/** Total number of elements. */
 	uint64_t      mr_nr;
+	/** The resulting value of the computation. */
 	double        mr_val;
-	/** right cut of the value on the left side of unit */
+	/** Right cut of the boundary value on the left side of unit. */
 	struct m0_buf mr_lbuf;
-	/** left  cut of the value on the right side of unit */
+	/** Left cut of the boundary value on the right side of unit. */
 	struct m0_buf mr_rbuf;
 } M0_XCA_RECORD;
 
