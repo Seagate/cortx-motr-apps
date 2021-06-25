@@ -40,7 +40,7 @@
  */
 struct mm_result {
 	uint64_t      mr_idx;
-	uint64_t      mr_idx_max;
+	uint64_t      mr_nr;
 	double        mr_val;
 	/** right cut of the value on the left side of unit */
 	struct m0_buf mr_lbuf;

@@ -185,8 +185,8 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 		return NULL;
 	}
 
-	y->mr_idx     += x->mr_idx_max;
-	y->mr_idx_max += x->mr_idx_max;
+	y->mr_idx += x->mr_nr;
+	y->mr_nr  += x->mr_nr;
 
 	DBG2("buf=%s x_rval=%lf\n", buf, x_rval);
 
@@ -194,9 +194,9 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 	if (rc < 1) {
 		y_lval = x_rval;
 	} else {
-		//printf("y_lval=%lf\n", y_lval);
+		DBG2("y_lval=%lf\n", y_lval);
 		y->mr_idx++;
-		y->mr_idx_max++;
+		y->mr_nr++;
 	}
 
 	DBG2("xval=%lf yval=%lf\n", x->mr_val, y->mr_val);
@@ -211,9 +211,9 @@ op_result(struct mm_result *x, struct mm_result *y, enum isc_comp_type op_type)
 	if (y->mr_val == x->mr_val)
 		y->mr_idx = x->mr_idx;
 	else if (y->mr_val == x_rval)
-		y->mr_idx = x->mr_idx_max;
+		y->mr_idx = x->mr_nr;
 	else if (y->mr_val == y_lval)
-		y->mr_idx = x->mr_idx_max + 1;
+		y->mr_idx = x->mr_nr + 1;
 
 	m0_free(buf);
 
@@ -230,7 +230,7 @@ static void set_idx(struct mm_result *res, enum elm_order e)
 	if (ELM_FIRST == e)
 		res->mr_idx = 0;
 	else
-		res->mr_idx = res->mr_idx_max;
+		res->mr_idx = res->mr_nr;
 }
 
 static void check_edge_val(struct mm_result *res, enum elm_order e,
@@ -249,7 +249,12 @@ static void check_edge_val(struct mm_result *res, enum elm_order e,
 		return;
 	}
 
-	//printf("edge val=%lf (%s)\n", val, (ELM_FIRST == e) ? "first" : "last");
+	DBG2("edge val=%lf (%s)\n", val, (ELM_FIRST == e) ? "first" : "last");
+
+	if (res->mr_nr == 1) {
+		res->mr_val = val;
+		return;
+	}
 
 	if (ICT_MIN == type && val < res->mr_val) {
 		res->mr_val = val;
@@ -473,7 +478,7 @@ int main(int argc, char **argv)
 	struct m0_bufvec       attr;
 	int                    op_type;
 	int                    unit_sz;
-	int                    unit_nr;
+	int                    units_nr;
 	m0_bcount_t            len;
 	m0_bcount_t            bs;
 	m0_bindex_t            off = 0;
@@ -542,11 +547,13 @@ int main(int argc, char **argv)
 	}
 	unit_sz = m0_obj_layout_id_to_unit_size(obj.ob_attr.oa_layout_id);
 
-	for (; rc == 0 && len > 0; len -= bs > len ? len : bs, off += bs) {
-		unit_nr = bs / unit_sz;
-		DBG("unit_sz=%d units=%d\n", unit_sz, unit_nr);
+	for (; rc == 0 && len > 0; len -= len < bs ? len : bs, off += bs) {
+		if (len < bs)
+			bs = (len + unit_sz - 1) / unit_sz * unit_sz;
+		units_nr = bs / unit_sz;
+		DBG("unit_sz=%d units=%d\n", unit_sz, units_nr);
 
-		rc = alloc_segs(&data, &ext, &attr, unit_sz, unit_nr);
+		rc = alloc_segs(&data, &ext, &attr, unit_sz, units_nr);
 		if (rc != 0) {
 			fprintf(stderr, "failed to alloc_segs: rc=%d\n", rc);
 			usage();

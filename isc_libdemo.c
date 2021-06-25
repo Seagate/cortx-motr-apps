@@ -252,6 +252,7 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	}
 	res.mr_lbuf.b_addr = p;
 	res.mr_lbuf.b_nob = n;
+	res.mr_nr = 1;
 	p += n;
 
 	/* read 1st element to compare with */
@@ -259,8 +260,9 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 		goto out;
 	p += n;
 	res.mr_val = val;
+	res.mr_idx = 1;
 
-	for (i = 1; p < end && sscanf(p, "%lf\n%n", &val, &n) > 0 &&
+	for (i = 2; p < end && sscanf(p, "%lf\n%n", &val, &n) > 0 &&
 	            p + n < end; i++, p += n) {
 		if (op == MIN ? val < res.mr_val :
 		                val > res.mr_val) {
@@ -268,6 +270,7 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 			res.mr_val = val;
 		}
 	}
+	res.mr_nr = i;
 	/*
 	 * Last value should go to the rbuf always, because it can be
 	 * the left cut of the first value of the next unit. rbuf element
@@ -276,10 +279,6 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	res.mr_rbuf.b_addr = p;
 	res.mr_rbuf.b_nob = n;
  out:
-	/* +1 for the lbuf element */
-	res.mr_idx++;
-	res.mr_idx_max = i + 1;
-
 	*rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(mm_result_xc, &res),
 				      &buf.b_addr, &buf.b_nob) ?:
 	      m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
