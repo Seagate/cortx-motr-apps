@@ -45,20 +45,6 @@ enum isc_comp_type {
 	ICT_MAX,
 };
 
-/** Arguments for min/max operations */
-struct mm_args {
-	/** Length of an array. */
-	uint32_t  ma_len;
-	/** Array of doubles. */
-	double   *ma_arr;
-	/** Number of isc services. */
-	uint32_t  ma_svc_nr;
-	/** Length of a chunk per service. */
-	uint32_t  ma_chunk_len;
-	/** A service currently fed with input. */
-	uint32_t  ma_curr_svc_id;
-};
-
 static void fid_get(const char *f_name, struct m0_fid *fid)
 {
 	uint32_t f_key = m0_full_name_hash((const unsigned char*)f_name,
@@ -84,37 +70,6 @@ static int op_type_parse(const char *op_name)
 
 }
 
-static int file_to_array(const char *file_name, void **arr, uint32_t *arr_len)
-{
-	FILE     *fd;
-	uint32_t  i;
-	int       rc;
-	double   *val_arr;
-
-	fd = fopen(file_name, "r");
-	if (fd == NULL) {
-		fprintf(stderr, "error! Could not open file c0isc_data\n");
-		return -EINVAL;
-	}
-	fscanf(fd, "%d", arr_len);
-	/* XXX: Fix sizeof (double) with appropriate macro. */
-	M0_ALLOC_ARR(val_arr, *arr_len);
-	for (i = 0; i < *arr_len; ++i) {
-		rc = fscanf(fd, "%lf", &val_arr[i]);
-		if (rc == EOF) {
-			fprintf(stderr, "data file (%s) does not contain the "
-				"specified number of elements: %d\n",
-				file_name, *arr_len);
-			m0_free(val_arr);
-			fclose(fd);
-			return -EINVAL;
-		}
-	}
-	*arr = val_arr;
-	fclose(fd);
-	return 0;
-}
-
 static uint32_t isc_services_count(void)
 {
 	struct m0_fid start_fid = M0_FID0;
@@ -130,52 +85,6 @@ static uint32_t isc_services_count(void)
 		start_fid = proc_fid;
 	}
 	return svc_nr;
-}
-
-static int op_init(enum isc_comp_type type, void **inp_args)
-{
-	struct mm_args *in_info;
-	double         *arr;
-	uint32_t        arr_len;
-	int             rc;
-
-	switch (type) {
-	case ICT_PING:
-		return 0;
-	case ICT_MIN:
-	case ICT_MAX:
-		M0_ALLOC_PTR(in_info);
-		if (in_info == NULL)
-			return -ENOMEM;
-		rc = file_to_array("c0isc_data", (void **)&arr, &arr_len);
-		if (rc != 0)
-			return rc;
-		in_info->ma_arr = arr;
-		in_info->ma_len = arr_len;
-		in_info->ma_curr_svc_id = 0;
-		in_info->ma_svc_nr = isc_services_count();
-		in_info->ma_chunk_len = arr_len / in_info->ma_svc_nr;
-		*inp_args = in_info;
-
-		return 0;
-	default:
-		fprintf(stderr, "Invalid operation %d\n", type);
-		return EINVAL;
-	}
-}
-
-static void op_fini(enum isc_comp_type op_type, struct mm_args *in_info)
-{
-	switch (op_type) {
-	case ICT_PING:
-		break;
-	case ICT_MIN:
-	case ICT_MAX:
-		if (in_info == NULL)
-			break;
-		m0_free(in_info->ma_arr);
-		m0_free(in_info);
-	}
 }
 
 static int minmax_input_prepare(struct m0_buf *out, struct m0_fid *comp_fid,
@@ -205,9 +114,9 @@ static int minmax_input_prepare(struct m0_buf *out, struct m0_fid *comp_fid,
 	m0_buf_free(&buf);
 
 	if (type == ICT_MIN)
-		fid_get("arr_min", comp_fid);
+		fid_get("comp_min", comp_fid);
 	else
-		fid_get("arr_max", comp_fid);
+		fid_get("comp_max", comp_fid);
 
 	*reply_len = CBL_DEFAULT_MAX;
 
@@ -468,14 +377,11 @@ int launch_comp(struct m0_layout_plan *plan, int op_type, bool last)
 	struct m0_layout_plop *plop = NULL;
 	struct m0_layout_plop *prev_plop;
 	struct m0_layout_io_plop *iopl;
-	void                  *inp_args = NULL; /* computation input args */
 	static void           *out_args = NULL; /* computation output */
 	const char            *conn_addr = NULL;
 	struct m0_fid          comp_fid;
 	struct m0_buf          buf;
 
-	/* Initialise the  parameters for operation. */
-	rc = op_init(op_type, &inp_args);
 	while (rc == 0) {
 		M0_ALLOC_PTR(req);
 		if (req == NULL) {
@@ -551,8 +457,6 @@ int launch_comp(struct m0_layout_plan *plan, int op_type, bool last)
 		c0appz_isc_req_fini(req);
 		m0_free(req);
 	}
-
-	op_fini(op_type, inp_args);
 
 	return rc;
 }

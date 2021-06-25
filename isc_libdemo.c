@@ -223,26 +223,20 @@ int launch_stob_io(struct m0_isc_comp_private *pdata,
 	return M0_FSO_WAIT;
 }
 
-static int buf_to_array(char *buf, double **arr,
-			struct m0_buf *lbuf, struct m0_buf *rbuf)
+int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
+		   struct m0_buf *out, int *rc)
 {
-	int         i;
-	int         n;
-	int         rc;
-	int         arr_len = 0;
-	double      val;
-	double     *val_arr;
-	const char *p = buf;
+	int               i;
+	int               n;
+	char             *p;
+	double            val;
+	struct mm_result  res;
+	struct m0_buf     buf = M0_BUF_INIT0;
+	struct m0_stob_io *stio = (struct m0_stob_io *)pdata->icp_data;
 
-	/* calc number of lines 1st to estimate the array length */
-	while (sscanf(p, "%lf\n%n", &val, &n) > 0) {
-		arr_len++;
-		p += n;
-	}
+	bufvec_open(&stio->si_user, m0_stob_block_shift(stio->si_obj));
 
-	M0_ALLOC_ARR(val_arr, arr_len);
-	if (val_arr == NULL)
-		return M0_ERR(-ENOMEM);
+	p = stio->si_user.ov_buf[0];
 
 	/*
 	 * 1st value should go to the lbuf always, because it can be
@@ -250,18 +244,24 @@ static int buf_to_array(char *buf, double **arr,
 	 *
 	 * The same is true for the last value.
 	 */
-	rc = sscanf(buf, "%lf\n%n", &val, &n);
-	if (rc < 1)
-		return M0_ERR(-EINVAL);
-	lbuf->b_addr = buf;
-	lbuf->b_nob = n;
-	buf += n;
+	if (sscanf(p, "%lf\n%n", &val, &n) < 1) {
+		*rc = M0_ERR(-EINVAL);
+		return M0_FSO_AGAIN;
+	}
+	res.mr_lbuf.b_addr = p;
+	res.mr_lbuf.b_nob = n;
+	p += n;
 
-	for (i = 0; i < arr_len; ++i) {
-		rc = sscanf(buf, "%lf\n%n", &val_arr[i], &n);
-		if (rc < 1)
-			break;
-		buf += n;
+	res.mr_idx = 0;
+	res.mr_val = 0;
+
+	for (i = 0; sscanf(p, "%lf\n%n", &val, &n) > 0; i++) {
+		if (op == MIN ? val < res.mr_val :
+		                val > res.mr_val) {
+			res.mr_idx = i;
+			res.mr_val = val;
+		}
+		p += n;
 	}
 
 	/*
@@ -269,50 +269,16 @@ static int buf_to_array(char *buf, double **arr,
 	 * the left cut of the first value of the next unit.
 	 */
 	if (i > 0) {
-		rbuf->b_addr = buf - n;
-		rbuf->b_nob = n;
+		res.mr_rbuf.b_addr = p - n;
+		res.mr_rbuf.b_nob = n;
 		i--;
 	}
 
-	*arr = val_arr;
-	return i;
-}
-
-int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
-		   struct m0_buf *out, int *rc)
-{
-	int               i;
-	int               arr_len;
-	double           *arr;
-	struct mm_result  curr;
-	struct m0_buf     buf = M0_BUF_INIT0;
-	struct m0_stob_io *stio = (struct m0_stob_io *)pdata->icp_data;
-
-	bufvec_open(&stio->si_user, m0_stob_block_shift(stio->si_obj));
-
-	arr_len = buf_to_array(stio->si_user.ov_buf[0], &arr,
-			       &curr.mr_lbuf, &curr.mr_rbuf);
-	if (arr_len < 0) {
-		*rc = arr_len;
-		return M0_FSO_AGAIN;
-	}
-
-	curr.mr_idx = 0;
-	curr.mr_val = arr[0];
-
-	for (i = 1; i < arr_len; ++i) {
-		if (op == MIN ? arr[i] < curr.mr_val :
-		                arr[i] > curr.mr_val) {
-			curr.mr_idx = i;
-			curr.mr_val = arr[i];
-		}
-	}
-
 	/* +1 for the lbuf element not included in the array */
-	curr.mr_idx++;
-	curr.mr_idx_max = arr_len + 1;
+	res.mr_idx++;
+	res.mr_idx_max = i + 1;
 
-	*rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(mm_result_xc, &curr),
+	*rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(mm_result_xc, &res),
 				      &buf.b_addr, &buf.b_nob) ?:
 	      m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
 
@@ -321,8 +287,8 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	return M0_FSO_AGAIN;
 }
 
-int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
-	       struct m0_isc_comp_private *data, int *rc)
+int do_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
+	      struct m0_isc_comp_private *data, int *rc)
 {
 	int                res;
 	struct m0_stob_io *stio = (struct m0_stob_io *)data->icp_data;
@@ -346,16 +312,16 @@ int arr_minmax(enum op op, struct m0_buf *in, struct m0_buf *out,
 	return res;
 }
 
-int arr_min(struct m0_buf *in, struct m0_buf *out,
-	    struct m0_isc_comp_private *comp_data, int *rc)
+int comp_min(struct m0_buf *in, struct m0_buf *out,
+	     struct m0_isc_comp_private *comp_data, int *rc)
 {
-	return arr_minmax(MIN, in, out, comp_data, rc);
+	return do_minmax(MIN, in, out, comp_data, rc);
 }
 
-int arr_max(struct m0_buf *in, struct m0_buf *out,
-	    struct m0_isc_comp_private *comp_data, int *rc)
+int comp_max(struct m0_buf *in, struct m0_buf *out,
+	     struct m0_isc_comp_private *comp_data, int *rc)
 {
-	return arr_minmax(MAX, in, out, comp_data, rc);
+	return do_minmax(MAX, in, out, comp_data, rc);
 }
 
 static void comp_reg(const char *f_name, int (*ftn)(struct m0_buf *arg_in,
@@ -377,7 +343,7 @@ static void comp_reg(const char *f_name, int (*ftn)(struct m0_buf *arg_in,
 void motr_lib_init(void)
 {
 	comp_reg("hello_world", hello_world);
-	comp_reg("arr_min", arr_min);
-	comp_reg("arr_max", arr_max);
+	comp_reg("comp_min", comp_min);
+	comp_reg("comp_max", comp_max);
 	m0_xc_isc_libdemo_init();
 }
