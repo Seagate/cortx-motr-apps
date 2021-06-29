@@ -105,13 +105,13 @@ int c0appz_isc_req_prepare(struct c0appz_isc_req *, struct m0_buf *args,
  * Sends a request asynchronously. The request is added to the
  * isc_reqs list. On reply receipt, isc_sem(aphore) is up-ped.
  * The received reply is populated at req->cir_result.
- * The returned error code is at req->cir_rc.
+ * The error code is returned at req->cir_rc.
  */
 int c0appz_isc_req_send(struct c0appz_isc_req *req);
 
 /**
  * Sends a request and waits till reply is received. The received reply is
- * populated in req->cir_result. The returned error code is in req->cir_rc.
+ * populated in req->cir_result. The error code is returned at req->cir_rc.
  */
 int c0appz_isc_req_send_sync(struct c0appz_isc_req *req);
 

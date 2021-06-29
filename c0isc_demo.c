@@ -400,19 +400,18 @@ int launch_comp(struct m0_layout_plan *plan, int op_type, bool last)
 			usage();
 		}
 
-		if (plop->pl_type == M0_LAT_DONE) {
-			m0_layout_plop_done(plop);
+		if (plop->pl_type == M0_LAT_DONE)
 			break;
-		}
+
 		if (plop->pl_type == M0_LAT_OUT_READ) {
 			/* XXX just to be sure, for now only */
 			M0_ASSERT(prev_plop != NULL &&
 				  prev_plop->pl_type == M0_LAT_READ);
-			m0_layout_plop_done(plop);
 			continue;
 		}
 
 		M0_ASSERT(plop->pl_type == M0_LAT_READ); /* XXX for now */
+		m0_layout_plop_start(plop);
 
 		iopl = container_of(plop, struct m0_layout_io_plop, iop_base);
 
