@@ -176,7 +176,7 @@ sagercf:
 #	$(APPASSIGN) ganesan $(C0RM) 172.18.1.${c} > $(RCDIR)/$(C0RM)rc/client-${c}
 #	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(ISC_REG)rc/client-${c}
 #	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(ISC_INVK)rc/client-${c}
-	./scripts/motraddr.sh > out-$(HOSTNAME).txt
+	HOSTNAME=$(NODE) ./scripts/motraddr.sh > out-$(HOSTNAME).txt
 	@echo "#####"
 	cat ./out-$(HOSTNAME).txt
 	@echo "#####"
@@ -233,7 +233,7 @@ mpi-clean:
 
 mpi-sagercf:
 	mkdir -p $(RCDIR)/${MPIX}rc
-	./scripts/motraddr.sh 2 > out-$(HOSTNAME).txt
+	HOSTNAME=$(NODE) ./scripts/motraddr.sh 2 > out-$(HOSTNAME).txt
 	@echo "#####"
 	cat ./out-$(HOSTNAME).txt
 	@echo "#####"
