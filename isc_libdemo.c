@@ -229,8 +229,9 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	int               i = 0;
 	int               n;
 	uint32_t          shift;
-	char             *p, *end;
 	double            val;
+	FILE             *f;
+	char             *p;
 	struct mm_result  res = {};
 	struct m0_buf     buf = M0_BUF_INIT0;
 	struct m0_stob_io *stio = (struct m0_stob_io *)pdata->icp_data;
@@ -238,7 +239,12 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	shift = m0_stob_block_shift(stio->si_obj);
 	bufvec_open(&stio->si_user, shift);
 	p = stio->si_user.ov_buf[0];
-	end = p + (stio->si_count << shift);
+
+	f = fmemopen(p, stio->si_count << shift, "r");
+	if (f == NULL) {
+		*rc = M0_ERR(-errno);
+		return M0_FSO_AGAIN;
+	}
 
 	/*
 	 * 1st value should go to the lbuf always, because it can be
@@ -246,24 +252,22 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	 *
 	 * We count it as the 1st element in the buffer.
 	 */
-	if (sscanf(p, "%lf\n%n", &val, &n) < 1) {
+	if (fscanf(f, "%lf %n", &val, &n) < 1) {
+		fclose(f);
 		*rc = M0_ERR(-EINVAL);
 		return M0_FSO_AGAIN;
 	}
 	res.mr_lbuf.b_addr = p;
 	res.mr_lbuf.b_nob = n;
 	res.mr_nr = 1;
-	p += n;
 
-	/* read 1st element to compare with (2nd element in buffer) */
-	if (sscanf(p, "%lf\n%n", &val, &n) < 1)
+	/* Read 1st element to compare with (2nd element in the buffer). */
+	if (fscanf(f, "%lf ", &val) < 1)
 		goto out;
-	p += n;
 	res.mr_val = val;
 	res.mr_idx = 1;
 
-	for (i = 2; p < end && sscanf(p, "%lf\n%n", &val, &n) > 0 &&
-	            p + n < end; i++, p += n) {
+	for (i = 2; fscanf(f, "%lf %n", &val, &n) > 0 && !feof(f); i++) {
 		if (op == MIN ? val < res.mr_val :
 		                val > res.mr_val) {
 			res.mr_idx = i;
@@ -284,7 +288,7 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	 * of gluing rbuf and lbuf of who units). And if so, the index
 	 * and the number of elements should be incremented by client.
 	 */
-	res.mr_rbuf.b_addr = p;
+	res.mr_rbuf.b_addr = p + ftell(f) - n;
 	res.mr_rbuf.b_nob = n;
  out:
 	*rc = m0_xcode_obj_enc_to_buf(&M0_XCODE_OBJ(mm_result_xc, &res),
@@ -292,6 +296,7 @@ int compute_minmax(enum op op, struct m0_isc_comp_private *pdata,
 	      m0_buf_copy_aligned(out, &buf, M0_0VEC_SHIFT);
 
 	m0_buf_free(&buf);
+	fclose(f);
 
 	return M0_FSO_AGAIN;
 }
