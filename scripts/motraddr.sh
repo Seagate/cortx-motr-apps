@@ -176,18 +176,17 @@ echo "M0_POOL_TIER2 = ${p[3]}"
 echo "M0_POOL_TIER3 = ${p[4]}"
 
 echo
-echo "LOCAL_ENDPOINT_ADDR0 = ${p[5]}"
-echo "LOCAL_PROC_FID0 = ${p[6]}"
-[[ -z "$1" ]] &&  k=1 || k=$1
-for (( i=1; i<$k; i++ ))
-do
-	### local end point
-	str=$(grep -A$((2+($r+$i)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
-	[[ -z "$str" ]] && { echo "Error: LOCAL_ENDPOINT_ADDR0 not found"; exit 1; }
-	echo "LOCAL_ENDPOINT_ADDR$i = $str"
-	### local process fid
-	str=$(grep -A$((2+($r+$i)%16)) $c $hastatus | tail -n1 | awk '{print $3}')
-	[[ -z "$str" ]] && { echo "Error: LOCAL_PROC_FID0 not found"; exit 1; }
-	echo "LOCAL_PROC_FID$i = $str"
-done
+idx=0; while read line; do
+	# match until config for current node over
+	if [[ ! "$line" =~ \[.*\] ]]; then
+		break
+	fi
 
+	# match config for m0_client
+	if [[ ! -z "$(echo ${line} | grep m0_client)" ]]; then
+		fid=$(echo ${line} | awk '{print $3;}')
+		addr=$(echo ${line} | awk '{print $4;}')
+		echo "LOCAL_ENDPOINT_ADDR$((idx)) = ${addr}"
+		echo "LOCAL_PROC_FID$((idx++)) = ${fid}"
+	fi
+done < <(grep -A17 $c $hastatus | sed -n '1!p') # match 17 lines but skip first
