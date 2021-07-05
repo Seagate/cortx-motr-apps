@@ -450,6 +450,8 @@ int launch_comp(struct m0_layout_plan *plan, int op_type, bool last)
 
 	/* process the replies */
 	m0appz_isc_reqs_teardown(req) {
+		iopl = M0_AMB(iopl, req->cir_plop, iop_base);
+		DBG2("req=%d goff=%lu\n", ++reqs_nr, iopl->iop_goff);
 		if (rc == 0 && req->cir_rc == 0) {
 			if (op_type == ICT_PING)
 				out_args = (void*)conn_addr;

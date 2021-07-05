@@ -977,6 +977,20 @@ static const struct m0_rpc_item_ops isc_item_ops = {
 	.rio_replied = isc_req_replied,
 };
 
+static void ireqs_list_add_in_order(struct c0appz_isc_req *req)
+{
+	struct c0appz_isc_req *r;
+	struct m0_layout_io_plop *pl1;
+	struct m0_layout_io_plop *pl2 = M0_AMB(pl2, req->cir_plop, iop_base);
+
+	m0_list_for_each_entry(&isc_reqs, r, struct c0appz_isc_req, cir_link) {
+		pl1 = M0_AMB(pl1, r->cir_plop, iop_base);
+		if (pl1->iop_goff > pl2->iop_goff)
+			break;
+	}
+	m0_list_add_before(&r->cir_link, &req->cir_link);
+}
+
 int c0appz_isc_req_send(struct c0appz_isc_req *req)
 {
 	int                    rc;
@@ -999,7 +1013,7 @@ int c0appz_isc_req_send(struct c0appz_isc_req *req)
 		m0_fop_put(&req->cir_fop);
 	}
 
-	m0_list_add_tail(&isc_reqs, &req->cir_link);
+	ireqs_list_add_in_order(req);
 
 	return rc;
 }
