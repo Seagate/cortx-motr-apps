@@ -43,9 +43,11 @@ p[1]=$(grep -A2 Profile $hastatus | tail -n1 | awk '{print $1}')
 p[2]=$(sed -n '/pools:/,/^[A-Za-z]/p' $hastatus | grep -E 'tier.+p1' | awk '{print $1}')
 p[3]=$(sed -n '/pools:/,/^[A-Za-z]/p' $hastatus | grep -E 'tier.+p2' | awk '{print $1}')
 p[4]=$(sed -n '/pools:/,/^[A-Za-z]/p' $hastatus | grep -E 'tier.+p3' | awk '{print $1}')
+p[5]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
 [[ -z "${p[2]}" ]] && { echo "Error: M0_POOL_TIER1 not found"; exit 1; }
 [[ -z "${p[3]}" ]] && { echo "Error: M0_POOL_TIER2 not found"; exit 1; }
 [[ -z "${p[4]}" ]] && { echo "Error: M0_POOL_TIER3 not found"; exit 1; }
+[[ -z "${p[5]}" ]] && { echo "Error: LOCAL_ENDPOINT_ADDR0 not found"; exit 1; }
 
 # LOCAL_ENDPOINT_ADDR0
 p[5]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
@@ -167,7 +169,7 @@ echo "# Application: All"
 echo "#"
 
 echo
-echo "HA_ENDPOINT_ADDR = ${p[0]}"
+echo "HA_ENDPOINT_ADDR = $(echo "${p[5]}" | cut -d'@' -f 1)@$(echo "${p[0]}" | cut -d'@' -f 2)"
 echo "PROFILE_FID = ${p[1]}"
 
 echo
@@ -183,9 +185,9 @@ idx=0; while read line; do
 	fi
 
 	# match config for m0_client
-	if [[ ! -z "$(echo ${line} | grep m0_client)" ]]; then
-		fid=$(echo ${line} | awk '{print $3;}')
-		addr=$(echo ${line} | awk '{print $4;}')
+	if [[ ! -z "$(echo "${line}" | grep m0_client)" ]]; then
+		fid=$(echo "${line}" | awk '{print $3;}')
+		addr=$(echo "${line}" | awk '{print $4;}')
 		echo "LOCAL_ENDPOINT_ADDR$((idx)) = ${addr}"
 		echo "LOCAL_PROC_FID$((idx++)) = ${fid}"
 	fi
