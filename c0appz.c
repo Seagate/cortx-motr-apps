@@ -912,7 +912,6 @@ int c0appz_isc_req_prepare(struct c0appz_isc_req *req, struct m0_buf *args,
 
 	req->cir_plop = &iop->iop_base;
 	fop_isc->fi_comp_id = *comp_fid;
-	fop_isc->fi_cob = iop->iop_base.pl_ent;
 	m0_rpc_at_init(&fop_isc->fi_args);
 	rc = m0_rpc_at_add(&fop_isc->fi_args, args, sess->s_conn);
 	if (rc != 0) {
