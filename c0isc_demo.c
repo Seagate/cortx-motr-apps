@@ -336,12 +336,12 @@ char *prog;
 
 const char *help_str = "\
 \n\
-Usage: %s [-v[v]] op obj len\n\
+Usage: %s [-v[v]] COMP OBJ LEN\n\
 \n\
-  Supported operations: ping, min, max.\n\
+  Supported COMPutations: ping, min, max.\n\
 \n\
-  obj is two uint64 numbers in format: hi:lo.\n\
-  len is the length of object (in KiB).\n\
+  OBJ is two uint64 numbers in format: hi:lo.\n\
+  LEN is the length of object (in KiB).\n\
 \n\
   -v increase verbosity.\n\
 \n";
