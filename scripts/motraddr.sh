@@ -50,7 +50,6 @@ p[4]=$(sed -n '/pools:/,/^[A-Za-z]/p' $hastatus | grep -E 'tier.+p3' | awk '{pri
 # LOCAL_ENDPOINT_ADDR0
 p[5]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
 [[ -z "${p[5]}" ]] && { echo "Error: LOCAL_ENDPOINT_ADDR0 not found"; exit 1; }
-
 # LOCAL_PROC_FID0
 p[6]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $3}')
 [[ -z "${p[6]}" ]] && { echo "Error: LOCAL_PROC_FID0 not found"; exit 1; }
@@ -124,6 +123,20 @@ EOF
 	echo "$YAML"
 }
 
+miof()
+{
+	r="$1"
+	((r--))
+	# LOCAL_ENDPOINT_ADDR0
+	p[5]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
+	[[ -z "${p[5]}" ]] && { echo "Error: LOCAL_ENDPOINT_ADDR0 not found"; exit 1; }
+	# LOCAL_PROC_FID0
+	p[6]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $3}')
+	[[ -z "${p[6]}" ]] && { echo "Error: LOCAL_PROC_FID0 not found"; exit 1; }
+	# print to file
+	mio > "$2"
+}
+
 #
 # MAIN
 #
@@ -137,7 +150,19 @@ while true ;
 	do
     case "$1" in
      	-m|--mio)
-		mio
+     	# print to stdout 
+     	if [ "$#" -eq 2 ]; then
+    		mio
+    		exit 0
+		fi
+     	# print to files
+    	shift; 	shift; z="$1"; shift
+    	[[ "$z" -ge 1 ]] || { echo "Invalid number!, must be > 0!!"; exit 1; }
+    	[[ "$#" -eq "$z" ]] || { echo "Illeg number of arguments!"; exit 1; }
+     	for (( i=1; i<="$z"; i++ ))
+		do
+   			miof "$i" "$1"; shift
+		done		
 		exit 0
     	shift
     	;;  	
