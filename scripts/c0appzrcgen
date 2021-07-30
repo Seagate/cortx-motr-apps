@@ -133,9 +133,22 @@ main()
 	laddr="${IP}:12345:44:$port"
 	lpid='0x7200000000000000:0' 
 
-	[[ "$1" == "--mio" ]] && 
-		mio "${laddr}" "${haddr}" "${pfid}" "${lpid}" &&
-			exit
+	if [ "$1" == "--mio" ]; then
+		shift
+		[[ "$#" -eq 0 ]] && 
+			mio "${laddr}" "${haddr}" "${pfid}" "${lpid}" &&
+				exit 0
+		[[ !("$1" =~ ^[0-9]+$) ]] && 
+			echo "$1, invalid number!, must be an integer!!" &&
+				exit 1
+		[[ "$1" -le 0 ]] && 
+			echo "$1, invalid number!, must be > 0!!" &&
+				exit 1
+		port=$(($port+$1))
+		laddr="${IP}:12345:44:$port"
+		mio "${laddr}" "${haddr}" "${pfid}" "${lpid}"
+		exit 0
+	fi
 
 	echo "HA_ENDPOINT_ADDR"$'\t=' "${haddr}"
 	echo "PROFILE_FID"$'\t\t=' "${pfid}"
@@ -154,4 +167,4 @@ main()
 	done
 }
 
-main $1
+main $1 $2
