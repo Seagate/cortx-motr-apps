@@ -27,7 +27,16 @@ c=$HOSTNAME
 [[ -f "$hastatusetc" ]] && hastatus=$hastatusetc
 [[ ! -f "$hastatusetc" ]] && hctl status > $hastatustmp && hastatus=$hastatustmp
 
-r=$((0 + $RANDOM % 16))
+# number of sockets
+s=0; 
+while read line; do
+	# match until config for current node over
+	[[ ! "$line" =~ \[.*\] ]] && break;	
+	# match config for m0_client
+	[[ ! -z "$(echo ${line} | grep m0_client)" ]] && ((s++))
+done < <(grep -A17 $c $hastatus | sed -n '1!p') # match 17 lines but skip first
+
+r=$((0 + $RANDOM % $s))
 p=()
 
 # HA_ENDPOINT_ADDR
@@ -48,10 +57,10 @@ p[4]=$(sed -n '/pools:/,/^[A-Za-z]/p' $hastatus | grep -E 'tier.+p3' | awk '{pri
 [[ -z "${p[4]}" ]] && { echo "Error: M0_POOL_TIER3 not found"; exit 1; }
 
 # LOCAL_ENDPOINT_ADDR0
-p[5]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
+p[5]=$(grep -A$((2+($r)%($s))) $c $hastatus | tail -n1 | awk '{print $4}')
 [[ -z "${p[5]}" ]] && { echo "Error: LOCAL_ENDPOINT_ADDR0 not found"; exit 1; }
 # LOCAL_PROC_FID0
-p[6]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $3}')
+p[6]=$(grep -A$((2+($r)%($s))) $c $hastatus | tail -n1 | awk '{print $3}')
 [[ -z "${p[6]}" ]] && { echo "Error: LOCAL_PROC_FID0 not found"; exit 1; }
 
 usage()
@@ -128,10 +137,10 @@ miof()
 	r="$1"
 	((r--))
 	# LOCAL_ENDPOINT_ADDR0
-	p[5]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $4}')
+	p[5]=$(grep -A$((2+($r)%($s))) $c $hastatus | tail -n1 | awk '{print $4}')
 	[[ -z "${p[5]}" ]] && { echo "Error: LOCAL_ENDPOINT_ADDR0 not found"; exit 1; }
 	# LOCAL_PROC_FID0
-	p[6]=$(grep -A$((2+($r)%16)) $c $hastatus | tail -n1 | awk '{print $3}')
+	p[6]=$(grep -A$((2+($r)%($s))) $c $hastatus | tail -n1 | awk '{print $3}')
 	[[ -z "${p[6]}" ]] && { echo "Error: LOCAL_PROC_FID0 not found"; exit 1; }
 	# print to file
 	mio > "$2"
