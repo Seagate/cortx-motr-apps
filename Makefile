@@ -56,7 +56,7 @@ NODE = $(shell eval uname -n)
 
 #compiler/linker options
 LFLAGS += -lm -lpthread -lrt -lyaml -luuid -lmotr
-CFLAGS += -I. -I/usr/include/motr
+CFLAGS += -I. -I/usr/include/motr -include config.h
 CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern
 CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing
 CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
@@ -272,7 +272,7 @@ CXXXML_OUTPUT := -fxml=
 CXXXML2XC_FLAGS :=
 endif
 
-CXXXML_UNSUPPORTED_CFLAGS := -Wno-unused-but-set-variable -Werror -Wno-trampolines -rdynamic --coverage -pipe -Wp,-D_FORTIFY_SOURCE=2 --param=ssp-buffer-size=4 -grecord-gcc-switches -fstack-protector-strong -fstack-clash-protection -MD -MP
+CXXXML_UNSUPPORTED_CFLAGS := -Wno-unused-but-set-variable -Werror -Wno-trampolines -rdynamic --coverage -pipe -Wp,-D_FORTIFY_SOURCE=2 --param=ssp-buffer-size=4 -grecord-gcc-switches -fstack-protector-strong -fstack-clash-protection -MD -MP -include config.h
 CXXXML_CFLAGS := $(filter-out $(CXXXML_UNSUPPORTED_CFLAGS), $(CFLAGS))
 
 %_xc.h %_xc.c: %.h
