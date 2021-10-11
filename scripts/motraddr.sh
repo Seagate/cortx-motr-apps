@@ -27,6 +27,11 @@ c=$HOSTNAME
 [[ -f "$hastatusetc" ]] && hastatus=$hastatusetc
 [[ ! -f "$hastatusetc" ]] && hctl status > $hastatustmp && hastatus=$hastatustmp
 
+#hastatustxt=$(grep -A17 $c $hastatus | sed -n '1!p')
+hastatustxt=$(sed -n "/$c/,/.*-[0-9][0-9]/p" $hastatus | sed -n '1!p')
+#printf '%s\n' "$hastatustxt"
+#exit
+
 # number of sockets
 s=0; 
 while read line; do
@@ -34,7 +39,7 @@ while read line; do
 	[[ ! "$line" =~ \[.*\] ]] && break;	
 	# match config for m0_client
 	[[ ! -z "$(echo ${line} | grep m0_client)" ]] && ((s++))
-done < <(grep -A17 $c $hastatus | sed -n '1!p') # match 17 lines but skip first
+done < <(printf '%s\n' "$hastatustxt")
 
 r=$((0 + $RANDOM % $s))
 p=()
@@ -223,4 +228,4 @@ idx=0; while read line; do
 		echo "LOCAL_ENDPOINT_ADDR$((idx)) = ${addr}"
 		echo "LOCAL_PROC_FID$((idx++)) = ${fid}"
 	fi
-done < <(grep -A17 $c $hastatus | sed -n '1!p') # match 17 lines but skip first
+done < <(printf '%s\n' "$hastatustxt")
