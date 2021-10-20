@@ -52,8 +52,8 @@ profs=($(sed -n "/Profile/,/Services/p" $hastatus | sed -n "/0x.*/p" | awk '{pri
 
 laddr=()
 lproc=()
-laddr=($(sed -n "/$c/,/.*-[0-9][0-9]/p" $hastatus | sed '1d;$d' | awk '{print $4}'))
-lproc=($(sed -n "/$c/,/.*-[0-9][0-9]/p" $hastatus | sed '1d;$d' | awk '{print $3}'))
+laddr=($(sed -nE "/$c/,/[a-z]*-[0-9][0-9]|sage-tier[0-9].*/p" $hastatus | sed '1d;$d' | awk '{print $4}'))
+lproc=($(sed -nE "/$c/,/[a-z]*-[0-9][0-9]|sage-tier[0-9].*/p" $hastatus | sed '1d;$d' | awk '{print $3}'))
 #printf '%s\n' "${laddr[@]}"
 #printf '%s\n' "${lproc[@]}"
 if [ ${#laddr[@]} -ne ${#lproc[@]} ]; then
