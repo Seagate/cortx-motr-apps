@@ -119,6 +119,12 @@ test: $(C0CP) $(C0CT) $(C0RM) $(FGEN)
 	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
 	@echo "#####"
 	@ls -lh $(FILE1)
+	@echo "#####"
+	$(SUDO) ./$(C0RM) $(FID1) -y
+	sleep 1
+	$(SUDO) ./$(C0RM) $(FID2) -y
+	sleep 1
+	@echo "#####"
 	$(SUDO) ./$(C0CP) $(FID1) $(FILE1) $(BSZ) -p
 	@echo "#####"
 	@ls -la $(FILE1)
@@ -136,6 +142,7 @@ test: $(C0CP) $(C0CT) $(C0RM) $(FGEN)
 	cmp $(FILE1) $(FILE3) || echo "ERROR: Async Test Failed !!"
 	@echo "#####"
 	$(SUDO) ./$(C0RM) $(FID1) -y
+	sleep 1
 	$(SUDO) ./$(C0RM) $(FID2) -y
 
 #yaml
