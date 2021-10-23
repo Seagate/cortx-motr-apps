@@ -145,9 +145,9 @@ int main(int argc, char **argv)
 			break;
 		case 'x':
 			pool = atoi(optarg);
-			if (pool < 1 || pool > 3) {
+			if (pool < 1 || pool > 5) {
 				ERR("invalid pool index: %s (allowed \n"
-				    "values are 1, 2 or 3 atm)\n", optarg);
+				    "values are 1, 2, 3, 4 or 5 atm)\n", optarg);
 				help();
 			}
 			break;
