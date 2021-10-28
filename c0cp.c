@@ -35,6 +35,61 @@
 #include "c0appz.h"
 #include "c0appz_internal.h"
 
+struct Block {
+	uint64_t idh;	/* object id high    	*/
+	uint64_t idl;   /* object is low     	*/
+	uint64_t bsz;   /* block size        	*/
+	uint64_t cnt;  	/* count             	*/
+	uint64_t ocnt;	/* OP count    	 		*/
+	uint64_t m0bs;	/* m0 block size     	*/
+	uint64_t pos;   /* starting position 	*/
+	char    *fbuf;  /* file buffer     		*/
+};
+
+pthread_t wthrd[100];
+struct Block wthrd_blk[100];
+
+static void *tfunc_c0appz_mw(void *block)
+{
+	struct Block *b = (struct Block *)block;
+//	printf("pos = %" PRIu64 "\n", b->pos);
+	c0appz_mw(b->fbuf, b->idh, b->idl, b->pos, b->bsz, b->cnt, b->m0bs);
+    return NULL;
+}
+
+static void *tfunc_c0appz_mw_async(void *block)
+{
+	struct Block *b = (struct Block *)block;
+	c0appz_mw_async(b->fbuf, b->idh, b->idl, b->pos, b->bsz, b->cnt, b->ocnt,b->m0bs);
+    return NULL;
+}
+
+
+void pack(int idx, char *fbuf, uint64_t idh, uint64_t idl, uint64_t pos,
+		uint64_t bsz, uint64_t cnt, uint32_t ocnt, uint64_t m0bs)
+{
+	wthrd_blk[idx].idh = idh;
+	wthrd_blk[idx].idl = idl;
+	wthrd_blk[idx].pos = pos;
+	wthrd_blk[idx].bsz = bsz;
+	wthrd_blk[idx].cnt = cnt;
+	wthrd_blk[idx].ocnt = ocnt;
+	wthrd_blk[idx].m0bs = m0bs;
+	wthrd_blk[idx].fbuf = (char *)fbuf;
+
+	/*
+	printf("\n#####\n");
+	printf("idh = %" PRIu64 "\n", wthrd_blk[idx].idh);
+	printf("idl = %" PRIu64 "\n", wthrd_blk[idx].idl);
+	printf("pos = %" PRIu64 "\n", wthrd_blk[idx].pos);
+	printf("bsz = %" PRIu64 "\n", wthrd_blk[idx].bsz);
+	printf("cnt = %" PRIu64 "\n", wthrd_blk[idx].cnt);
+	*/
+
+	return;
+}
+
+
 /*
  ******************************************************************************
  * EXTERN VARIABLES
@@ -89,25 +144,27 @@ int help()
 
 int main(int argc, char **argv)
 {
-	uint64_t idh;        /* object id high    */
-	uint64_t idl;        /* object is low     */
-	uint64_t bsz;        /* block size        */
-	uint64_t m0bs=0;     /* m0 block size     */
-	uint64_t cnt;        /* count             */
-	uint64_t pos;        /* starting position */
-	char    *fname;      /* input filename    */
-	struct stat64 fs;    /* file statistics   */
-	int      opt;        /* options           */
-	int      rc;         /* return code       */
-	char    *fbuf;       /* file buffer       */
-	int      cont=0;     /* continuous mode   */
-	int      pool=0;     /* default pool ID   */
-	int      op_cnt=0;   /* number of parallel ops */
+	uint64_t idh;        /* object id high    		*/
+	uint64_t idl;        /* object is low     		*/
+	uint64_t bsz;        /* block size        		*/
+	uint64_t m0bs=0;     /* m0 block size     		*/
+	uint64_t cnt;        /* count             		*/
+	uint64_t pos=0;      /* starting position 		*/
+	char    *fname;      /* input filename    		*/
+	struct stat64 fs;    /* file statistics   		*/
+	int      opt;        /* options           		*/
+	int      rc;         /* return code       		*/
+	char    *fbuf;       /* file buffer       		*/
+	int      cont=0;     /* continuous mode   		*/
+	int      pool=0;     /* default pool ID   		*/
+	int      op_cnt=0;   /* number of parallel OPs	*/
+	int		 mthrd=0;	 /* multi-threaded 	  		*/
+	int i;
 
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while ((opt = getopt(argc, argv, ":a:b:pfc:x:u:tvh")) != -1) {
+	while ((opt = getopt(argc, argv, ":a:b:pfmc:x:u:tvh")) != -1) {
 		switch (opt) {
 		case 'p':
 			perf = 1;
@@ -136,6 +193,9 @@ int main(int argc, char **argv)
 				ERR("invalid -c option argument: %s\n", optarg);
 				help();
 			}
+			break;
+		case 'm':
+			mthrd = 1;
 			break;
 		case 'u':
 			if (sscanf(optarg, "%i", &unit_size) != 1) {
@@ -273,19 +333,34 @@ int main(int argc, char **argv)
 		qos_pthread_start();
 		c0appz_timein();
 
-		for (pos = 0; cont > 0; cont--, pos += cnt * bsz) {
-			rc = op_cnt ?
-				c0appz_mw_async(fbuf, idh, idl, pos, bsz, cnt,
-						op_cnt, m0bs) :
-				c0appz_mw(fbuf, idh, idl, pos, bsz, cnt, m0bs);
-			if (rc != 0) {
-				ERR("copying failed at pos %lu: %d\n", pos, rc);
-				break;
+		if (!mthrd) {
+			for (pos = 0; cont > 0; cont--, pos += cnt * bsz) {
+				rc = op_cnt ?
+					c0appz_mw_async(fbuf, idh, idl, pos, bsz, cnt,
+							op_cnt, m0bs) :
+					c0appz_mw(fbuf, idh, idl, pos, bsz, cnt, m0bs);
+				if (rc != 0) {
+					ERR("copying failed at pos %lu: %d\n", pos, rc);
+					break;
+				}
+				pthread_mutex_lock(&qos_lock);
+				qos_laps_served++;
+				qos_laps_remain--;
+				pthread_mutex_unlock(&qos_lock);
 			}
-			pthread_mutex_lock(&qos_lock);
-			qos_laps_served++;
-			qos_laps_remain--;
-			pthread_mutex_unlock(&qos_lock);
+		}
+		else {
+			pos = 0;
+			for(i=0; i<cont; i++) {
+				pack(i,fbuf, idh, idl, pos, bsz, cnt, op_cnt, m0bs);
+				op_cnt 	? pthread_create(&(wthrd[i]),NULL,&tfunc_c0appz_mw_async,(void *)(wthrd_blk+i))
+						: pthread_create(&(wthrd[i]),NULL,&tfunc_c0appz_mw,(void *)(wthrd_blk+i));
+				pos += cnt * bsz;
+			}
+		}
+
+		for(i=0; i<cont; i++) {
+			pthread_join(wthrd[i],NULL);
 		}
 
 		ppf("%8s","write");
