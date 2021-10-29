@@ -20,12 +20,11 @@ cleanup()
 
 trap cleanup EXIT
 
-#c="client-22"
-#ssh client-21 hctl status > $hastatus
 c=$HOSTNAME
-
 [[ -f "$hastatusetc" ]] && hastatus=$hastatusetc
-[[ ! -f "$hastatusetc" ]] && hctl status > $hastatustmp && hastatus=$hastatustmp
+[[ ! -f "$hastatusetc" ]] && hctl status > $hastatustmp &&  
+    echo "sage-tier9-9" >> $hastatustmp && #add a dummy node pattern at the end 
+        hastatus=$hastatustmp
 
 pools=()
 descp=()
@@ -50,10 +49,14 @@ profs=($(sed -n "/Profile/,/Services/p" $hastatus | sed -n "/0x.*/p" | awk '{pri
 #	echo "${profs[$idx]}"
 #done
 
+#regex for sage nodes
+spat0+="client-2[1-8]|datawarp-0[1-4]|visnode-0[1-4]|sage-tier[0-9]-[0-9]"
+spat0+="|client-tx2-[0-9]|sage-tier[0-9]-[0-9]a"
+
 laddr=()
 lproc=()
-laddr=($(sed -nE "/$c/,/[a-z]*-[0-9][0-9]|sage-tier[0-9].*/p" $hastatus | sed '1d;$d' | awk '{print $4}'))
-lproc=($(sed -nE "/$c/,/[a-z]*-[0-9][0-9]|sage-tier[0-9].*/p" $hastatus | sed '1d;$d' | awk '{print $3}'))
+laddr=($(sed -nE "/$c/,/$spat0/p" $hastatus | sed '1d;$d' | awk '{print $4}'))
+lproc=($(sed -nE "/$c/,/$spat0/p" $hastatus | sed '1d;$d' | awk '{print $3}'))
 #printf '%s\n' "${laddr[@]}"
 #printf '%s\n' "${lproc[@]}"
 if [ ${#laddr[@]} -ne ${#lproc[@]} ]; then
@@ -205,11 +208,10 @@ echo "HA_ENDPOINT_ADDR = ${laddr[0]}"
 echo "PROFILE_FID = ${profs[0]}"
 
 echo
-echo "M0_POOL_TIER1 = ${pools[0]}"
-echo "M0_POOL_TIER2 = ${pools[1]}"
-echo "M0_POOL_TIER3 = ${pools[2]}"
-echo "M0_POOL_TIER4 = ${pools[3]}"
-echo "M0_POOL_TIER5 = ${pools[4]}"
+for (( idx=0; idx<${#pools[@]}; idx++ ))
+do
+	echo "M0_POOL_TIER$((idx+1)) = ${pools[$((idx))]}"
+done
 
 echo
 for (( idx=0; idx<${#laddr[@]}-1; idx++ ))
