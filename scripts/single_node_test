@@ -20,9 +20,6 @@
 
 #!/usr/bin/env bash
 #
-# This script clean install given Motr packages.
-# It should work on Red Hat and Debian based systems.
-#
 # Ganesan Umanesan <ganesan.umanesan@seagate.com>
 # 21/02/2017
 
@@ -35,7 +32,6 @@ fgen='./fgen'
 #files
 upfile='upFile'
 dwfile='dwFile'
-bundle='Sage_Bunle'
 
 #####
 #c0fidtest()
@@ -54,24 +50,21 @@ c0fidtest()
 	
 	log="$log-$$_bsz${bsz}_cnt${cnt}_num${num}.log"
 	out="$out-$$_$(date +%Y%m%d-%H:%M:%S).txt"
-	bundle="$bundle-$(date +%Y%m%d).tar"
 	
-	log=$(pwd)/$log	#send to working directory
-	out=$(pwd)/$out	#send to working directory
+	# log=$(pwd)/$log	#send to working directory
+	# out=$(pwd)/$out	#send to working directory
 
-	# log='/dev/null'
-	# out='/dev/stdout'
+	log='/dev/stdout'
+	out='/dev/stdout'
 	
 	echo $log
 	echo $out
 	
 	upfile=$(pwd)/$upfile	#send to working directory
 	dwfile=$(pwd)/$dwfile	#send to working directory
-	bundle=$(pwd)/$bundle	#send to working directory
 
 	echo $upfile
 	echo $dwfile
-	echo $bundle
 	
 	#move to executable directory
 	pushd $(dirname $(dirname $0))
@@ -110,27 +103,20 @@ c0fidtest()
 		printf "%03d: %s" "$i" "$fid" >> $out
 		
 		#c0cp
-		rm -f m0trace.* # clean up  		
-	   	$c0cp $fid $upfile $bsz $cnt 2>> $log
+	   	sleep 0.5; $c0cp $fid $upfile $bsz -b 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "$c0cp $fid $upfile $bsz $cnt 2>> $log"
-	  		#remove fid if possible
-	  		$c0rm $fid 2>> $log 
-	  		#bundle trace
-	  		m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
-	  		tar -rvf $bundle $(ls m0trace.*.yml)
+	  		echo "$c0cp $fid $upfile $bsz 2>> $log"
+	  		sleep 0.5; $c0rm $fid -y 2>> $log 
 	  		return 20
 		fi
 	   	
 		#c0cat
-		rm -f m0trace.* # clean up  		
-		$c0cat $fid $dwfile $bsz $cnt 2>> $log
+		sleep 0.5; $c0cat $fid $dwfile $bsz $((cnt*bsz)) -b 2>> $log
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "$c0cat $fid $bsz $cnt > $dwfile 2>> $log"
-	  		#remove fid if possible
-	  		$c0rm $fid 2>> $log 	  		
+	  		echo "$c0cat $fid $bsz $((cnt*bsz)) > $dwfile 2>> $log"
+	  		sleep 0.5; $c0rm $fid -y 2>> $log 	  		
 	  		return 21
 		fi
 
@@ -140,23 +126,15 @@ c0fidtest()
 	   		echo
 	  		echo "cmp $upfile $dwfile"
 	  		echo "error! compare failed!!"
-	  		#bundle trace
-	  		m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
-	  		tar -rvf $bundle $(ls m0trace.*.yml)
 	  		return 22
 		fi
 	
 		#c0rm
-		rm -f m0trace.* # clean up  		
-		$c0rm $fid 2>> $log 
+		sleep 0.5; $c0rm $fid -y 2>> $log 
 	   	if [[ $? -ne 0 ]]; then
 	   		echo
-	  		echo "$c0rm $fid 2>> $log"
-	  		#remove fid if possible
-	  		$c0rm $fid 2>> $log 	  		
-	  		#bundle trace
-	  		m0trace -Y -i $(ls m0trace.*) -o $(ls m0trace.*).yml
-	  		tar -rvf $bundle $(ls m0trace.*.yml)
+	  		echo "$c0rm $fid -y 2>> $log"
+	  		sleep 0.5; $c0rm $fid -y 2>> $log 	  		
 	  		return 23
 		fi
 		  
@@ -187,14 +165,6 @@ c0fidtest $1 $2 $3
 if [[ $? -ne 0 ]]; then
 	echo "c0fidtest $1 $2 $3"
 	echo "failed!!"
-	echo "compressing..."
-	ls -a m0trace.*
-	tar -tvf $bundle
-	bzip2 $bundle
-	echo "verifying..."
-	tar -jtvf "$bundle.bz2"
-	ls -lh *.bz2
-	rm -f m0trace.*
 	echo "done!!"
 else
 	echo "c0fidtest $1 $2 $3"
