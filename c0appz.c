@@ -419,6 +419,7 @@ int c0appz_cp(uint64_t idhi, uint64_t idlo, char *filename,
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
+		qos_objio_signal_start();
 		qos_total_weight += cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
@@ -518,6 +519,7 @@ int c0appz_cp_async(uint64_t idhi, uint64_t idlo, char *src, uint64_t bsz,
 
 			/* QOS */
 			pthread_mutex_lock(&qos_lock);
+			qos_objio_signal_start();
 			qos_total_weight += cnt_per_op * bsz;
 			pthread_mutex_unlock(&qos_lock);
 			/* END */
@@ -618,6 +620,7 @@ int c0appz_cat(uint64_t idhi, uint64_t idlo, char *filename,
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
+		qos_objio_signal_start();
 		qos_total_weight += cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
