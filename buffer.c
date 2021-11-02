@@ -42,8 +42,9 @@
  * GLOBAL VARIABLES
  ******************************************************************************
  */
-extern int qos_total_weight;	/* total bytes read or written  */
-extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
+extern int qos_total_weight;	/* total bytes read or written	*/
+extern pthread_mutex_t qos_lock;
+extern pthread_cond_t qos_cond;
 
 /*
  ******************************************************************************
@@ -189,6 +190,7 @@ int c0appz_mr(char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
+		qos_objio_signal_start();
 		qos_total_weight += cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
@@ -256,6 +258,7 @@ int c0appz_mw(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 
 		/* QOS */
 		pthread_mutex_lock(&qos_lock);
+		qos_objio_signal_start();
 		qos_total_weight += cnt_per_op * bsz;
 		pthread_mutex_unlock(&qos_lock);
 		/* END */
@@ -328,6 +331,7 @@ int c0appz_mw_async(const char *buf, uint64_t idhi, uint64_t idlo, uint64_t off,
 
 			/* QOS */
 			pthread_mutex_lock(&qos_lock);
+			qos_objio_signal_start();
 			qos_total_weight += cnt_per_op * bsz;
 			pthread_mutex_unlock(&qos_lock);
 			/* END */
