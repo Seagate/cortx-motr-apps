@@ -130,6 +130,7 @@ bsz - block size (in KiBs)\n\
   -x id   id of the tier (pool) to create the object in (1,2,3,..)\n\
   -t      create m0trace.pid file\n\
   -v      be more verbose\n\
+  -i | n socket index, [0-3] currently\n\
   -h      print this help\n\
 \n\
 Note: in order to get the maximum performance, m0bs should be multiple\n\
@@ -144,27 +145,28 @@ int help()
 
 int main(int argc, char **argv)
 {
-	uint64_t idh;        /* object id high    		*/
-	uint64_t idl;        /* object is low     		*/
-	uint64_t bsz;        /* block size        		*/
-	uint64_t m0bs=0;     /* m0 block size     		*/
-	uint64_t cnt;        /* count             		*/
-	uint64_t pos=0;      /* starting position 		*/
-	char    *fname;      /* input filename    		*/
-	struct stat64 fs;    /* file statistics   		*/
-	int      opt;        /* options           		*/
-	int      rc;         /* return code       		*/
-	char    *fbuf;       /* file buffer       		*/
-	int      cont=0;     /* continuous mode   		*/
-	int      pool=0;     /* default pool ID   		*/
-	int      op_cnt=0;   /* number of parallel OPs	*/
-	int		 mthrd=0;	 /* multi-threaded 	  		*/
+	uint64_t idh;    	/* object id high    		*/
+	uint64_t idl;      	/* object is low     		*/
+	uint64_t bsz;      	/* block size        		*/
+	uint64_t m0bs=0;   	/* m0 block size     		*/
+	uint64_t cnt;      	/* count             		*/
+	uint64_t pos=0;   	/* starting position 		*/
+	char    *fname;    	/* input filename    		*/
+	struct stat64 fs;  	/* file statistics   		*/
+	int      opt;      	/* options           		*/
+	int      rc;       	/* return code       		*/
+	char    *fbuf;     	/* file buffer       		*/
+	int      cont=0;   	/* continuous mode   		*/
+	int      pool=0;   	/* default pool ID   		*/
+	int      op_cnt=0; 	/* number of parallel OPs	*/
+	int		 mthrd=0;	/* multi-threaded 	  		*/
+	int idx=0;			/* socket index				*/
 	int i;
 
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while ((opt = getopt(argc, argv, ":a:b:pfmc:x:u:tvh")) != -1) {
+	while ((opt = getopt(argc, argv, ":i:a:b:pfmc:x:u:tvh")) != -1) {
 		switch (opt) {
 		case 'p':
 			perf = 1;
@@ -200,6 +202,14 @@ int main(int argc, char **argv)
 		case 'u':
 			if (sscanf(optarg, "%i", &unit_size) != 1) {
 				ERR("invalid unit size: %s\n", optarg);
+				help();
+			}
+			break;
+		case 'i':
+			idx = atoi(optarg);
+			if (idx < 0 || idx > 3) {
+				ERR("invalid socket index: %s (allowed \n"
+				    "values are 0, 1, 2, or 3 atm)\n", optarg);
 				help();
 			}
 			break;
@@ -278,7 +288,7 @@ int main(int argc, char **argv)
 
 	/* init */
 	c0appz_timein();
-	rc = c0appz_init(0);
+	rc = c0appz_init(idx);
 	if (rc != 0) {
 		fprintf(stderr,"%s(): error: c0appz_init() failed: %d\n",
 			__func__, rc);
