@@ -51,6 +51,7 @@ option is:\n\
 	-y | yes\n\
 	-p | performance\n\
 	-t | create m0trace.pid file\n\
+	-i | n socket index, [0-3] currently\n\
 		\n\
 The -y option forces deleting an object if that object already exists.\n\
 The -p option enables performance monitoring. It collects performance stats\n\
@@ -71,13 +72,14 @@ int main(int argc, char **argv)
 	uint64_t idh;	/* object id high 	*/
 	uint64_t idl;	/* object id low 	*/
 	int opt=0;		/* options			*/
+	int idx=0;		/* socket index		*/
 	int rc=0;
 	int yes=0;
 
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":pyt"))!=-1){
+	while((opt = getopt(argc, argv, ":i:pyt"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
@@ -88,8 +90,17 @@ int main(int argc, char **argv)
 			case 't':
 				m0trace_on = true;
 				break;
+			case 'i':
+				idx = atoi(optarg);
+				if (idx < 0 || idx > 3) {
+					ERR("invalid socket index: %s (allowed \n"
+					    "values are 0, 1, 2, or 3 atm)\n", optarg);
+					help();
+				}
+				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
+				help();
 				break;
 			case '?':
 				fprintf(stderr,"unknown option: %c\n", optopt);
@@ -122,7 +133,7 @@ int main(int argc, char **argv)
 
 	/* init */
 	c0appz_timein();
-	rc = c0appz_init(0);
+	rc = c0appz_init(idx);
 	if (rc != 0) {
 		fprintf(stderr,"error! c0appz_init() failed: %d\n", rc);
 		return 222;

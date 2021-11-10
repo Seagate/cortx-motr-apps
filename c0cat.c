@@ -115,6 +115,7 @@ fsz - file size (in bytes)\n\
   -p      show performance stats\n\
   -t      create m0trace.pid file\n\
   -v      be more verbose\n\
+  -i | n socket index, [0-3] currently\n\
   -h      print this help\n\
 \n\
 Note: in order to get the maximum performance, m0bs should be multiple\n\
@@ -143,12 +144,14 @@ int main(int argc, char **argv)
 	int rc=0;			/* return code			*/
 	uint64_t m0bs=0;	/* m0 block size    	*/
 	int	mthrd=0;	 	/* multi-threaded 	  	*/
+	int idx=0;			/* socket index			*/
+
 	int i;
 
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while ((opt = getopt(argc, argv, ":b:pmc:tvh")) != -1) {
+	while ((opt = getopt(argc, argv, ":i:b:pmc:tvh")) != -1) {
 		switch(opt){
 		case 'b':
 			if (sscanf(optarg, "%li", &m0bs) != 1) {
@@ -175,6 +178,14 @@ int main(int argc, char **argv)
 			break;
 		case 'v':
 			trace_level++;
+			break;
+		case 'i':
+			idx = atoi(optarg);
+			if (idx < 0 || idx > 3) {
+				ERR("invalid socket index: %s (allowed \n"
+				    "values are 0, 1, 2, or 3 atm)\n", optarg);
+				help();
+			}
 			break;
 		case 'h':
 			help();
@@ -236,7 +247,7 @@ int main(int argc, char **argv)
 
 	/* init */
 	c0appz_timein();
-	rc = c0appz_init(0);
+	rc = c0appz_init(idx);
 	if (rc != 0) {
 		fprintf(stderr,"error! c0appz_init() failed: %d\n", rc);
 		return 222;
