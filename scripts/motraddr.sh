@@ -154,13 +154,20 @@ miof()
 #
 
 # options
-TEMP=$( getopt -o meh --long mio,exp,help -n "$PROG_NAME" -- "$@" )
+TEMP=$( getopt -o xmeh --long ex-cache,mio,exp,help -n "$PROG_NAME" -- "$@" )
 [[ $? != 0 ]] && usage
 eval set -- "$TEMP"
 
 while true ; 
 	do
     case "$1" in
+     	-x|--ex-cache)
+     	# exclude cache, read afresh 
+     	hctl status > $hastatustmp
+     	echo "sage-tier9-9" >> $hastatustmp
+     	hastatus=$hastatustmp
+     	shift
+		;;
      	-m|--mio)
      	# print to stdout 
      	if [ "$#" -eq 2 ]; then
