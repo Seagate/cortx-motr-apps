@@ -32,6 +32,7 @@
 #include <inttypes.h>
 #include <assert.h>
 #include <ctype.h>
+#include <dirent.h>
 #include "c0appz.h"
 #include "c0appz_internal.h"
 
@@ -89,6 +90,58 @@ void pack(int idx, char *fbuf, uint64_t idh, uint64_t idl, uint64_t pos,
 	return;
 }
 
+/*
+ * c0appz_cp_dir()
+ * copy entire directory to objects.
+ */
+int c0appz_cp_dir(uint64_t idhi, uint64_t idlo, char *dirname, uint64_t bsz, int pool, uint64_t m0bs)
+{
+	int rc=0;
+	DIR *d;
+	struct dirent *dir;
+	char filename[256];
+	struct stat64 fs;
+	uint64_t cnt;
+
+	printf("mode: directory copy\n");
+
+	d = opendir(dirname);
+	if (d) {
+		while ((dir = readdir(d)) != NULL) {
+			if(dir-> d_type != DT_DIR) {
+				rc = c0appz_cr(idhi, idlo, pool, m0bs);
+				if (rc < 0) {
+					ERR("object create failed: rc=%d\n", rc);
+					rc = 333;
+				}
+				snprintf(filename, 256, "%s%s", dirname, dir->d_name);
+
+				rc = stat64(filename, &fs);
+				if (rc != 0) {
+					ERRS("%s", filename);
+					exit(1);
+				}
+				cnt = (fs.st_size + bsz - 1) / bsz;
+
+				rc = c0appz_cp(idhi, idlo, filename, bsz, cnt, m0bs);
+				if (rc != 0) {
+					ERR("copying failed: rc=%d\n", rc);
+					rc = 222;
+					exit(0);
+				}
+				stat64(filename, &fs);
+				printf("%s ", filename);
+				printf("%" PRIu64 " " "%" PRIu64 " ", idhi,idlo);
+				printf("%" PRIu64, fs.st_size);
+				printf("\n");
+				idlo++;
+			}
+	    }
+	    closedir(d);
+	}
+
+	return rc;
+}
 
 /*
  ******************************************************************************
@@ -161,6 +214,7 @@ int main(int argc, char **argv)
 	int      op_cnt=0; 	/* number of parallel OPs	*/
 	int		 mthrd=0;	/* multi-threaded 	  		*/
 	int idx=0;			/* socket index				*/
+	int dir=0;			/* directory mode			*/
 	int i;
 
 	prog = basename(strdup(argv[0]));
@@ -285,6 +339,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	cnt = (fs.st_size + bsz - 1) / bsz;
+	if(S_ISDIR(fs.st_mode)) dir = 1;
 
 	/* init */
 	c0appz_timein();
@@ -305,6 +360,13 @@ int main(int argc, char **argv)
 	}
 	if (!m0bs)
 		m0bs = bsz;
+
+	/* directory mode */
+	if(dir) {
+		printf("path: %s\n",fname);
+		c0appz_cp_dir(idh, idl, fname, bsz, pool, m0bs);
+		return 0;
+	}
 
 	/* create object */
 	c0appz_timein();
