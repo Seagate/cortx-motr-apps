@@ -75,7 +75,7 @@ IQUOTEDIR := $(M0_SRC_DIR)
 M0GCCXML2XCODE := $(M0_SRC_DIR)/xcode/m0gccxml2xcode
 endif
 
-SRC = perf.o buffer.o qos.o c0appz.o
+SRC = perf.o buffer.o qos.o c0appz.o dir.o list.o
 SRC_ALL = $(SRC) c0cp.o c0cat.o c0rm.o fgen.o \
 		c0isc_register.o c0isc_demo.o isc_libdemo.o
 
