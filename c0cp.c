@@ -35,6 +35,7 @@
 #include <dirent.h>
 #include "c0appz.h"
 #include "c0appz_internal.h"
+#include "dir.h"
 
 struct Block {
 	uint64_t idh;	/* object id high    	*/
@@ -364,7 +365,13 @@ int main(int argc, char **argv)
 	/* directory mode */
 	if(dir) {
 		printf("path: %s\n",fname);
-		c0appz_cp_dir(idh, idl, fname, bsz, pool, m0bs);
+		if(!mthrd) {
+			c0appz_cp_dir(idh, idl, fname, bsz, pool, m0bs);
+		}
+		else {
+			c0appz_cp_dir_mthread(idh, idl, fname, bsz, pool, m0bs,cont);
+			c0appz_cp_dir_mthread_wait();
+		}
 		return 0;
 	}
 
