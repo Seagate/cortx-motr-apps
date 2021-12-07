@@ -45,6 +45,18 @@ void lfree(struct list **head)
 	return;
 }
 
+int lsize(struct list **head)
+{
+	int length=0;
+	struct list *ptr;
+	ptr = *head;
+	while(ptr != NULL) {
+		length++;
+		ptr = ptr->next;
+	}
+	return length;
+}
+
 void push(struct list **head, void *data, int size)
 {
 	struct list *tmp;

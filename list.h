@@ -30,6 +30,7 @@ struct list {
 	struct list *next;
 };
 
+int lsize(struct list **head);
 void linit(struct list **head);
 void pop(struct list **head, void *data);
 void push(struct list **head, void *data, int size);
