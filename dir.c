@@ -56,10 +56,18 @@ struct fBlock {
 	int threadidx;	/* thread id			*/
 };
 
-#define MAXTHREADS 50
+#define MAXTHREADS 100
 pthread_t fthrd[MAXTHREADS];
 struct fBlock fthrd_blk[MAXTHREADS];
 pthread_mutex_t tlist_lock=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t flist_lock=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t gidlo_lock=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t print_lock=PTHREAD_MUTEX_INITIALIZER;
+
+uint64_t g_idlo;
+
+static void pack(uint64_t idh, uint64_t idl, char *fbuf, uint64_t bsz,
+		int pool, uint64_t m0bs, int idx);
 
 static void *release_idx(void *idx)
 {
@@ -76,23 +84,40 @@ static void *tfunc_c0appz_cp(void *block)
 	pthread_cleanup_push((void *)release_idx, (void *)&(b->threadidx));
 
 	/* output meta data */
+	pthread_mutex_lock(&print_lock);
 	printf("%s ", b->fbuf);
 	printf("%" PRIu64 " " "%" PRIu64 " ", b->idh,b->idl);
 	printf("%" PRIu64, b->fsz);
 	printf("\n");
-
-	/* create object */
-	rc = c0appz_cr(b->idh, b->idl, b->pool, b->m0bs);
-	if (rc < 0) {
-		ERR("object create failed: rc=%d\n", rc);
-		rc = 333;
-	}
+	pthread_mutex_unlock(&print_lock);
 
 	/* write file */
 	rc = c0appz_cp(b->idh, b->idl, b->fbuf, b->bsz, b->cnt, b->m0bs);
 	if (rc != 0) {
 		ERR("copying failed: rc=%d\n", rc);
 		rc = 222;
+	}
+
+	/* schedule work */
+	while(flist) {
+		pthread_mutex_lock(&flist_lock);
+		pop(&flist,(void *)b->fbuf);
+		pthread_mutex_unlock(&flist_lock);
+		//printf("[%d] [%s]\n", b->threadidx,b->fbuf);
+
+		/* update idlo */
+		pthread_mutex_lock(&gidlo_lock);
+		b->idl = g_idlo;
+		g_idlo++;
+		pthread_mutex_unlock(&gidlo_lock);
+
+		/* write file */
+		pack(b->idh, b->idl, b->fbuf, b->bsz, b->pool, b->m0bs, b->threadidx);
+		rc = c0appz_cp(b->idh, b->idl, b->fbuf, b->bsz, b->cnt, b->m0bs);
+		if (rc != 0) {
+			ERR("copying failed: rc=%d\n", rc);
+			rc = 222;
+		}
 	}
 
 	pthread_cleanup_pop(1);
@@ -115,9 +140,9 @@ static void pack(uint64_t idh, uint64_t idl, char *fbuf, uint64_t bsz,
 	fthrd_blk[idx].ocnt = 0;
 	fthrd_blk[idx].pos  = 0;
 
-	fthrd_blk[idx].idh  = idh;
-	fthrd_blk[idx].idl  = idl;
-	fthrd_blk[idx].bsz  = bsz;
+	fthrd_blk[idx].idh = idh;
+	fthrd_blk[idx].idl = idl;
+	fthrd_blk[idx].bsz = bsz;
 	fthrd_blk[idx].pool = pool;
 	fthrd_blk[idx].m0bs = m0bs;
 	fthrd_blk[idx].threadidx = idx;
@@ -162,6 +187,8 @@ int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 	int i=0;
 	char fbuf[256];
 	int idx;
+	int rc=0;
+	int sz=0;
 
 	if(numthreads > MAXTHREADS) {
 		numthreads = MAXTHREADS;
@@ -170,6 +197,7 @@ int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 
 	dir_extract_files(dirname);
 	//list_print_str(flist);
+	sz = lsize(&flist);
 
 	/* setup thread pool */
 	linit(&tlist);
@@ -179,19 +207,50 @@ int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 	//list_print_int(tlist);
 	linit(&plist);
 
+	/* delete objects */
+	printf("deleting %d existing objects...", sz);
+	for(i=0; i<sz; i++) {
+		rc = c0appz_rm(idhi, idlo+i);
+		if (rc < 0) {
+			ERR("object delete failed: rc=%d\n", rc);
+			rc = 333;
+		}
+	}
+	printf("done\n");
+
+	/* create objects */
+	printf("creating %d new objects...", sz);
+	for(i=0; i<sz; i++) {
+		rc = c0appz_cr(idhi, idlo+i, pool, m0bs);
+		if (rc < 0) {
+			ERR("object create failed: rc=%d\n", rc);
+			rc = 333;
+		}
+	}
+	printf("done\n");
+
+
+	/* setup ids */
+	g_idlo = idlo;
+
 	/* schedule threads */
 	while((flist) && (tlist))  {
 		pop(&tlist,(void *)(&idx));
+		pthread_mutex_lock(&flist_lock);
 		pop(&flist,(void *)fbuf);
+		pthread_mutex_unlock(&flist_lock);
 		//printf("[%d] [%s]\n", idx,fbuf);
 
+		/* update idlo */
+		pthread_mutex_lock(&gidlo_lock);
+		idlo = g_idlo;
+		g_idlo++;
+		pthread_mutex_unlock(&gidlo_lock);
+
+		/* start threads */
 		pack(idhi, idlo, fbuf, bsz, pool, m0bs, idx);
 		push(&plist,(void *)&idx,sizeof(int));
 		pthread_create(&(fthrd[idx]),NULL,&tfunc_c0appz_cp,(void *)(fthrd_blk+idx));
-
-		idlo++;
-		if(!flist) break;
-		if(!tlist) sleep(1);
 	}
 
 	return 0;
