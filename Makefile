@@ -38,6 +38,12 @@ FILE1 = './file1'
 FILE2 = './file2'
 FILE3 = './file3'
 
+ARCH := $(shell uname -m | tr A-Z a-z)
+ARCH_FLAGS :=
+ifeq ($(ARCH),aarch64)
+       ARCH_FLAGS += -DPAGE_SIZE=65536 -DCONFIG_AARCH64
+endif
+
 #executables
 C0CP = c0cp
 C0CT = c0cat
@@ -60,8 +66,9 @@ NODE = $(shell eval uname -n)
 #compiler/linker options
 LFLAGS += -lm -lpthread -lrt -lyaml -luuid -lmotr
 CFLAGS += -I. -I/usr/include/motr -include config.h
-CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern
-CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing
+CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern $(ARCH_FLAGS)
+#CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing
+CFLAGS += -fno-common -Wall -Wno-attributes -fno-strict-aliasing
 CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
 CFLAGS += -rdynamic
 # generate .d dependencies automatically
