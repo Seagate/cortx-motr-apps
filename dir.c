@@ -64,10 +64,41 @@ pthread_mutex_t flist_lock=PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t gidlo_lock=PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t print_lock=PTHREAD_MUTEX_INITIALIZER;
 
+/* QOS */
+extern uint64_t qos_whgt_served;
+extern uint64_t qos_whgt_remain;
+extern uint64_t qos_laps_served;
+extern uint64_t qos_laps_remain;
+extern pthread_mutex_t qos_lock;
+
+/* object ID */
 uint64_t g_idlo;
 
 static void pack(uint64_t idh, uint64_t idl, char *fbuf, uint64_t bsz,
 		int pool, uint64_t m0bs, int idx);
+
+
+/* dir_qos_init() */
+static int dir_qos_init()
+{
+	struct list *ptr;
+	struct stat64 fs;
+
+	qos_whgt_served = 0;
+	qos_whgt_remain = 0;
+	qos_laps_served = 0;
+	qos_laps_remain = 0;
+
+	ptr = flist;
+	while(ptr!=NULL) {
+		qos_laps_remain++;
+		stat64(ptr->data, &fs);
+		qos_whgt_remain += fs.st_size;
+		ptr = ptr->next;
+	}
+
+	return 0;
+}
 
 static void *release_idx(void *idx)
 {
@@ -97,6 +128,13 @@ static void *tfunc_c0appz_cp(void *block)
 		ERR("copying failed: rc=%d\n", rc);
 		rc = 222;
 	}
+	/* QOS */
+	pthread_mutex_lock(&qos_lock);
+	qos_laps_served++;
+	qos_laps_remain--;
+	pthread_mutex_unlock(&qos_lock);
+	/* QOS */
+
 
 	/* schedule work */
 	while(flist) {
@@ -118,6 +156,12 @@ static void *tfunc_c0appz_cp(void *block)
 			ERR("copying failed: rc=%d\n", rc);
 			rc = 222;
 		}
+		/* QOS */
+		pthread_mutex_lock(&qos_lock);
+		qos_laps_served++;
+		qos_laps_remain--;
+		pthread_mutex_unlock(&qos_lock);
+		/* QOS */
 	}
 
 	pthread_cleanup_pop(1);
@@ -233,6 +277,9 @@ int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 	/* setup ids */
 	g_idlo = idlo;
 
+	/* qos */
+	dir_qos_init();
+
 	/* schedule threads */
 	while((flist) && (tlist))  {
 		pop(&tlist,(void *)(&idx));
@@ -267,3 +314,4 @@ int c0appz_cp_dir_mthread_wait()
 	lfree(&plist);
 	return 0;
 }
+

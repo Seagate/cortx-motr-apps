@@ -365,6 +365,7 @@ int main(int argc, char **argv)
 	/* directory mode */
 	if(dir) {
 		printf("path: %s\n",fname);
+		qos_pthread_start();
 		if(!mthrd) {
 			c0appz_cp_dir(idh, idl, fname, bsz, pool, m0bs);
 		}
@@ -372,7 +373,8 @@ int main(int argc, char **argv)
 			c0appz_cp_dir_mthread(idh, idl, fname, bsz, pool, m0bs,cont);
 			c0appz_cp_dir_mthread_wait();
 		}
-		return 0;
+		qos_pthread_wait();
+		goto end;
 	}
 
 	/* create object */
