@@ -374,7 +374,8 @@ int main(int argc, char **argv)
 			c0appz_cp_dir_mthread_wait();
 		}
 		qos_pthread_wait();
-		goto end;
+		printf("Done!\n");
+		return 0;
 	}
 
 	/* create object */

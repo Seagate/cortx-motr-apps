@@ -78,8 +78,12 @@ static void pack(uint64_t idh, uint64_t idl, char *fbuf, uint64_t bsz,
 		int pool, uint64_t m0bs, int idx);
 
 
-/* dir_qos_init() */
-static int dir_qos_init()
+/*
+ * dir_qos_init()
+ * Note. total bytes copied/read depends on bsz
+ * because Motr does block aligned IO.
+ * */
+static int dir_qos_init(uint64_t bsz)
 {
 	struct list *ptr;
 	struct stat64 fs;
@@ -93,7 +97,7 @@ static int dir_qos_init()
 	while(ptr!=NULL) {
 		qos_laps_remain++;
 		stat64(ptr->data, &fs);
-		qos_whgt_remain += fs.st_size;
+		qos_whgt_remain += bsz*((fs.st_size + bsz - 1) / bsz);
 		ptr = ptr->next;
 	}
 
@@ -278,7 +282,8 @@ int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 	g_idlo = idlo;
 
 	/* qos */
-	dir_qos_init();
+	dir_qos_init(bsz);
+	printf("%" PRIu64 " " "%" PRIu64 "\n", qos_whgt_remain,qos_whgt_served);
 
 	/* schedule threads */
 	while((flist) && (tlist))  {

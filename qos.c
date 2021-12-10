@@ -155,14 +155,16 @@ static int qos_print_bw(void)
 
 	/* reset total weight */
 	pthread_mutex_lock(&qos_lock);
-	qos_whgt_served += qos_total_weight;
-	qos_whgt_remain -= qos_total_weight;
+	qos_whgt_served += (uint64_t)qos_total_weight;
+	qos_whgt_remain -= (uint64_t)qos_total_weight;
 	qos_total_weight=0;
 	pthread_mutex_unlock(&qos_lock);
 
 	/* print */
 	pr=100*qos_whgt_served/(qos_whgt_served+qos_whgt_remain);
-	printf("bw = %08.4f MB/s\n",bw);
+	printf("bw = %08.4f MB/s\t",bw);
+	printf("%-16" PRIu64 " " "%-16" PRIu64, qos_whgt_remain,qos_whgt_served);
+	printf("\n");
 	sprintf(s,"%02d/%02d",(int)qos_laps_served,(int)(qos_laps_served+qos_laps_remain));
 	progress_rt(s);
 	sprintf(s,"%3d%%",(int)pr);
