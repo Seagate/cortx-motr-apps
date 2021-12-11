@@ -163,7 +163,7 @@ static int qos_print_bw(void)
 	/* print */
 	pr=100*qos_whgt_served/(qos_whgt_served+qos_whgt_remain);
 	printf("bw = %08.4f MB/s\t",bw);
-	printf("%-16" PRIu64 " " "%-16" PRIu64, qos_whgt_remain,qos_whgt_served);
+	printf("%16" PRIu64 " " "%16" PRIu64, qos_whgt_remain,qos_whgt_served);
 	printf("\n");
 	sprintf(s,"%02d/%02d",(int)qos_laps_served,(int)(qos_laps_served+qos_laps_remain));
 	progress_rt(s);
