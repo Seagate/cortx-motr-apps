@@ -153,6 +153,14 @@ static void *tfunc_c0appz_cp(void *block)
 		g_idlo++;
 		pthread_mutex_unlock(&gidlo_lock);
 
+		/* output meta data */
+		pthread_mutex_lock(&print_lock);
+		printf("%s ", b->fbuf);
+		printf("%" PRIu64 " " "%" PRIu64 " ", b->idh,b->idl);
+		printf("%" PRIu64, b->fsz);
+		printf("\n");
+		pthread_mutex_unlock(&print_lock);
+
 		/* write file */
 		pack(b->idh, b->idl, b->fbuf, b->bsz, b->pool, b->m0bs, b->threadidx);
 		rc = c0appz_cp(b->idh, b->idl, b->fbuf, b->bsz, b->cnt, b->m0bs);
