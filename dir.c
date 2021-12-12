@@ -264,8 +264,9 @@ int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 	linit(&plist);
 
 	/* delete objects */
-	printf("deleting %d existing objects...", sz);
+	printf("deleting %d existing objects...\n", sz);
 	for(i=0; i<sz; i++) {
+		if(!(i%100) && (i/100>0)) printf("%d objects deleted\n",i);
 		rc = c0appz_rm(idhi, idlo+i);
 		if (rc < 0) {
 			ERR("object delete failed: rc=%d\n", rc);
@@ -275,8 +276,9 @@ int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 	printf("done\n");
 
 	/* create objects */
-	printf("creating %d new objects...", sz);
+	printf("creating %d new objects...\n", sz);
 	for(i=0; i<sz; i++) {
+		if(!(i%100) && (i/100>0)) printf("%d objects created\n",i);
 		rc = c0appz_cr(idhi, idlo+i, pool, m0bs);
 		if (rc < 0) {
 			ERR("object create failed: rc=%d\n", rc);
