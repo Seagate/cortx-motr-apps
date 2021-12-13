@@ -48,7 +48,6 @@ C0CT = c0cat
 C0RM = c0rm
 FGEN = fgen
 
-#bin_PROGRAMS = $(C0CP) $(C0CT) $(C0RM) $(FGEN)
 RCDIR = $(HOME)/.c0appz
 APPASSIGN = sage-user-application-assignment
 
@@ -65,27 +64,27 @@ NODE = $(shell eval uname -n)
 #compiler/linker options
 LFLAGS += -lm -lpthread -lrt -lyaml -luuid -lmotr
 CFLAGS += -I. -I/usr/include/motr -include config.h
-CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern
-CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing -Wformat=0
-CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable 
+CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern 
+CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing  -Wformat=0
+CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
 CFLAGS += -rdynamic $(AM_FLAGS)
 # generate .d dependencies automatically
 CFLAGS += -MP -MD
 #IQUOTEDIR = /usr/include/motr
-#M0_SRC_DIR = /usr/include/motr
 #M0GCCXML2XCODE = m0gccxml2xcode
+#ifneq ($(M0_SRC_DIR),)
+
 if M0_SRC_DIR_EXIST
- LFLAGS += -L$(M0_SRC_DIR)/motr/.libs -Wl,-rpath=$(M0_SRC_DIR)/motr/.libs
- CFLAGS += -I$(M0_SRC_DIR) -I$(M0_SRC_DIR)/extra-libs/galois/include
- IQUOTEDIR = $(M0_SRC_DIR)
-#M0GCCXML2XCODE = $(M0_SRC_DIR)/xcode/m0gccxml2xcode
- M0GCCXML2XCODE = /usr/local/bin/xcode/m0gccxml2xcode
+LFLAGS += -L$(M0_SRC_DIR)/motr/.libs -Wl,-rpath=$(M0_SRC_DIR)/motr/.libs
+CFLAGS += -I$(M0_SRC_DIR) -I$(M0_SRC_DIR)/extra-libs/galois/include
+IQUOTEDIR = $(M0_SRC_DIR)
+M0GCCXML2XCODE = $(M0_SRC_DIR)/xcode/m0gccxml2xcode
 else
- IQUOTEDIR = /usr/include/motr
- M0GCCXML2XCODE = m0gccxml2xcode
+IQUOTEDIR = /usr/include/motr
+M0GCCXML2XCODE = m0gccxml2xcode
 endif
 
-SRC = perf.o buffer.o qos.o c0appz.o
+SRC = perf.o buffer.o qos.o c0appz.o dir.o list.o
 SRC_ALL = $(SRC) c0cp.o c0cat.o c0rm.o fgen.o \
 		c0isc_register.o c0isc_demo.o isc_libdemo.o
 
@@ -191,11 +190,6 @@ sagercf:
 	mkdir -p $(RCDIR)/${C0RM}rc
 	mkdir -p $(RCDIR)/$(ISC_REG)rc
 	mkdir -p $(RCDIR)/$(ISC_INVK)rc
-#	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(C0CP)rc/client-${c}
-#	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(C0CT)rc/client-${c}
-#	$(APPASSIGN) ganesan $(C0RM) 172.18.1.${c} > $(RCDIR)/$(C0RM)rc/client-${c}
-#	$(APPASSIGN) ganesan $(C0CP) 172.18.1.${c} > $(RCDIR)/$(ISC_REG)rc/client-${c}
-#	$(APPASSIGN) ganesan $(C0CT) 172.18.1.${c} > $(RCDIR)/$(ISC_INVK)rc/client-${c}
 	HOSTNAME=$(NODE) ./scripts/motraddr.sh > out-$(HOSTNAME).txt
 	@echo "#####"
 	cat ./out-$(HOSTNAME).txt
@@ -214,13 +208,13 @@ install-exec-local:
 	cp $(C0RM) $(HOME)/bin/
 	cp $(FGEN) $(HOME)/bin/
 
+
 uninstall-local:
-	rm $(HOME)/bin/$(C0CP) 
-	rm $(HOME)/bin/$(C0CT) 
+	rm $(HOME)/bin/$(C0CP)
+	rm $(HOME)/bin/$(C0CT)
 	rm $(HOME)/bin/$(C0RM)
 	rm $(HOME)/bin/$(FGEN)
 	rmdir -p $(HOME)/bin
-	
 	
 clean-local: isc-clean
 	rm -f $(C0CP) $(C0CT) $(C0RM) m0trace.*
@@ -294,20 +288,29 @@ $(ISC_INVK): c0isc_demo.o isc/libdemo_xc.o $(SRC)
 
 c0isc_demo.c: isc/libdemo_xc.h
 
+#ifneq ($(shell which castxml),)
+#CXXXML := castxml
+#CXXXML_FLAGS := --castxml-gccxml
+#CXXXML_OUTPUT := -o # keep trailing blank-space after -o
+#CXXXML2XC_FLAGS := --castxml
+#else
+#CXXXML := gccxml
+
+
 if CASTXML
 CXXXML = castxml
-CXXXML_FLAGS = --castxml-gccxml 
+CXXXML_FLAGS = --castxml-gccxml
 CXXXML_OUTPUT = -o # keep trailing blank-space after -o
 CXXXML2XC_FLAGS = --castxml
 else
 CXXXML = gccxml
 # set maximum supported gcc version by gccxml, currently it's 4.2
-CXXXML_FLAGS = -DGCC_VERSION=4002 -DENABLE_GCCXML 
-CXXXML_OUTPUT = -fxml
+CXXXML_FLAGS = -DGCC_VERSION=4002 -DENABLE_GCCXML
+CXXXML_OUTPUT = -fxml=
 CXXXML2XC_FLAGS =
 endif
 
-CXXXML_UNSUPPORTED_CFLAGS = -Wno-portability -Wno-unused-but-set-variable -Werror -Wno-trampolines -rdynamic --coverage -pipe -Wp,-D_FORTIFY_SOURCE=2 --param=ssp-buffer-size=4 -grecord-gcc-switches -fstack-protector-strong -fstack-clash-protection -MD -MP -include config.h
+CXXXML_UNSUPPORTED_CFLAGS = -Wno-portability  -Wno-unused-but-set-variable -Werror -Wno-trampolines -rdynamic --coverage -pipe -Wp,-D_FORTIFY_SOURCE=2 --param=ssp-buffer-size=4 -grecord-gcc-switches -fstack-protector-strong -fstack-clash-protection -MD -MP -include config.h
 CXXXML_CFLAGS = $(filter-out $(CXXXML_UNSUPPORTED_CFLAGS), $(CFLAGS))
 
 %_xc.h %_xc.c: %.h

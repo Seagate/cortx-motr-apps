@@ -56,7 +56,7 @@ PAGE_SHIFT=$(( $((PAGE_SIZE==4096)) ? 12 :  $(($((PAGE_SIZE==65536)) ? 16 :  14)
 M0_CFLAGS="-pipe -Wall -Werror -Wno-attributes -fno-strict-aliasing -DPAGE_SIZE=$PAGE_SIZE -DPAGE_SHIFT=$PAGE_SHIFT "
 
 AC_SUBST(M0_CFLAGS)
-AC_SUBST(M_SRC_DIR)
+AC_SUBST(M0_SRC_DIR)
 # Check for C compiler
 AC_PROG_CC
 
