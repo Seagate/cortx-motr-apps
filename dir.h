@@ -23,7 +23,8 @@
 
 #ifndef DIR_H_
 #define DIR_H_
-
+int c0appz_cp_dir_sthread(uint64_t idhi, uint64_t idlo, char *dirname,
+						uint64_t bsz, int pool, uint64_t m0bs);
 int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 						uint64_t bsz, int pool, uint64_t m0bs, int numthreads);
 int c0appz_cp_dir_mthread_wait(void);
