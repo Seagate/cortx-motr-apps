@@ -234,6 +234,78 @@ void static dir_extract_files(char *dirname)
 }
 
 /*
+ * c0appz_cp_dir_sthread()
+ * copy entire directory to objects using a single thread,
+ *  that is, no multi-threading.
+ */
+int c0appz_cp_dir_sthread(uint64_t idhi, uint64_t idlo, char *dirname,
+						uint64_t bsz, int pool, uint64_t m0bs)
+{
+	int i=0;
+	int rc=0;
+	int sz=0;
+	struct stat64 fs;
+	char fbuf[256];
+	uint64_t cnt=0;
+
+	dir_extract_files(dirname);
+	//list_print_str(flist);
+	sz = lsize(&flist);
+
+	/* delete objects */
+	printf("deleting %d existing objects...\n", sz);
+	for(i=0; i<sz; i++) {
+		if(!(i%100) && (i/100>0)) printf("%d objects deleted\n",i);
+		rc = c0appz_rm(idhi, idlo+i);
+		if (rc < 0) {
+			ERR("object delete failed: rc=%d\n", rc);
+			rc = 333;
+		}
+	}
+	printf("done\n");
+
+	/* create objects */
+	printf("creating %d new objects...\n", sz);
+	for(i=0; i<sz; i++) {
+		if(!(i%100) && (i/100>0)) printf("%d objects created\n",i);
+		rc = c0appz_cr(idhi, idlo+i, pool, m0bs);
+		if (rc < 0) {
+			ERR("object create failed: rc=%d\n", rc);
+			rc = 333;
+		}
+	}
+	printf("done\n");
+
+	/* qos */
+	dir_qos_init(bsz);
+	printf("%" PRIu64 " " "%" PRIu64 "\n", qos_whgt_remain,qos_whgt_served);
+
+	/* write files */
+	while(flist)  {
+		pop(&flist,(void *)fbuf);
+		stat64(fbuf, &fs);
+		cnt = (fs.st_size + bsz - 1) / bsz;
+
+		/* output meta data */
+		printf("%s ", fbuf);
+		printf("%" PRIu64 " " "%" PRIu64 " ", idhi,idlo);
+		printf("%" PRIu64, fs.st_size);
+		printf("\n");
+
+		/* write file */
+		rc = c0appz_cp(idhi, idlo, fbuf, bsz, cnt, m0bs);
+		if (rc != 0) {
+			ERR("copying failed: rc=%d\n", rc);
+			rc = 222;
+		}
+		idlo++;
+
+	}
+
+	return 0;
+}
+
+/*
  * c0appz_cp_dir_mthread()
  * copy entire directory to objects using multiple threads
  */
