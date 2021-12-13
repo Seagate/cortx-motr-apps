@@ -64,10 +64,45 @@ pthread_mutex_t flist_lock=PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t gidlo_lock=PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t print_lock=PTHREAD_MUTEX_INITIALIZER;
 
+/* QOS */
+extern uint64_t qos_whgt_served;
+extern uint64_t qos_whgt_remain;
+extern uint64_t qos_laps_served;
+extern uint64_t qos_laps_remain;
+extern pthread_mutex_t qos_lock;
+
+/* object ID */
 uint64_t g_idlo;
 
 static void pack(uint64_t idh, uint64_t idl, char *fbuf, uint64_t bsz,
 		int pool, uint64_t m0bs, int idx);
+
+
+/*
+ * dir_qos_init()
+ * Note. total bytes copied/read depends on bsz
+ * because Motr does block aligned IO.
+ * */
+static int dir_qos_init(uint64_t bsz)
+{
+	struct list *ptr;
+	struct stat64 fs;
+
+	qos_whgt_served = 0;
+	qos_whgt_remain = 0;
+	qos_laps_served = 0;
+	qos_laps_remain = 0;
+
+	ptr = flist;
+	while(ptr!=NULL) {
+		qos_laps_remain++;
+		stat64(ptr->data, &fs);
+		qos_whgt_remain += bsz*((fs.st_size + bsz - 1) / bsz);
+		ptr = ptr->next;
+	}
+
+	return 0;
+}
 
 static void *release_idx(void *idx)
 {
@@ -97,6 +132,13 @@ static void *tfunc_c0appz_cp(void *block)
 		ERR("copying failed: rc=%d\n", rc);
 		rc = 222;
 	}
+	/* QOS */
+	pthread_mutex_lock(&qos_lock);
+	qos_laps_served++;
+	qos_laps_remain--;
+	pthread_mutex_unlock(&qos_lock);
+	/* QOS */
+
 
 	/* schedule work */
 	while(flist) {
@@ -111,6 +153,14 @@ static void *tfunc_c0appz_cp(void *block)
 		g_idlo++;
 		pthread_mutex_unlock(&gidlo_lock);
 
+		/* output meta data */
+		pthread_mutex_lock(&print_lock);
+		printf("%s ", b->fbuf);
+		printf("%" PRIu64 " " "%" PRIu64 " ", b->idh,b->idl);
+		printf("%" PRIu64, b->fsz);
+		printf("\n");
+		pthread_mutex_unlock(&print_lock);
+
 		/* write file */
 		pack(b->idh, b->idl, b->fbuf, b->bsz, b->pool, b->m0bs, b->threadidx);
 		rc = c0appz_cp(b->idh, b->idl, b->fbuf, b->bsz, b->cnt, b->m0bs);
@@ -118,6 +168,12 @@ static void *tfunc_c0appz_cp(void *block)
 			ERR("copying failed: rc=%d\n", rc);
 			rc = 222;
 		}
+		/* QOS */
+		pthread_mutex_lock(&qos_lock);
+		qos_laps_served++;
+		qos_laps_remain--;
+		pthread_mutex_unlock(&qos_lock);
+		/* QOS */
 	}
 
 	pthread_cleanup_pop(1);
@@ -208,8 +264,9 @@ int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 	linit(&plist);
 
 	/* delete objects */
-	printf("deleting %d existing objects...", sz);
+	printf("deleting %d existing objects...\n", sz);
 	for(i=0; i<sz; i++) {
+		if(!(i%100) && (i/100>0)) printf("%d objects deleted\n",i);
 		rc = c0appz_rm(idhi, idlo+i);
 		if (rc < 0) {
 			ERR("object delete failed: rc=%d\n", rc);
@@ -219,8 +276,9 @@ int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 	printf("done\n");
 
 	/* create objects */
-	printf("creating %d new objects...", sz);
+	printf("creating %d new objects...\n", sz);
 	for(i=0; i<sz; i++) {
+		if(!(i%100) && (i/100>0)) printf("%d objects created\n",i);
 		rc = c0appz_cr(idhi, idlo+i, pool, m0bs);
 		if (rc < 0) {
 			ERR("object create failed: rc=%d\n", rc);
@@ -232,6 +290,10 @@ int c0appz_cp_dir_mthread(uint64_t idhi, uint64_t idlo, char *dirname,
 
 	/* setup ids */
 	g_idlo = idlo;
+
+	/* qos */
+	dir_qos_init(bsz);
+	printf("%" PRIu64 " " "%" PRIu64 "\n", qos_whgt_remain,qos_whgt_served);
 
 	/* schedule threads */
 	while((flist) && (tlist))  {
@@ -267,3 +329,4 @@ int c0appz_cp_dir_mthread_wait()
 	lfree(&plist);
 	return 0;
 }
+
