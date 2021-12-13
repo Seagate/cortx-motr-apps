@@ -207,18 +207,31 @@ static void pack(uint64_t idh, uint64_t idl, char *fbuf, uint64_t bsz,
 	return;
 }
 
-void static dir_extract_files(char *dirname)
+static void dir_extract_files(char *dirstr)
 {
 	DIR *d;
 	struct dirent *dir;
 	char filename[256];
+	char dirname[256];
+	int rc=0;
 
+	/* check directory name */
+	memcpy(dirname, dirstr, sizeof(dirname));
+	if(*(dirstr+strlen(dirstr)-1)!='/')
+		snprintf(dirname, sizeof(dirname), "%s/", dirstr);
+	printf("[ %s ]\n", dirname);
+
+	/* list files */
 	linit(&flist);
 	d = opendir(dirname);
 	if (d) {
 		while ((dir = readdir(d)) != NULL) {
 			if(dir-> d_type != DT_DIR) {
-				snprintf(filename, 256, "%s%s", dirname, dir->d_name);
+				rc = snprintf(filename, sizeof(filename), "%s%s", dirname, dir->d_name);
+				if (rc < 0) {
+					ERR("snprintf failed: rc=%d\n", rc);
+					rc = 333;
+				}
 				push(&flist,(void *)filename,strlen(filename)+1);
 			}
 			else {
