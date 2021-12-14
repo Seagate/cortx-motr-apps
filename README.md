@@ -20,6 +20,8 @@ $ ./scripts/install-build-deps
 
 Compile, build and run applications
 ```sh
+$ autogen.sh
+$ configure
 $ make
 $ make test
 ```
@@ -33,6 +35,11 @@ $ make vmrcf
 
 ```sh
 make clean
+```
+
+### Clean distribution
+```sh
+make distclean
 ```
 
 ### Clean install motr
@@ -116,6 +123,8 @@ information. See example below:
 ```
 >> make clean
 >> git pull
+>> autogen.sh
+>> configure
 >> make 
 >> make sagercf
 >> make test

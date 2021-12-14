@@ -70,9 +70,6 @@ CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
 CFLAGS += -rdynamic $(AM_FLAGS)
 # generate .d dependencies automatically
 CFLAGS += -MP -MD
-#IQUOTEDIR = /usr/include/motr
-#M0GCCXML2XCODE = m0gccxml2xcode
-#ifneq ($(M0_SRC_DIR),)
 
 if M0_SRC_DIR_EXIST
 LFLAGS += -L$(M0_SRC_DIR)/motr/.libs -Wl,-rpath=$(M0_SRC_DIR)/motr/.libs
@@ -287,15 +284,6 @@ $(ISC_INVK): c0isc_demo.o isc/libdemo_xc.o $(SRC)
 	gcc $(LFLAGS) $(SRC) isc/libdemo_xc.o -o $@ $<
 
 c0isc_demo.c: isc/libdemo_xc.h
-
-#ifneq ($(shell which castxml),)
-#CXXXML := castxml
-#CXXXML_FLAGS := --castxml-gccxml
-#CXXXML_OUTPUT := -o # keep trailing blank-space after -o
-#CXXXML2XC_FLAGS := --castxml
-#else
-#CXXXML := gccxml
-
 
 if CASTXML
 CXXXML = castxml

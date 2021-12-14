@@ -19,24 +19,6 @@ AS_CASE([$host_cpu],
         [AC_MSG_ERROR("Only X86_64 and aarch64 platforms supported")]
 )
 
-# Check for X86_64 platform -------------{{{2
-#AS_IF([test x$ARCH = xx86_64],
-#      [
-#        AC_DEFINE([CONFIG_X86_64])
-#      ]
-#)
-
-# Check for AARCH64 platform ------------{{{2
-#AS_IF([test x$ARCH = xaarch64],
-#      [
-#        AC_DEFINE([CONFIG_AARCH64])
-#      ]
-#)
-
-
-#AH_TEMPLATE([CONFIG_X86_64],          [Support for X86_64 platform])
-#AH_TEMPLATE([CONFIG_AARCH64],         [Support for AARCH64 platform])
-
 
 castxml=`which castxml`
 src_dir_exist=`test -d "/usr/include/motr"`
@@ -65,4 +47,3 @@ AC_CONFIG_FILES([Makefile])
 
 # Generate the output
 AC_OUTPUT
-~
