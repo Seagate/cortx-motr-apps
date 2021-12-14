@@ -92,59 +92,6 @@ void pack(int idx, char *fbuf, uint64_t idh, uint64_t idl, uint64_t pos,
 }
 
 /*
- * c0appz_cp_dir()
- * copy entire directory to objects.
- */
-int c0appz_cp_dir(uint64_t idhi, uint64_t idlo, char *dirname, uint64_t bsz, int pool, uint64_t m0bs)
-{
-	int rc=0;
-	DIR *d;
-	struct dirent *dir;
-	char filename[256];
-	struct stat64 fs;
-	uint64_t cnt;
-
-	printf("mode: directory copy\n");
-
-	d = opendir(dirname);
-	if (d) {
-		while ((dir = readdir(d)) != NULL) {
-			if(dir-> d_type != DT_DIR) {
-				rc = c0appz_cr(idhi, idlo, pool, m0bs);
-				if (rc < 0) {
-					ERR("object create failed: rc=%d\n", rc);
-					rc = 333;
-				}
-				snprintf(filename, 256, "%s%s", dirname, dir->d_name);
-
-				rc = stat64(filename, &fs);
-				if (rc != 0) {
-					ERRS("%s", filename);
-					exit(1);
-				}
-				cnt = (fs.st_size + bsz - 1) / bsz;
-
-				rc = c0appz_cp(idhi, idlo, filename, bsz, cnt, m0bs);
-				if (rc != 0) {
-					ERR("copying failed: rc=%d\n", rc);
-					rc = 222;
-					exit(0);
-				}
-				stat64(filename, &fs);
-				printf("%s ", filename);
-				printf("%" PRIu64 " " "%" PRIu64 " ", idhi,idlo);
-				printf("%" PRIu64, fs.st_size);
-				printf("\n");
-				idlo++;
-			}
-	    }
-	    closedir(d);
-	}
-
-	return rc;
-}
-
-/*
  ******************************************************************************
  * EXTERN VARIABLES
  ******************************************************************************
@@ -270,7 +217,7 @@ int main(int argc, char **argv)
 			break;
 		case 'x':
 			pool = atoi(optarg);
-			if (pool < 1 || pool > 5) {
+			if (pool < 1 || pool > 6) {
 				ERR("invalid pool index: %s (allowed \n"
 				    "values are 1, 2, 3, 4 or 5 atm)\n", optarg);
 				help();
@@ -367,7 +314,7 @@ int main(int argc, char **argv)
 		printf("path: %s\n",fname);
 		qos_pthread_start();
 		if(!mthrd) {
-			c0appz_cp_dir(idh, idl, fname, bsz, pool, m0bs);
+			c0appz_cp_dir_sthread(idh, idl, fname, bsz, pool, m0bs);
 		}
 		else {
 			c0appz_cp_dir_mthread(idh, idl, fname, bsz, pool, m0bs,cont);
