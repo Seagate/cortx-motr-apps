@@ -64,10 +64,11 @@ NODE = $(shell eval uname -n)
 #compiler/linker options
 LFLAGS += -lm -lpthread -lrt -lyaml -luuid -lmotr
 CFLAGS += -I. -I/usr/include/motr -include config.h
-CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern 
-CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing  -Wformat=0
+CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern $(AM_FLAGS)
+#CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing  -Wformat=0
+CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing 
 CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
-CFLAGS += -rdynamic $(AM_FLAGS)
+CFLAGS += -rdynamic 
 # generate .d dependencies automatically
 CFLAGS += -MP -MD
 

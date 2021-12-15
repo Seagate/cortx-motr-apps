@@ -35,7 +35,8 @@ AM_CONDITIONAL(CASTXML, [test "x$castxml" != "x"])
 
 PAGE_SIZE=$(getconf PAGE_SIZE)
 PAGE_SHIFT=$(( $((PAGE_SIZE==4096)) ? 12 :  $(($((PAGE_SIZE==65536)) ? 16 :  14)) ))
-M0_CFLAGS="-pipe -Wall -Werror -Wno-attributes -fno-strict-aliasing -DPAGE_SIZE=$PAGE_SIZE -DPAGE_SHIFT=$PAGE_SHIFT "
+#M0_CFLAGS="-pipe -Wall -Werror -Wno-attributes -fno-strict-aliasing -DPAGE_SIZE=$PAGE_SIZE -DPAGE_SHIFT=$PAGE_SHIFT "
+M0_CFLAGS="-DPAGE_SIZE=$PAGE_SIZE"UL
 
 AC_SUBST(M0_CFLAGS)
 AC_SUBST(M0_SRC_DIR)
