@@ -16,7 +16,7 @@ AC_CANONICAL_HOST
 AS_CASE([$host_cpu],
         [aarch64], [ARCH=aarch64],
         [x86_64], [ARCH=x86_64],
-        [AC_MSG_ERROR("Only X86_64 and aarch64 platforms supported")]
+        [AC_MSG_ERROR("Only X86_64 and aarch64 are platforms supported")]
 )
 
 
