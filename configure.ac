@@ -16,7 +16,7 @@ AC_CANONICAL_HOST
 AS_CASE([$host_cpu],
         [aarch64], [ARCH=aarch64],
         [x86_64], [ARCH=x86_64],
-        [AC_MSG_ERROR("Only X86_64 and aarch64 platforms supported")]
+        [AC_MSG_ERROR("Only X86_64 and aarch64 are platforms supported")]
 )
 
 
@@ -35,7 +35,7 @@ AM_CONDITIONAL(CASTXML, [test "x$castxml" != "x"])
 
 PAGE_SIZE=$(getconf PAGE_SIZE)
 PAGE_SHIFT=$(( $((PAGE_SIZE==4096)) ? 12 :  $(($((PAGE_SIZE==65536)) ? 16 :  14)) ))
-M0_CFLAGS="-pipe -Wall -Werror -Wno-attributes -fno-strict-aliasing -DPAGE_SIZE=$PAGE_SIZE -DPAGE_SHIFT=$PAGE_SHIFT "
+M0_CFLAGS="-DPAGE_SIZE=$PAGE_SIZE"UL
 
 AC_SUBST(M0_CFLAGS)
 AC_SUBST(M0_SRC_DIR)

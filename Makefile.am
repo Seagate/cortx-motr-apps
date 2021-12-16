@@ -64,10 +64,10 @@ NODE = $(shell eval uname -n)
 #compiler/linker options
 LFLAGS += -lm -lpthread -lrt -lyaml -luuid -lmotr
 CFLAGS += -I. -I/usr/include/motr -include config.h
-CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern 
-CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing  -Wformat=0
+CFLAGS += -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern $(AM_FLAGS)
+CFLAGS += -fno-common -Wall -Werror -Wno-attributes -fno-strict-aliasing 
 CFLAGS += -fno-omit-frame-pointer -g -O2 -Wno-unused-but-set-variable
-CFLAGS += -rdynamic $(AM_FLAGS)
+CFLAGS += -rdynamic 
 # generate .d dependencies automatically
 CFLAGS += -MP -MD
 
@@ -110,10 +110,10 @@ $(FGEN):
 #number of blocks, making the file size
 #random
 DDZ = 1032
-CNT = $(shell expr 100 + $$RANDOM % 1000)
+CNT := $(shell expr 100 + $$RANDOM % 1000)
 #CNT = $(shell expr 1024 \* 16)
-#CNT = 1024
-FSZ = $(shell expr $(DDZ) \* $(CNT))
+FSZ := $(shell expr $(DDZ) \* $(CNT))
+
 
 #c0cp block size
 #valid block sizes are: 4KB ~ 32MB
