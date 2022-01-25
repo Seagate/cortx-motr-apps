@@ -44,8 +44,9 @@ struct Block {
 	char    *fbuf;  /* file buffer     		*/
 };
 
-pthread_t wthrd[100];
-struct Block wthrd_blk[100];
+/* threads */
+pthread_t wthrd[512];			/* max 512 threads */
+struct Block wthrd_blk[512];	/* max 512 threads */
 
 static void *tfunc_c0appz_mr(void *block)
 {
