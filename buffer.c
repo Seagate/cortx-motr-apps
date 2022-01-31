@@ -42,7 +42,7 @@
  * GLOBAL VARIABLES
  ******************************************************************************
  */
-extern int qos_total_weight;	/* total bytes read or written	*/
+extern int64_t qos_total_weight;	/* total bytes read or written	*/
 extern pthread_mutex_t qos_lock;
 extern pthread_cond_t qos_cond;
 
