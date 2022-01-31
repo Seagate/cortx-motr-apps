@@ -35,7 +35,7 @@
  * GLOBAL VARIABLES
  ******************************************************************************
  */
-int qos_total_weight=0; 	/* total bytes read or written in a second 	*/
+int64_t  qos_total_weight=0; 	/* total bytes read or written in a second 	*/
 int qos_objio_fstart=0; 	/* flag to indicate the first object IO 	*/
 pthread_mutex_t qos_lock=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t qos_cond;
