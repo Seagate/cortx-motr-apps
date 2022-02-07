@@ -198,6 +198,23 @@ sagercf:
 	cp out-$(HOSTNAME).txt $(RCDIR)/$(ISC_INVK)rc/$(NODE)
 	rm -rf out-$(HOSTNAME).txt
 
+sagercf-nocache:
+	mkdir -p $(RCDIR)/${C0CP}rc
+	mkdir -p $(RCDIR)/${C0CT}rc
+	mkdir -p $(RCDIR)/${C0RM}rc
+	mkdir -p $(RCDIR)/$(ISC_REG)rc
+	mkdir -p $(RCDIR)/$(ISC_INVK)rc
+	HOSTNAME=$(NODE) ./scripts/motraddr.sh -x > out-$(HOSTNAME).txt
+	@echo "#####"
+	cat ./out-$(HOSTNAME).txt
+	@echo "#####"
+	cp out-$(HOSTNAME).txt $(RCDIR)/$(C0CP)rc/$(NODE)
+	cp out-$(HOSTNAME).txt $(RCDIR)/$(C0CT)rc/$(NODE)
+	cp out-$(HOSTNAME).txt $(RCDIR)/$(C0RM)rc/$(NODE)
+	cp out-$(HOSTNAME).txt $(RCDIR)/$(ISC_REG)rc/$(NODE)
+	cp out-$(HOSTNAME).txt $(RCDIR)/$(ISC_INVK)rc/$(NODE)
+	rm -rf out-$(HOSTNAME).txt
+
 install-exec-local:
 	mkdir -p $(HOME)/bin
 	cp $(C0CP) $(HOME)/bin/
