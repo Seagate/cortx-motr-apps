@@ -115,7 +115,7 @@ def regenerate(tier_name, tier_file, client, no_ssh):
         applications = sorted([{'endpoint': h[0]['r_endpoint'],
                                 'process_fid': h[0]['r_fid']}
                                for h in clients[ip]
-                               if h[1]['cprType'] == 'clovis-app'],
+                               if h[1]['cprType'] == 'motr-app'],
                               key=lambda k: k['endpoint'])
         tier_data[ip] = {'profile': profile,
                          'ha': ha_endpoint,
