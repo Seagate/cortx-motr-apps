@@ -175,11 +175,11 @@ vmrcf:
 	mkdir -p $(RCDIR)/${C0RM}rc
 	mkdir -p $(RCDIR)/$(ISC_REG)rc
 	mkdir -p $(RCDIR)/$(ISC_INVK)rc
-	./scripts/c0appzrcgen > $(RCDIR)/$(C0CP)rc/$(NODE)
-	./scripts/c0appzrcgen > $(RCDIR)/$(C0CT)rc/$(NODE)
-	./scripts/c0appzrcgen > $(RCDIR)/$(C0RM)rc/$(NODE)
-	./scripts/c0appzrcgen > $(RCDIR)/$(ISC_REG)rc/$(NODE)
-	./scripts/c0appzrcgen > $(RCDIR)/$(ISC_INVK)rc/$(NODE)
+	./scripts/motraddr.sh > $(RCDIR)/$(C0CP)rc/$(NODE)
+	./scripts/motraddr.sh > $(RCDIR)/$(C0CT)rc/$(NODE)
+	./scripts/motraddr.sh > $(RCDIR)/$(C0RM)rc/$(NODE)
+	./scripts/motraddr.sh > $(RCDIR)/$(ISC_REG)rc/$(NODE)
+	./scripts/motraddr.sh > $(RCDIR)/$(ISC_INVK)rc/$(NODE)
 
 sagercf:
 	mkdir -p $(RCDIR)/${C0CP}rc

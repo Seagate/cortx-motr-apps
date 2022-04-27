@@ -55,8 +55,22 @@ spat0+="|client-tx2-[0-9]|sage-tier[0-9]-[0-9]a"
 
 laddr=()
 lproc=()
-laddr=($(sed -nE "/$c/,/$spat0/p" $hastatus | sed '1d;$d' | awk '{print $4}'))
-lproc=($(sed -nE "/$c/,/$spat0/p" $hastatus | sed '1d;$d' | awk '{print $3}'))
+
+#echo $c
+#sed -nE "/Services/,/$spat0/p" $hastatus | sed '1d;$d' | sed 's/[:@]/ /g' | awk '/hax|m0_client/ {print $0}'
+#sed -nE "/Services/,/$spat0/p" $hastatus | sed '1d;$d'
+#sed -nE "/Services/,/$spat0/p" $hastatus
+#exit
+
+#single-node cluster
+if [[ $c =~ "local" ]]; then
+	laddr=($(sed -nE "/Services/,/$spat0/p" $hastatus | sed '1d;$d' | awk '/hax|m0_client/ {print $4}'))
+	lproc=($(sed -nE "/Services/,/$spat0/p" $hastatus | sed '1d;$d' | awk '/hax|m0_client/ {print $3}'))
+#multi-node sage cluster
+else
+	laddr=($(sed -nE "/$c/,/$spat0/p" $hastatus | sed '1d;$d' | awk '{print $4}'))
+	lproc=($(sed -nE "/$c/,/$spat0/p" $hastatus | sed '1d;$d' | awk '{print $3}'))
+fi
 #printf '%s\n' "${laddr[@]}"
 #printf '%s\n' "${lproc[@]}"
 if [ ${#laddr[@]} -ne ${#lproc[@]} ]; then
@@ -68,7 +82,6 @@ fi
 #	echo "${laddr[$idx]} ${lproc[$idx]}"
 #done
 #exit
-
 
 s=$((${#laddr[@]}-1))	# max local addresses
 r=$((0 + $RANDOM % $s))	# random local address
