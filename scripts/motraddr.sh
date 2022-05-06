@@ -15,16 +15,16 @@ hastatustmp=$(mktemp --tmpdir hastatus.XXXXXX)
 
 cleanup()
 {
-        rm -f $hastatustmp
+        rm -f "$hastatustmp"
 }
 
 trap cleanup EXIT
 
 c=$HOSTNAME
-[[ -f "$hastatusetc" ]] && hastatus=$hastatusetc
-[[ ! -f "$hastatusetc" ]] && hctl status > $hastatustmp &&  
-    echo "sage-tier9-9" >> $hastatustmp && #add a dummy node pattern at the end 
-        hastatus=$hastatustmp
+[[ -f "$hastatusetc" ]] && hastatus="$hastatusetc"
+[[ ! -f "$hastatusetc" ]] && hctl status > "$hastatustmp" &&  
+    echo "sage-tier9-9" >> "$hastatustmp" && #add a dummy node pattern at the end 
+        hastatus="$hastatustmp"
 
 pools=()
 descp=()
@@ -89,7 +89,7 @@ r=$((0 + $RANDOM % $s))	# random local address
 usage()
 {
     cat <<USAGE_END
-Usage: $(basename $0) [-h|--help] [options]
+Usage: $(basename "$0") [-h|--help] [options]
 	
     -m|--mio	print mio configuration parameters
 
@@ -176,9 +176,9 @@ while true ;
     case "$1" in
      	-x|--ex-cache)
      	# exclude cache, read afresh 
-     	hctl status > $hastatustmp
-     	echo "sage-tier9-9" >> $hastatustmp
-     	hastatus=$hastatustmp
+     	hctl status > "$hastatustmp"
+     	echo "sage-tier9-9" >> "$hastatustmp"
+     	hastatus="$hastatustmp"
      	shift
 		;;
      	-m|--mio)
