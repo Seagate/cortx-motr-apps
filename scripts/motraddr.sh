@@ -63,13 +63,13 @@ lproc=()
 #exit
 
 #single-node cluster
-if [[ $c =~ "local" ]]; then
-	laddr=($(sed -nE "/Services/,/$spat0/p" $hastatus | sed '1d;$d' | awk '/hax|m0_client/ {print $4}'))
-	lproc=($(sed -nE "/Services/,/$spat0/p" $hastatus | sed '1d;$d' | awk '/hax|m0_client/ {print $3}'))
+if grep -q "localhost" "$hastatus"; then
+	laddr=($(sed -nE "/Services/,/$spat0/p" "$hastatus" | sed '1d;$d' | awk '/hax|m0_client/ {print $4}'))
+	lproc=($(sed -nE "/Services/,/$spat0/p" "$hastatus" | sed '1d;$d' | awk '/hax|m0_client/ {print $3}'))
 #multi-node sage cluster
 else
-	laddr=($(sed -nE "/$c/,/$spat0/p" $hastatus | sed '1d;$d' | awk '{print $4}'))
-	lproc=($(sed -nE "/$c/,/$spat0/p" $hastatus | sed '1d;$d' | awk '{print $3}'))
+	laddr=($(sed -nE "/$c/,/$spat0/p" "$hastatus" | sed '1d;$d' | awk '{print $4}'))
+	lproc=($(sed -nE "/$c/,/$spat0/p" "$hastatus" | sed '1d;$d' | awk '{print $3}'))
 fi
 #printf '%s\n' "${laddr[@]}"
 #printf '%s\n' "${lproc[@]}"
