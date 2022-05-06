@@ -28,8 +28,8 @@ c=$HOSTNAME
 
 pools=()
 descp=()
-pools=($(sed -n "/Data/,/Profile/p" $hastatus | sed -n "/0x.*/p" | awk '{print "$1"}'))
-descp=($(sed -n "/Data/,/Profile/p" $hastatus | sed -n "/0x.*/p" | awk '{print "$2"}'))
+pools=($(sed -n "/Data/,/Profile/p" "$hastatus" | sed -n "/0x.*/p" | awk '{print $1}'))
+descp=($(sed -n "/Data/,/Profile/p" "$hastatus" | sed -n "/0x.*/p" | awk '{print $2}'))
 #printf '%s\n' "${pools[@]}"
 #printf '%s\n' "${descp[@]}"
 if [ ${#pools[@]} -ne ${#descp[@]} ]; then
@@ -42,7 +42,7 @@ fi
 #done
 
 profs=()
-profs=($(sed -n "/Profile/,/Services/p" $hastatus | sed -n "/0x.*/p" | awk '{print "$1"}'))
+profs=($(sed -n "/Profile/,/Services/p" "$hastatus" | sed -n "/0x.*/p" | awk '{print $1}'))
 #printf '%s\n' "${profs[@]}"
 #for (( idx=0; idx<${#profs[@]}; idx++ ))
 #do
