@@ -4,6 +4,7 @@ echo "WARNING!"
 echo "This will install lustre and eos!!"
 echo "Press Ctl-C to exit, anykey to continue!!"
 read -rn1 key
+unset key
 
 set -x
 sudo m0singlenode stop
