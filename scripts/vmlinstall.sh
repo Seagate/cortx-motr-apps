@@ -3,7 +3,7 @@
 echo "WARNING!"
 echo "This will install lustre and eos!!"
 echo "Press Ctl-C to exit, anykey to continue!!"
-read -rn1 _key #unused variable _key
+read -rn1 _ #unused or throw away variable _
 
 set -x
 sudo m0singlenode stop
