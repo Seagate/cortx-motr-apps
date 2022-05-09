@@ -84,7 +84,7 @@ fi
 #exit
 
 s=$((${#laddr[@]}-1))	# max local addresses
-r=$((0 + $RANDOM % $s))	# random local address
+r=$((0 + RANDOM % s))	# random local address
 
 usage()
 {
