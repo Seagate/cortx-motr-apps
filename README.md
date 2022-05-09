@@ -13,47 +13,27 @@ compiling, building and running these applications.
 3. c0rm
 
 ### Installation
-Build dependencies using following command
-```sh
-$ ./scripts/install-build-deps
+Download, build and test/run using the following commands:
 ```
-
-Compile, build and run applications
-```sh
-$ autogen.sh
-$ configure
+$ git clone https://github.com/Seagate/cortx-motr-apps
+$ cd cortx-motr-apps
+$ ./autogen.sh
+$ ./configure
 $ make
 $ make test
 ```
-
 Generate rc files on VM
-```sh
+```
 $ make vmrcf
 ```
-
 ### Clean 
-
-```sh
+```
 make clean
 ```
-
 ### Clean distribution
-```sh
+```
 make distclean
 ```
-
-### Clean install motr
-
-The clean install motr script stops currently running m0singlenode,
-uninstall motr and motr-devel packages, removes all configuration and
-storage disks. It then installs the new version pointed by directory path,
-configures it as a m0singlenode and starts services.
-
-```sh
-$ ./scripts/clean_install_motr <rpms directory path>
-$ # (example) ./scripts/clean_install_motr ./rpms/jenkins-OSAINT_motr-1400-29-g7a51cbd/
-```
-
 ### Apps resource file <.[app]rc>
 Each application requires a resource file residing in the same directory
 where the application is residing. This resource file contains all
@@ -119,14 +99,43 @@ information. See example below:
 ```
 
 ### Quick Start on Sage platform
-
 ```
->> make clean
->> git pull
->> autogen.sh
->> configure
->> make 
->> make sagercf
->> make test
+make clean
+git pull
+./autogen.sh
+./configure
+make 
+make sagercf
+make test
 ```
+### Quick Start on VM
+```
+git clone https://github.com/Seagate/cortx-motr-apps
+cd cortx-motr-apps
+./autogen.sh
+./configure
+make 
+make vmrcf
+make test
+```
+### How to obtain connection parameters on a VM
+```
+cd cortx-motr-apps
+./scripts/motraddr.sh 
+#
+# USER: seagate
+# Application: All
+#
 
+HA_ENDPOINT_ADDR = inet:tcp:10.0.2.15@22001
+PROFILE_FID = 0x7000000000000001:0x5b
+
+M0_POOL_TIER1 = 0x6f00000000000001:0x31
+M0_POOL_TIER2 = 0x6f00000000000001:0x3b
+M0_POOL_TIER3 = 0x6f00000000000001:0x45
+
+LOCAL_ENDPOINT_ADDR0 = inet:tcp:10.0.2.15@21502
+LOCAL_PROC_FID0 = 0x7200000000000001:0x2c
+LOCAL_ENDPOINT_ADDR1 = inet:tcp:10.0.2.15@21501
+LOCAL_PROC_FID1 = 0x7200000000000001:0x29
+```
