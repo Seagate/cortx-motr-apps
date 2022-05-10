@@ -7,13 +7,13 @@ There are three sample applications.
 A running instance of Motr such as singlenode Motr is a prerequisite for
 compiling, building and running these applications. 
 
- 1. c0cp
- 2. c0cat
- 3. c0rm
+1. c0cp
+2. c0cat
+3. c0rm
 
 ## Installation
 Download, build and test/run using the following commands:
-```
+```sh
 $ git clone https://github.com/Seagate/cortx-motr-apps
 $ cd cortx-motr-apps
 $ ./autogen.sh
