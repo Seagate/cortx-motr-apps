@@ -1,18 +1,17 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/7d9b003bbaeb449dac098b2bf72197fa)](https://www.codacy.com/gh/Seagate/m0client-sample-apps/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Seagate/m0client-sample-apps&amp;utm_campaign=Badge_Grade)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/Seagate/cortx-motr-apps/blob/main/LICENSE) [![Slack](https://img.shields.io/badge/chat-on%20Slack-blue")](https://join.slack.com/t/cortxcommunity/shared_invite/zt-femhm3zm-yiCs5V9NBxh89a_709FFXQ?) [![YouTube](https://img.shields.io/badge/Video-YouTube-red)](https://cortx.link/videos)
 
-
 # Motr client sample apps
 
 There are three sample applications.
 A running instance of Motr such as singlenode Motr is a prerequisite for
 compiling, building and running these applications. 
 
-1. c0cp
-2. c0cat
-3. c0rm
+ 1. c0cp
+ 2. c0cat
+ 3. c0rm
 
-### Installation
+# Installation
 Download, build and test/run using the following commands:
 ```
 $ git clone https://github.com/Seagate/cortx-motr-apps
@@ -34,21 +33,21 @@ make clean
 ```
 make distclean
 ```
-### Apps resource file <.[app]rc>
+### Apps resource file <.(app)rc>
 Each application requires a resource file residing in the same directory
 where the application is residing. This resource file contains all
 Motr-client related resource parameters for running the application
 on a particular client node where the application is executed.
 This file can be generated using the cappsrcgen utility for dev VMs.
-The name of the file should be .[application name]rc. Replace the
+The name of the file should be .(application name)rc. Replace the
 application name with your application's basename. A c0cp example
 is shown below:
 
-```sh
+```
 $ ./scripts/c0appzrcgen > .c0cprc  # Generates configuration
 ```
 
-Containts of `.c0cprc` is as follows
+The contents of .c0cprc are as follows:
 ```
 #local address
 10.0.2.15@tcp:12345:44:101
@@ -66,7 +65,7 @@ Containts of `.c0cprc` is as follows
 /tmp/
 ```
 
-### How to generate resource files on the Sage cluster?
+### How to generate resource files on the Sage cluster
 
 Pre-registration with Sage userID and application names is required.
 Once registered the sage-user-application-assignment script can be used
@@ -100,28 +99,28 @@ information. See example below:
 
 ### Quick Start on Sage platform
 ```
-make clean
-git pull
-./autogen.sh
-./configure
-make 
-make sagercf
-make test
+$ make clean
+$ git pull
+$ ./autogen.sh
+$ ./configure
+$ make 
+$ make sagercf
+$ make test
 ```
 ### Quick Start on VM
 ```
-git clone https://github.com/Seagate/cortx-motr-apps
-cd cortx-motr-apps
-./autogen.sh
-./configure
-make 
-make vmrcf
-make test
+$ git clone https://github.com/Seagate/cortx-motr-apps
+$ cd cortx-motr-apps
+$ ./autogen.sh
+$ ./configure
+$ make 
+$ make vmrcf
+$ make test
 ```
 ### How to obtain connection parameters on a VM
 ```
-cd cortx-motr-apps
-./scripts/motraddr.sh 
+$ cd cortx-motr-apps
+$ ./scripts/motraddr.sh 
 #
 # USER: seagate
 # Application: All
