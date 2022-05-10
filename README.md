@@ -7,30 +7,30 @@ There are three sample applications.
 A running instance of Motr such as singlenode Motr is a prerequisite for
 compiling, building and running these applications. 
 
-1. c0cp
-2. c0cat
-3. c0rm
+1.	c0cp
+2.	c0cat
+3.	c0rm
 
 ## Installation
 Download, build and test/run using the following commands:
 ```sh
-$ git clone https://github.com/Seagate/cortx-motr-apps
-$ cd cortx-motr-apps
-$ ./autogen.sh
-$ ./configure
-$ make
-$ make test
+git clone https://github.com/Seagate/cortx-motr-apps
+cd cortx-motr-apps
+./autogen.sh
+./configure
+make
+make test
 ```
 Generate rc files on VM
-```
-$ make vmrcf
+```sh
+make vmrcf
 ```
 ### Clean 
-```
+```sh
 make clean
 ```
 ### Clean distribution
-```
+```sh
 make distclean
 ```
 ### Apps resource file <.(app)rc>
@@ -43,12 +43,12 @@ The name of the file should be .(application name)rc. Replace the
 application name with your application's basename. A c0cp example
 is shown below:
 
-```
-$ ./scripts/c0appzrcgen > .c0cprc  # Generates configuration
+```sh
+./scripts/c0appzrcgen > .c0cprc  # Generates configuration
 ```
 
 The contents of .c0cprc are as follows:
-```
+```sh
 #local address
 10.0.2.15@tcp:12345:44:101
 
@@ -73,7 +73,7 @@ on the CMU node to generate this information. This script takes Username,
 app name and the client IP as input and outputs the required resource
 information. See example below:
 
-```
+```sh
 [sage0004@sage-cmu]$ sage-user-application-assignment ganesan c0del 172.18.1.21
 
 #
@@ -98,29 +98,29 @@ information. See example below:
 ```
 
 ### Quick Start on Sage platform
-```
-$ make clean
-$ git pull
-$ ./autogen.sh
-$ ./configure
-$ make 
-$ make sagercf
-$ make test
+```sh
+make clean
+git pull
+./autogen.sh
+./configure
+make 
+make sagercf
+make test
 ```
 ### Quick Start on VM
-```
-$ git clone https://github.com/Seagate/cortx-motr-apps
-$ cd cortx-motr-apps
-$ ./autogen.sh
-$ ./configure
-$ make 
-$ make vmrcf
-$ make test
+```sh
+git clone https://github.com/Seagate/cortx-motr-apps
+cd cortx-motr-apps
+./autogen.sh
+./configure
+make 
+make vmrcf
+make test
 ```
 ### How to obtain connection parameters on a VM
-```
-$ cd cortx-motr-apps
-$ ./scripts/motraddr.sh 
+```sh
+cd cortx-motr-apps
+./scripts/motraddr.sh 
 #
 # USER: seagate
 # Application: All
