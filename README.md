@@ -11,7 +11,7 @@ compiling, building and running these applications.
  2. c0cat
  3. c0rm
 
-# Installation
+## Installation
 Download, build and test/run using the following commands:
 ```
 $ git clone https://github.com/Seagate/cortx-motr-apps
