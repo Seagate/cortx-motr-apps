@@ -325,3 +325,17 @@ CXXXML_CFLAGS = $(filter-out $(CXXXML_UNSUPPORTED_CFLAGS), $(CFLAGS))
 isc-all: $(ISC_REG) $(ISC_INVK) $(LIBISC)
 isc-clean:
 	rm -f $(ISC_REG) $(ISC_INVK) $(LIBISC) isc/{*_xc.*,*.gccxml}
+
+#
+#HSM Demo
+#IOSEA HSM Calls
+#
+hsminit:
+	./scripts/hsminit.sh
+
+hsm1test:
+	./scripts/hsm1test.sh
+
+hsm3test:
+	./scripts/hsm3test.sh
+	
