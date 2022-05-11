@@ -138,3 +138,9 @@ LOCAL_PROC_FID0 = 0x7200000000000001:0x2c
 LOCAL_ENDPOINT_ADDR1 = inet:tcp:10.0.2.15@21501
 LOCAL_PROC_FID1 = 0x7200000000000001:0x29
 ```
+### HSM 
+```sh
+make hsminit
+make hsm1test
+make hsm3test
+```
