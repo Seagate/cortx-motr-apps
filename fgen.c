@@ -122,7 +122,7 @@ int main(int argc, char **argv)
     fclose(fp);
 
     sprintf(buf, "%d\n", (int)atoi(buf));
-    MD5_Update(&c, buf, strlen(buf));
+    MD5_Update(&c, buf, strnlen(buf, 512));
     dbg(buf);
 
     /* write counter */
