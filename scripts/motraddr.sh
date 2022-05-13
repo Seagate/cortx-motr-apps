@@ -22,9 +22,19 @@ trap cleanup EXIT
 
 c=$HOSTNAME
 [[ -f "$hastatusetc" ]] && hastatus="$hastatusetc"
-[[ ! -f "$hastatusetc" ]] && hctl status > "$hastatustmp" &&  
-    echo "sage-tier9-9" >> "$hastatustmp" && #add a dummy node pattern at the end 
-        hastatus="$hastatustmp"
+[[ ! -f "$hastatusetc" ]] && hastatus="$hastatustmp"
+
+# exclude cache, read afresh 
+for a in "$@" ; do
+     [[ "$a" = "-x" ]] && hastatus="$hastatustmp"
+     [[ "$a" = "--exclude-cache" ]] && hastatus="$hastatustmp"
+done
+
+# use /tmp/hastatus.yaml
+if [ "$hastatus" == "$hastatustmp" ]; then
+	hctl status > "$hastatustmp"  
+	echo "sage-tier9-9" >> "$hastatustmp"	#add a dummy node pattern at the end 
+fi
 
 pools=()
 descp=()
@@ -167,18 +177,14 @@ miof()
 #
 
 # options
-TEMP=$( getopt -o xmeh --long ex-cache,mio,exp,help -n "$PROG_NAME" -- "$@" )
+TEMP=$( getopt -o xmeh --long exclude-cache,mio,exp,help -n "$PROG_NAME" -- "$@" )
 [[ $? != 0 ]] && usage
 eval set -- "$TEMP"
 
 while true ; 
 	do
     case "$1" in
-     	-x|--ex-cache)
-     	# exclude cache, read afresh 
-     	hctl status > "$hastatustmp"
-     	echo "sage-tier9-9" >> "$hastatustmp"
-     	hastatus="$hastatustmp"
+     	-x|--exclude-cache)
      	shift
 		;;
      	-m|--mio)
