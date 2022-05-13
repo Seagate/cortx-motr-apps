@@ -177,7 +177,7 @@ miof()
 #
 
 # options
-TEMP=$( getopt -o xmeh --long exclude-cache,mio,exp,help -n "$PROG_NAME" -- "$@" )
+TEMP=$( getopt -o cdxmeh --long create-cache,delete-cache,exclude-cache,mio,exp,help -n "$PROG_NAME" -- "$@" )
 [[ $? != 0 ]] && usage
 eval set -- "$TEMP"
 
@@ -186,6 +186,23 @@ while true ;
     case "$1" in
      	-x|--exclude-cache)
      	shift
+		;;
+     	-d|--delete-cache)
+     	set -x
+     	rm -rf "$hastatusetc"
+     	rm -rf /tmp/hastatus.*
+     	set +x
+     	shift
+     	exit
+		;;
+     	-c|--create-cache)
+     	set -x
+     	hctl status > "$hastatusetc"  
+		echo "dummy-node9-9" >> "$hastatusetc"
+		tail "$hastatusetc"
+     	set +x
+     	shift
+     	exit
 		;;
      	-m|--mio)
      	# print to stdout 
