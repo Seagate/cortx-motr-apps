@@ -67,14 +67,14 @@ int main(int argc, char **argv)
     /* utc */
     memset(buf, 0x00, 512);
     sprintf(buf, "%d\n", (int)time(NULL));
-    MD5_Update(&c, buf, strlen(buf));
+    MD5_Update(&c, buf, strnlen(buf, 512));
     dbg(buf);
 
     /* srandom */
 	srandom(0);
     memset(buf, 0x00, 512);
     sprintf(buf, "%d\n", (int)random());
-    MD5_Update(&c, buf, strlen(buf));
+    MD5_Update(&c, buf, strnlen(buf, 512));
     dbg(buf);
 
     /*
@@ -89,12 +89,12 @@ int main(int argc, char **argv)
 		fprintf(stderr,"ioctl() could not obtain mac addresses.\n");
 		return -2;
 	}
-    MD5_Update(&c, buf, strlen(buf));
+    MD5_Update(&c, buf, strnlen(buf, 512));
     dbg(buf);
 
     /* host/user */
     sprintf(buf, "%s/%s\n", getenv("HOSTNAME"),getenv("USER"));
-    MD5_Update(&c, buf, strlen(buf));
+    MD5_Update(&c, buf, strnlen(buf, 512));
     dbg(buf);
 
     char fname[128] = {0};
@@ -171,7 +171,7 @@ int dbgprint(char *str)
 {
     fprintf(stderr, "%s:\n",__FUNCTION__);
     fprintf(stderr,"%s",str);
-    fprintf(stderr,"size = %d\n",(int)strlen(str));
+    fprintf(stderr,"size = %d\n",(int)strnlen(str,1024));
 	return 0;
 }
 
@@ -254,7 +254,7 @@ int m_addr(char *mbuf, int msz)
 		fprintf(stderr, "%s: ",__FUNCTION__);
 		fprintf(stderr,"mac -> [%s] ip -> [%16s]\n", macp, ip);
 		#endif
-		sprintf(mbuf+strlen(mbuf),"mac -> [%s] ip -> [%16s]\n", macp, ip);
+		sprintf(mbuf+strnlen(mbuf,msz),"mac -> [%s] ip -> [%16s]\n", macp, ip);
 
 	}
 
