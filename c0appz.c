@@ -97,11 +97,11 @@ enum {
 };
 
 /* static variables */
-static struct m0_client          *m0_instance = NULL;
-static struct m0_container container;
-static struct m0_config    m0_conf;
-static struct m0_idx_dix_config   dix_conf;
-static struct m0_spiel            spiel_inst;
+static struct m0_client          	*m0_instance = NULL;
+static struct m0_container 			container;
+static struct m0_config    			m0_conf;
+static struct m0_idx_dix_config		dix_conf;
+static struct m0_spiel            	spiel_inst;
 
 static char c0rcfile[MAX_RCFILE_NAME_LEN] = "./.c0appzrc";
 

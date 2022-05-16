@@ -203,7 +203,7 @@ static void pack(uint64_t idh, uint64_t idl, char *fbuf, uint64_t bsz,
 	fthrd_blk[idx].m0bs = m0bs;
 	fthrd_blk[idx].threadidx = idx;
 
-	memcpy(fthrd_blk[idx].fbuf, fbuf, strlen(fbuf)+1);
+	memcpy(fthrd_blk[idx].fbuf, fbuf, strnlen(fbuf,512)+1);
 	return;
 }
 
@@ -211,13 +211,13 @@ static void dir_extract_files(char *dirstr)
 {
 	DIR *d;
 	struct dirent *dir;
-	char filename[256];
-	char dirname[256];
+	char filename[512];
+	char dirname[512];
 	int rc=0;
 
 	/* check directory name */
 	memcpy(dirname, dirstr, sizeof(dirname));
-	if(*(dirstr+strlen(dirstr)-1)!='/')
+	if(*(dirstr+strnlen(dirstr,512)-1)!='/')
 		snprintf(dirname, sizeof(dirname), "%s/", dirstr);
 	printf("[ %s ]\n", dirname);
 
@@ -232,7 +232,7 @@ static void dir_extract_files(char *dirstr)
 					ERR("snprintf failed: rc=%d\n", rc);
 					rc = 333;
 				}
-				push(&flist,(void *)filename,strlen(filename)+1);
+				push(&flist,(void *)filename,strnlen(filename,512)+1);
 			}
 			else {
 				if (!strcmp(dir->d_name,".") || !strcmp(dir->d_name,"..")) continue;

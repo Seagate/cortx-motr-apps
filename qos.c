@@ -192,7 +192,7 @@ static void *disp_realtime_bw(void *arg)
     	while(!qos_objio_fstart) pthread_cond_wait(&qos_cond, &qos_lock);
     	pthread_mutex_unlock(&qos_lock);
         qos_print_bw();
-        if(qos_whgt_remain<=0){
+        if(qos_whgt_remain==0){
         	qos_pthread_cond_signal(); 	/* signal first	*/
         	qos_pthread_stop();			/* stop later	*/
         }
