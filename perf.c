@@ -81,7 +81,7 @@ int ppf(const char *fmt, ...)
 	va_start(args, fmt);
 	s = vsnprintf(buffer, sizeof(buffer), fmt, args);
 	va_end(args);
-	n = strlen(pbuf);
+	n = strnlen(pbuf,PBUFSZ);
 	snprintf(pbuf+n,PBUFSZ-n,buffer);
 	return s;
 }
