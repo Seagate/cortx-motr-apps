@@ -118,8 +118,8 @@ int main(int argc, char **argv)
 	fprintf(stderr,"MPI rank [ %d ] do something here...\n",wrank);
 #if DCLOVIS
 	/* delete */
-	int64_t idh = 0;
-	int64_t idl = 0;
+	uint64_t idh = 0;
+	uint64_t idl = 0;
 	idl = 1048577 + wrank;
 	fprintf(stderr,"deleting object < %lu %lu >\n",idh,idl);
 	if (c0appz_rm(0,1048577) != 0) {

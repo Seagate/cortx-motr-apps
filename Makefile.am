@@ -283,6 +283,10 @@ mpi-sagercf:
 	cp out-$(HOSTNAME).txt $(RCDIR)/$(MPIX)rc/$(NODE)
 	rm -rf out-$(HOSTNAME).txt
 
+mpi-vmrcf:
+	mkdir -p $(RCDIR)/${MPIX}rc
+	./scripts/motraddr.sh > $(RCDIR)/$(MPIX)rc/$(NODE)
+
 mpi-test:
 	mpirun -hosts $(NODE) -np 2 ./$(MPIX)
 
