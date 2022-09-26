@@ -8,6 +8,7 @@
 # 28/12/2020 - MIO yaml format added
 # 05/01/2021 - Bash export format added 
 # 20/02/2021 - hastatus.yaml in /etc/motr
+# 26/09/2022 - ceph.config file
 #
 
 hastatusetc='/etc/motr/hastatus.yaml'
@@ -172,12 +173,35 @@ miof()
 	mio > "$2"
 }
 
+rgw()
+{
+	read -r -d '' CEPH <<EOF
+[global]
+debug rgw = 20
+ 
+[client]
+rgw backend store = motr
+motr profile fid = ${profs[0]}
+motr ha endpoint = ${laddr[0]}
+motr my endpoint = ${laddr[1]}
+motr my fid = ${lproc[1]}
+motr admin endpoint = ${laddr[1]}
+motr admin fid = ${lproc[1]}
+
+[client.rgw]
+rgw frontends = beast port=8000
+log file = /var/log/ceph/ceph-client.rgw.log
+EOF
+
+	echo "$CEPH"
+}
+
 #
 # MAIN
 #
 
 # options
-TEMP=$( getopt -o cdxmeh --long create-cache,delete-cache,exclude-cache,mio,exp,help -n "$PROG_NAME" -- "$@" )
+TEMP=$( getopt -o cdxmeh --long create-cache,delete-cache,exclude-cache,mio,exp,help,ceph-config -n "$PROG_NAME" -- "$@" )
 [[ $? != 0 ]] && usage
 eval set -- "$TEMP"
 
@@ -220,12 +244,17 @@ while true ;
 		done		
 		exit 0
     	shift
-    	;;  	
+    	;;
      	-e|--exp)
 		exp
 		exit 0
     	shift
-    	;;  	
+    	;;
+     	--ceph-config)
+		rgw
+		exit 0
+    	shift
+    	;;
      	-h|--help)
     	usage
     	shift
