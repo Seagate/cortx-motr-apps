@@ -42,6 +42,16 @@ AC_SUBST(M0_SRC_DIR)
 # Check for C compiler
 AC_PROG_CC
 
+# Checks for libraries.
+AC_CHECK_LIB([ssl], [main],[SSL=-lssl],echo "Error: Required library
+ssl not found. Install openssl development package and try again" &&
+exit 1 )
+
+AC_CHECK_LIB([crypto], [main],[CRYPTO=-lcrypto],echo "Error: Required
+library crypto not found. Install openssl development package  and try
+again" && exit 1)
+
+
 # AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 
