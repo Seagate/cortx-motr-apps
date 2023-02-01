@@ -17,6 +17,7 @@ Download, build and test/run using the following commands:
 ```sh
 git clone https://github.com/Seagate/cortx-motr-apps
 cd cortx-motr-apps
+./scripts/install-build-deps.sh
 ./autogen.sh
 ./configure
 make
