@@ -21,7 +21,7 @@ cleanup()
 
 trap cleanup EXIT
 
-c=$HOSTNAME
+c=$(hostname -s)
 [[ -f "$hastatusetc" ]] && hastatus="$hastatusetc"
 [[ ! -f "$hastatusetc" ]] && hastatus="$hastatustmp"
 
@@ -63,6 +63,8 @@ profs=($(sed -n "/Profile/,/Services/p" "$hastatus" | sed -n "/0x.*/p" | awk '{p
 #regex for sage nodes
 spat0+="client-2[1-8]|datawarp-0[1-4]|visnode-0[1-4]|sage-tier[0-9]-[0-9]"
 spat0+="|client-tx2-[0-9]|sage-tier[0-9]-[0-9]a"
+#regex for ssc nodes
+spat0+="|ssc-eurd-[0-9][0-9][0-9][0-9]"
 
 laddr=()
 lproc=()
@@ -79,8 +81,8 @@ if grep -q "localhost" "$hastatus"; then
 	lproc=($(sed -nE "/Services/,/$spat0/p" "$hastatus" | sed '1d;$d' | awk '/hax|m0_client/ {print $3}'))
 #multi-node sage cluster
 else
-	laddr=($(sed -nE "/$c/,/$spat0/p" "$hastatus" | sed '1d;$d' | awk '{print $4}'))
-	lproc=($(sed -nE "/$c/,/$spat0/p" "$hastatus" | sed '1d;$d' | awk '{print $3}'))
+	laddr=($(sed -nE "/$c/,/$spat0/p" "$hastatus" | sed '1d;$d' | awk '/hax|m0_client/ {print $4}'))
+	lproc=($(sed -nE "/$c/,/$spat0/p" "$hastatus" | sed '1d;$d' | awk '/hax|m0_client/ {print $3}'))
 fi
 #printf '%s\n' "${laddr[@]}"
 #printf '%s\n' "${lproc[@]}"
