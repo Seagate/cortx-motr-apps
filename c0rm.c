@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 	prog = basename(strdup(argv[0]));
 
 	/* getopt */
-	while((opt = getopt(argc, argv, ":i:pyt"))!=-1){
+	while((opt = getopt(argc, argv, ":i:pytv"))!=-1){
 		switch(opt){
 			case 'p':
 				perf = 1;
@@ -97,6 +97,9 @@ int main(int argc, char **argv)
 					    "values are 0, 1, 2, or 3 atm)\n", optarg);
 					help();
 				}
+				break;
+			case 'v':
+				trace_level++;
 				break;
 			case ':':
 				fprintf(stderr,"option needs a value\n");
