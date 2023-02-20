@@ -1056,6 +1056,7 @@ int c0appz_init(int idx)
 		m0_trace_set_mmapped_buffer(false);
 	/* m0_instance */
 	rc = m0_client_init(&m0_instance, &m0_conf, true);
+	DBG("m0_client_init() \tOK\n");
 	if (rc != 0) {
 		fprintf(stderr, "failed to initilise the Client API\n");
 		return rc;
@@ -1064,6 +1065,7 @@ int c0appz_init(int idx)
 	/* And finally, client root realm */
 	m0_container_init(&container, NULL, &M0_UBER_REALM,
 				 m0_instance);
+	DBG("m0_container_init() \tOK\n");
 	rc = container.co_realm.re_entity.en_sm.sm_rc;
 	if (rc != 0) {
 		fprintf(stderr,"failed to open uber realm\n");
@@ -1072,6 +1074,7 @@ int c0appz_init(int idx)
 
 	/* success */
 	uber_realm = container.co_realm;
+	DBG("c0appz_init() \tOK\n");
 	return 0;
 }
 
