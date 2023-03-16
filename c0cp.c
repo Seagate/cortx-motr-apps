@@ -124,6 +124,7 @@ bsz - block size (in KiBs)\n\
             value based on the object size and the pool width (does not\n\
             work for the composite objects atm); (by default, use bsz)\n\
   -c n    write n contiguous copies of the file into the object\n\
+  -m      use multiple threads\n\
   -f      force: overwrite an existing object\n\
   -p      show performance stats\n\
   -u sz   unit size (in KiBs), must be power of 2, >= 4 and <= 4096;\n\

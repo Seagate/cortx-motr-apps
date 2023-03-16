@@ -113,6 +113,7 @@ fsz - file size (in bytes)\n\
             value based on the object size and the pool width (does not\n\
             work for the composite objects atm); (by default, use bsz)\n\
   -c n    read n contiguous copies of the file from the object\n\
+  -m      use multiple threads\n\
   -p      show performance stats\n\
   -t      create m0trace.pid file\n\
   -v      be more verbose\n\
