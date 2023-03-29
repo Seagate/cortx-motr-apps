@@ -67,6 +67,17 @@ int c0appz_dump_perf(void)
 }
 
 /*
+ * c0appz_clear_perf()
+ * clear all performance results
+ */
+int c0appz_clear_perf(void)
+{
+	memset(pbuf, 0x00, PBUFSZ);
+	return 0;
+}
+
+
+/*
  * ppf()
  * Append formatted string to
  * the performance buffer

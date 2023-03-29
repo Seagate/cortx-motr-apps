@@ -47,6 +47,7 @@ C0CP = c0cp
 C0CT = c0cat
 C0RM = c0rm
 FGEN = fgen
+C0PF = c0pf
 
 RCDIR = $(HOME)/.c0appz
 APPASSIGN = sage-user-application-assignment
@@ -85,7 +86,7 @@ SRC = perf.o buffer.o qos.o c0appz.o dir.o list.o
 SRC_ALL = $(SRC) c0cp.o c0cat.o c0rm.o fgen.o \
 		c0isc_register.o c0isc_demo.o isc_libdemo.o
 
-all: $(C0CP) $(C0CT) $(C0RM) $(FGEN) isc-all
+all: $(C0CP) $(C0CT) $(C0RM) $(FGEN) $(C0PF) isc-all
 .PHONY: all
 
 -include $(SRC_ALL:.o=.d)
@@ -102,6 +103,9 @@ $(C0CT): c0cat.c $(SRC)
 $(C0RM): c0rm.c $(SRC)
 	gcc $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
 
+$(C0PF): c0perf.c $(SRC)
+	gcc $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
+	
 $(FGEN):
 	gcc -lssl -lcrypto fgen.c -o $(FGEN)
 
@@ -173,11 +177,13 @@ vmrcf:
 	mkdir -p $(RCDIR)/${C0CP}rc
 	mkdir -p $(RCDIR)/${C0CT}rc
 	mkdir -p $(RCDIR)/${C0RM}rc
+	mkdir -p $(RCDIR)/${C0PF}rc
 	mkdir -p $(RCDIR)/$(ISC_REG)rc
 	mkdir -p $(RCDIR)/$(ISC_INVK)rc
 	./scripts/motraddr.sh > $(RCDIR)/$(C0CP)rc/$(NODE)
 	./scripts/motraddr.sh > $(RCDIR)/$(C0CT)rc/$(NODE)
 	./scripts/motraddr.sh > $(RCDIR)/$(C0RM)rc/$(NODE)
+	./scripts/motraddr.sh > $(RCDIR)/$(C0PF)rc/$(NODE)
 	./scripts/motraddr.sh > $(RCDIR)/$(ISC_REG)rc/$(NODE)
 	./scripts/motraddr.sh > $(RCDIR)/$(ISC_INVK)rc/$(NODE)
 
@@ -232,8 +238,8 @@ uninstall-local:
 	
 clean-local: isc-clean
 	rm -f $(C0CP) $(C0CT) $(C0RM) m0trace.*
+	rm -f $(FGEN) $(C0PF)
 	rm -f $(FILE1) $(FILE2) $(FILE3)
-	rm -f $(FGEN)
 	rm -f sfilet-* snodet-* fidout-*
 	rm -f upFile dwFile
 	rm -f *.o *.d *.d.* help.h
