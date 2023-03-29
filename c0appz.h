@@ -147,6 +147,8 @@ void c0appz_putrc(void);
 int c0appz_timeout(uint64_t sz);
 int c0appz_timein();
 int c0appz_dump_perf(void);
+int c0appz_clear_perf(void);
+
 /* qos */
 int qos_pthread_wait();
 int qos_pthread_start();
