@@ -33,6 +33,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <omp.h>
 #include "c0appz.h"
 #include "c0appz_internal.h"
 #include "dir.h"
@@ -109,14 +110,17 @@ int main(int argc, char **argv)
 
 	idh = 11;
 	idl = 11;
-	//bsz = atoi(argv[1]);
-	//cnt = atoi(argv[2]);
-	bsz = 64;
-	cnt = 4*1024 + 256;
-	m0bs = 1;
+	bsz = atoi(argv[1]);
+	cnt = atoi(argv[2]);
+	m0bs = atoi(argv[3]);
+
+	assert(cnt>0);
+	assert(bsz>0);
+	assert(!(bsz%64));
+	assert(m0bs>0);
+	assert(m0bs<20);
 
 	bsz *= 1024;	/* bsz in KB 		*/
-	m0bs = 1;		/* m0bs in bsz 		*/
 	perf = 1;		/* show bandwidth	*/
 	force= 1;		/* overwrite object	*/
 
@@ -151,13 +155,18 @@ int main(int argc, char **argv)
 	qos_pthread_start();
 	c0appz_timein();
 
-	k = cnt%m0bs;
-	printf("%lu\n",k);
+#pragma omp parallel
+	{
+		if(omp_get_thread_num()==0) {
+			printf("number of threads = %d\n", omp_get_num_threads());
+		}
+	}
 
+	/* write partial */
+	k = cnt%m0bs;
 	if(k) {
-		printf("OK\n");
-		/* write */
 		fbuf = malloc(k*bsz);
+		pos = 0;
 		rc = c0appz_mw(fbuf, idh, idl, pos, bsz, k, k*bsz);
 		if (rc != 0) {
 			ERR("copying failed at pos %lu: %d\n", pos, rc);
@@ -166,20 +175,22 @@ int main(int argc, char **argv)
 		free(fbuf);
 	}
 
-	/* write */
+
+	/* write whole in parallel */
 	fbuf = malloc(m0bs*bsz);
+#pragma omp parallel for
 	for(j=0; j<(cnt-k)/m0bs; j++) {
+		pos += j*m0bs*bsz;
 		rc = c0appz_mw(fbuf, idh, idl, pos, bsz, m0bs, m0bs*bsz);
 		if (rc != 0) {
 			ERR("copying failed at pos %lu: %d\n", pos, rc);
 		}
-		pos += m0bs*bsz;
 	}
 	free(fbuf);
 
 	/* QOS stop */
 	ppf("%8s","write");
-	c0appz_timeout(pos);
+	c0appz_timeout(bsz*cnt);
 	qos_pthread_wait();
 	c0appz_dump_perf();
 	c0appz_clear_perf();

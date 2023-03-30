@@ -104,7 +104,7 @@ $(C0RM): c0rm.c $(SRC)
 	gcc $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
 
 $(C0PF): c0perf.c $(SRC)
-	gcc $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
+	gcc -fopenmp $(CFLAGS) $(LFLAGS) $(SRC) -o $@ $<
 	
 $(FGEN):
 	gcc -lssl -lcrypto fgen.c -o $(FGEN)
