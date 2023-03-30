@@ -54,42 +54,16 @@ extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
 
 char *prog;
 
-const char *help_c0cp_txt = "\
+const char *help_c0pf_txt = "\
 Usage:\n\
-  c0cp [-fptv] [-x id] [-u sz] [-b [sz]] [-c n] [-a n] idh idl file bsz\n\
-  c0cp 1234 56789 file 64\n\
-\n\
-Copy file to the object store.\n\
-\n\
-idh - object id high number\n\
-idl - object id low  number\n\
-bsz - block size (in KiBs)\n\
-\n\
-  -a n    async mode: do n object store operations in a batch\n\
-  -b [sz] block size for the object store i/o (m0bs);\n\
-            if sz is not specified, automatically figure out the optimal\n\
-            value based on the object size and the pool width (does not\n\
-            work for the composite objects atm); (by default, use bsz)\n\
-  -c n    write n contiguous copies of the file into the object\n\
-  -m      use multiple threads\n\
-  -f      force: overwrite an existing object\n\
-  -p      show performance stats\n\
-  -u sz   unit size (in KiBs), must be power of 2, >= 4 and <= 4096;\n\
-            by default, determined automatically for the new objects\n\
-            based on the m0bs and parity configuration of the pool\n\
-  -x id   id of the tier (pool) to create the object in (1,2,3,..)\n\
-  -t      create m0trace.pid file\n\
-  -v      be more verbose\n\
-  -i | n socket index, [0-3] currently\n\
-  -h      print this help\n\
-\n\
-Note: in order to get the maximum performance, m0bs should be multiple\n\
-of the data size in the parity group, i.e. multiple of (unit_size * n),\n\
-where n is 2 in 2+1 parity group configuration, 8 in 8+2 and so on.\n";
+	c0pf bsize count\n\
+  	c0pf bsize count m0bs\n\
+	block size must be a multiple of 64\
+	";
 
 int help()
 {
-	fprintf(stderr, "%s\n%s\n", help_c0cp_txt, c0appz_help_txt);
+	fprintf(stderr, "%s\n", help_c0pf_txt);
 	exit(1);
 }
 
@@ -108,11 +82,17 @@ int main(int argc, char **argv)
 
 	prog = basename(strdup(argv[0]));
 
+	if((argc<3)||(argc>4)) {
+		help();
+		return 0;
+	}
+
 	idh = 11;
 	idl = 11;
 	bsz = atoi(argv[1]);
 	cnt = atoi(argv[2]);
-	m0bs = atoi(argv[3]);
+	if(argc==3) m0bs = 1;
+	if(argc==4) m0bs = atoi(argv[3]);
 
 	assert(cnt>0);
 	assert(bsz>0);
