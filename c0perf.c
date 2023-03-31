@@ -121,11 +121,13 @@ int main(int argc, char **argv)
 		if (rc < 0)
 			fprintf(stderr,"%s(): object create failed: rc=%d\n",
 				__func__, rc);
+		fprintf(stderr,"warning! object already exists!!\n");
 		rc = 333;
 		goto end;
 	}
+	rc = 0;
 
-	printf("bsz=%" PRIu64 " cnt=%" PRIu64 " m0bs=%" PRIu64 "\n" ,bsz,cnt,m0bs);
+	printf("bsize=%" PRIu64 " count=%" PRIu64 " m0bs=%" PRIu64 "\n" ,bsz,cnt,m0bs);
 
 	/* QOS start */
 	qos_whgt_served = 0;
@@ -149,21 +151,22 @@ int main(int argc, char **argv)
 		pos = 0;
 		rc = c0appz_mw(fbuf, idh, idl, pos, bsz, k, k*bsz);
 		if (rc != 0) {
-			ERR("copying failed at pos %lu: %d\n", pos, rc);
+			ERR("copying failed at position %lu: %d\n", pos, rc);
+			exit(1);
 		}
 		pos += k*bsz;
 		free(fbuf);
 	}
 
-
 	/* write whole in parallel */
 	fbuf = malloc(m0bs*bsz);
-#pragma omp parallel for
+#pragma omp parallel for private(rc,pos) shared(fbuf)
 	for(j=0; j<(cnt-k)/m0bs; j++) {
-		pos += j*m0bs*bsz;
+		pos = k*bsz + j*m0bs*bsz;
 		rc = c0appz_mw(fbuf, idh, idl, pos, bsz, m0bs, m0bs*bsz);
 		if (rc != 0) {
-			ERR("copying failed at pos %lu: %d\n", pos, rc);
+			ERR("copying failed at position %lu: %d\n", pos, rc);
+			exit(2);
 		}
 	}
 	free(fbuf);
@@ -174,9 +177,6 @@ int main(int argc, char **argv)
 	qos_pthread_wait();
 	c0appz_dump_perf();
 	c0appz_clear_perf();
-	sleep(2);
-
-
 
 end:
 	/* free */
