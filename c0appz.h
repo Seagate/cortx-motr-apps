@@ -149,13 +149,14 @@ int c0appz_timein();
 int c0appz_dump_perf(void);
 int c0appz_clear_perf(void);
 
-/* qos */
+/* QOS */
 int qos_pthread_wait();
 int qos_pthread_start();
 int qos_pthread_stop();
 int qos_pthread_cond_signal();
 int qos_pthread_cond_wait();
 int qos_objio_signal_start();
+int qos_weight_init(uint64_t total);
 
 int c0appz_fw(char *buf, char *ouf, uint64_t bsz, uint64_t cnt);
 int c0appz_fr(char *buf, char *inf, uint64_t bsz, uint64_t cnt);

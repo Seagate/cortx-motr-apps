@@ -36,8 +36,6 @@
 #include <omp.h>
 #include "c0appz.h"
 #include "c0appz_internal.h"
-#include "dir.h"
-
 
 /*
  ******************************************************************************
@@ -46,11 +44,6 @@
  */
 extern int perf;	/* performance 		*/
 int force=0; 		/* overwrite  		*/
-extern uint64_t qos_whgt_served;
-extern uint64_t qos_whgt_remain;
-extern uint64_t qos_laps_served;
-extern uint64_t qos_laps_remain;
-extern pthread_mutex_t qos_lock;	/* lock  qos_total_weight */
 
 char *prog;
 
@@ -129,11 +122,12 @@ int main(int argc, char **argv)
 
 	printf("bsize=%" PRIu64 " count=%" PRIu64 " m0bs=%" PRIu64 "\n" ,bsz,cnt,m0bs);
 
+	/*
+	 * WRITE Performance
+	 */
+
 	/* QOS start */
-	qos_whgt_served = 0;
-	qos_whgt_remain = bsz * cnt;
-	qos_laps_served = 0;
-	qos_laps_remain = 0;
+	qos_weight_init(bsz*cnt);
 	qos_pthread_start();
 	c0appz_timein();
 
@@ -173,6 +167,49 @@ int main(int argc, char **argv)
 
 	/* QOS stop */
 	ppf("%8s","write");
+	c0appz_timeout(bsz*cnt);
+	qos_pthread_wait();
+	c0appz_dump_perf();
+	c0appz_clear_perf();
+
+	/*
+	 * READ Performance
+	 */
+
+	/* QOS start */
+	qos_weight_init(bsz*cnt);
+	qos_pthread_start();
+	c0appz_timein();
+
+	/* read partial */
+	k = cnt%m0bs;
+	if(k) {
+		fbuf = malloc(k*bsz);
+		pos = 0;
+		rc = c0appz_mr(fbuf, idh, idl, pos, bsz, k, k*bsz);
+		if (rc != 0) {
+			ERR("reading failed at position %lu: %d\n", pos, rc);
+			exit(3);
+		}
+		pos += k*bsz;
+		free(fbuf);
+	}
+
+	/* read whole in parallel */
+#pragma omp parallel for private(rc,pos,fbuf)
+	for(j=0; j<(cnt-k)/m0bs; j++) {
+		fbuf = malloc(m0bs*bsz);
+		pos = k*bsz + j*m0bs*bsz;
+		rc = c0appz_mr(fbuf, idh, idl, pos, bsz, m0bs, m0bs*bsz);
+		if (rc != 0) {
+			ERR("reading failed at position %lu: %d\n", pos, rc);
+			exit(4);
+		}
+		free(fbuf);
+	}
+
+	/* QOS stop */
+	ppf("%8s","read");
 	c0appz_timeout(bsz*cnt);
 	qos_pthread_wait();
 	c0appz_dump_perf();

@@ -68,6 +68,16 @@ static int progress_rb(char *s);
  ******************************************************************************
  */
 
+/* qos_weight_init() */
+int qos_weight_init(uint64_t total)
+{
+	qos_whgt_served = 0;
+	qos_whgt_remain = total;
+	qos_laps_served = 0;
+	qos_laps_remain = 0;
+	return 0;
+}
+
 /* qos_pthread_start() */
 int qos_pthread_start(void)
 {
