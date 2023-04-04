@@ -243,6 +243,7 @@ clean-local: isc-clean
 	rm -f sfilet-* snodet-* fidout-*
 	rm -f upFile dwFile
 	rm -f *.o *.d *.d.* help.h
+	rm -rf addb_*
 
 m0t1fs:
 	touch /mnt/m0t1fs/0:3000

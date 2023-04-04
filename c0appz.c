@@ -974,6 +974,16 @@ static int read_conf_params(int idx, const struct param params[], int n)
 }
 
 /*
+ * c0appz_addb_init()
+ * Application specific addb settings
+ */
+int c0appz_addb_init(int val)
+{
+	m0_conf.mc_is_addb_init = val;
+	return 0;
+}
+
+/*
  * c0appz_init()
  * init client resources.
  */
