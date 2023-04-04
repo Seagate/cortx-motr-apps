@@ -101,6 +101,7 @@ int main(int argc, char **argv)
 	c0appz_putrc();
 
 	/* initialise */
+	c0appz_addb_init(1);
 	rc = c0appz_init(0);
 	if (rc != 0) {
 		fprintf(stderr,"%s(): error: c0appz_init() failed: %d\n",

@@ -40,6 +40,7 @@ extern const char *c0appz_help_txt;
  * startup configuration file at $HOME/.c0appz/ (starts from 0).
  */
 int c0appz_init(int idx);
+int c0appz_addb_init(int val);
 int c0appz_free(void);
 
 /**
