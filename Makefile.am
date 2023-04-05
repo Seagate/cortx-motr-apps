@@ -32,11 +32,6 @@ M0_SRC_DIR = @M0_SRC_DIR@
 LFLAGS =
 CFLAGS =
 
-#sudo
-SUDO = sudo
-#or not
-undefine SUDO
-
 #files
 FILE1 = './file1'
 FILE2 = './file2'
@@ -129,34 +124,34 @@ test: $(C0CP) $(C0CT) $(C0RM) $(FGEN)
 	$(eval FID1 := $(shell eval ./$(FGEN)))
 	$(eval FID2 := $(shell eval ./$(FGEN)))
 
-	$(SUDO) dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
+	dd if=/dev/urandom of=$(FILE1) bs=$(DDZ) count=$(CNT)
 	@echo "#####"
 	@ls -lh $(FILE1)
 	@echo "#####"
-	$(SUDO) ./$(C0RM) $(FID1) -y
+	./$(C0RM) $(FID1) -y
 	sleep 1
-	$(SUDO) ./$(C0RM) $(FID2) -y
+	./$(C0RM) $(FID2) -y
 	sleep 1
 	@echo "#####"
-	$(SUDO) ./$(C0CP) $(FID1) $(FILE1) $(BSZ) -p
+	./$(C0CP) $(FID1) $(FILE1) $(BSZ) -p
 	@echo "#####"
 	@ls -la $(FILE1)
-	$(SUDO) ./$(C0CT) $(FID1) $(FILE2) $(BSZ) $(FSZ) -p
+	./$(C0CT) $(FID1) $(FILE2) $(BSZ) $(FSZ) -p
 	@ls -la $(FILE2)
 	@echo "#####"
 	@ls -la $(FILE1)
-	$(SUDO) ./$(C0CP) $(FID2) $(FILE1) $(BSZ) -a 8 -p
+	./$(C0CP) $(FID2) $(FILE1) $(BSZ) -a 8 -p
 	@echo "#####"
-	$(SUDO) ./$(C0CT) $(FID2) $(FILE3) $(BSZ) $(FSZ) -p
+	./$(C0CT) $(FID2) $(FILE3) $(BSZ) $(FSZ) -p
 	@ls -ls $(FILE3)
 	@echo "#####"
 	cmp $(FILE1) $(FILE2) || echo "ERROR: Test Failed !!"
 	@echo "#####"
 	cmp $(FILE1) $(FILE3) || echo "ERROR: Async Test Failed !!"
 	@echo "#####"
-	$(SUDO) ./$(C0RM) $(FID1) -y
+	./$(C0RM) $(FID1) -y
 	sleep 1
-	$(SUDO) ./$(C0RM) $(FID2) -y
+	./$(C0RM) $(FID2) -y
 
 #yaml
 #bundle trace files for shipment
