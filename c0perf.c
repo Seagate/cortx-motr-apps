@@ -70,6 +70,7 @@ int main(int argc, char **argv)
 	uint64_t 	pos=0;	/* starting position 		*/
 	char    	*fbuf;	/* file buffer       		*/
 	int      	rc;		/* return code       		*/
+	uint64_t	i;
 	uint64_t	j;
 	uint64_t	k;
 
@@ -91,7 +92,6 @@ int main(int argc, char **argv)
 	assert(bsz>0);
 	assert(!(bsz%64));
 	assert(m0bs>0);
-	assert(m0bs<20);
 
 	bsz *= 1024;	/* bsz in KB 		*/
 	perf = 1;		/* show bandwidth	*/
@@ -143,6 +143,7 @@ int main(int argc, char **argv)
 	k = cnt%m0bs;
 	if(k) {
 		fbuf = malloc(k*bsz);
+		memset(fbuf, 'A', k*bsz);
 		pos = 0;
 		rc = c0appz_mw(fbuf, idh, idl, pos, bsz, k, k*bsz);
 		if (rc != 0) {
@@ -155,6 +156,7 @@ int main(int argc, char **argv)
 
 	/* write whole in parallel */
 	fbuf = malloc(m0bs*bsz);
+	memset(fbuf, 'A', m0bs*bsz);
 #pragma omp parallel for private(rc,pos) shared(fbuf)
 	for(j=0; j<(cnt-k)/m0bs; j++) {
 		pos = k*bsz + j*m0bs*bsz;
@@ -186,6 +188,7 @@ int main(int argc, char **argv)
 	k = cnt%m0bs;
 	if(k) {
 		fbuf = malloc(k*bsz);
+		memset(fbuf, 0x00, k*bsz);
 		pos = 0;
 		rc = c0appz_mr(fbuf, idh, idl, pos, bsz, k, k*bsz);
 		if (rc != 0) {
@@ -193,6 +196,7 @@ int main(int argc, char **argv)
 			exit(3);
 		}
 		pos += k*bsz;
+		for(i=0; i<k*bsz; i++) assert(fbuf[i]=='A');
 		free(fbuf);
 	}
 
@@ -200,12 +204,14 @@ int main(int argc, char **argv)
 #pragma omp parallel for private(rc,pos,fbuf)
 	for(j=0; j<(cnt-k)/m0bs; j++) {
 		fbuf = malloc(m0bs*bsz);
+		memset(fbuf, 0x00, m0bs*bsz);
 		pos = k*bsz + j*m0bs*bsz;
 		rc = c0appz_mr(fbuf, idh, idl, pos, bsz, m0bs, m0bs*bsz);
 		if (rc != 0) {
 			ERR("reading failed at position %lu: %d\n", pos, rc);
 			exit(4);
 		}
+		for(i=0; i<m0bs*bsz; i++) assert(fbuf[i]=='A');
 		free(fbuf);
 	}
 
